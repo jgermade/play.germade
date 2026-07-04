@@ -7,10 +7,13 @@ PORT ?= 8080
 build.celeste:
 	./scripts/build-celeste-docker.sh
 
-build: build.celeste
+build.ui:
+	npm run build
 
-ui:
-	npm run dev -- --host --port $(PORT)
+build:
+	$(MAKE) build.celeste
+	$(MAKE) build.ui
 
 up:
-	$(MAKE) ui
+	npm run dev -- --host --port $(PORT)
+
