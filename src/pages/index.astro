@@ -1,0 +1,74 @@
+---
+import { gamesData } from "../data/games";
+import "../styles/main.css";
+
+const getStatusLabel = (status: string) => {
+  if (status === "ready") return "Ready";
+  if (status === "wip") return "WIP";
+  if (status === "broken") return "Broken";
+  return "Unknown";
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>play.germade.dev - WASM Games</title>
+  </head>
+  <body>
+    <div class="page-wrapper">
+      <header class="site-header">
+        <div class="logo">
+          <span class="logo-icon">🎮</span>
+          <h1>play.germade.dev</h1>
+        </div>
+        <p class="tagline">WebAssembly Games Collection</p>
+      </header>
+
+      <main class="games-container" id="games-grid">
+        {
+          gamesData.map((game) => {
+            const isReady = game.status === "ready";
+            return (
+              <article class="game-card">
+                <div class="card-cover-default">{game.emoji}</div>
+                <div class="card-content">
+                  <h2 class="card-title">{game.title}</h2>
+                  <div class="card-meta">
+                    <span class={`status-tag status-${game.status}`}>
+                      ● {getStatusLabel(game.status)}
+                    </span>
+                  </div>
+                  <p class="card-description">{game.description}</p>
+                  <div class="card-actions">
+                    {
+                      isReady ? (
+                        <a href={`/game/${game.slug}/index.html`} class="btn btn-primary">🕹️ Play</a>
+                      ) : (
+                        <button class="btn btn-primary" disabled>🕹️ Play</button>
+                      )
+                    }
+                    {
+                      isReady ? (
+                        <a href={`/game/${game.slug}/index.html#setup`} class="btn btn-secondary">📖 Details</a>
+                      ) : (
+                        <button class="btn btn-secondary" disabled>📖 Details</button>
+                      )
+                    }
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        }
+      </main>
+
+      <footer class="site-footer">
+        <p>
+          Developed with ❤️ by <a href="https://germade.dev" target="_blank" rel="noopener">Germade</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,172 @@
+---
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Celeste/Everest - play.germade.dev</title>
+    <style>
+      :root {
+        --bg: #0d1a26;
+        --panel: #12283a;
+        --panel-2: #163650;
+        --text: #e8f0f7;
+        --muted: #9db3c7;
+        --accent: #53d3ff;
+        --accent-2: #7ce8ff;
+        --ok: #87e8b0;
+        --danger: #ff9292;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 10% 20%, rgba(124, 232, 255, 0.12), transparent 28%),
+          radial-gradient(circle at 90% 10%, rgba(83, 211, 255, 0.1), transparent 25%),
+          var(--bg);
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .layout {
+        width: min(1100px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        background: linear-gradient(180deg, var(--panel), var(--panel-2));
+        border: 1px solid rgba(124, 232, 255, 0.2);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      }
+
+      h1 {
+        font-size: clamp(1.5rem, 3vw, 2.2rem);
+        margin-bottom: 6px;
+        color: var(--accent-2);
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 0.95rem;
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      .status.err {
+        color: var(--danger);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .btn {
+        border: 1px solid rgba(124, 232, 255, 0.3);
+        color: var(--text);
+        text-decoration: none;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: rgba(83, 211, 255, 0.12);
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .btn:hover {
+        border-color: var(--accent-2);
+        background: rgba(83, 211, 255, 0.2);
+      }
+
+      iframe {
+        width: 100%;
+        height: min(72vh, 780px);
+        border: 0;
+        border-radius: 12px;
+        background: #000;
+        display: none;
+      }
+
+      .setup {
+        margin-top: 10px;
+        padding: 14px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(124, 232, 255, 0.18);
+      }
+
+      code {
+        color: var(--accent-2);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>Celeste/Everest</h1>
+        <p>Runtime page configured. If a web build exists in <code>public/game/celeste/build/index.html</code>, it will load automatically.</p>
+        <p id="runtime-status" class="status">Checking local build...</p>
+        <div class="actions">
+          <a class="btn" href="/">Back to launcher</a>
+          <a class="btn" href="#setup">Setup</a>
+        </div>
+      </section>
+
+      <section class="panel" id="setup">
+        <h2>Setup</h2>
+        <div class="setup">
+          <p>Place your Celeste/Everest browser build at <code>public/game/celeste/build/index.html</code> and include required assets in the same folder tree.</p>
+        </div>
+        <iframe id="celeste-frame" title="Celeste/Everest"></iframe>
+      </section>
+    </main>
+
+    <script>
+      const buildEntry = '/game/celeste/build/index.html';
+      const statusEl = document.getElementById('runtime-status');
+      const frame = document.getElementById('celeste-frame');
+
+      if (!(statusEl instanceof HTMLElement) || !(frame instanceof HTMLIFrameElement)) {
+        throw new Error('Runtime UI elements were not found in the page.');
+      }
+
+      fetch(buildEntry, { method: 'HEAD' })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Build not found');
+          }
+
+          frame.src = buildEntry;
+          frame.style.display = 'block';
+          statusEl.textContent = 'Build found. Launching Celeste/Everest...';
+          statusEl.classList.add('ok');
+        })
+        .catch(() => {
+          statusEl.textContent = 'No build detected yet. Add files to public/game/celeste/build to run.';
+          statusEl.classList.add('err');
+        });
+    </script>
+  </body>
+</html>
