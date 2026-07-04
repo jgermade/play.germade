@@ -96,4 +96,7 @@ fi
 mkdir -p "$TARGET_DIR"
 rsync -a --delete "$CLONE_DIR/frontend/dist/" "$TARGET_DIR/"
 
+echo "Running Gamepad SAB Proxy patcher..."
+node "$ROOT_DIR/scripts/celeste/patch-gamepad-proxy.mjs"
+
 echo "Celeste build synced to: $TARGET_DIR"

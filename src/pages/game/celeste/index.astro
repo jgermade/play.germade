@@ -116,6 +116,16 @@
         border-radius: 12px;
         background: #000;
         display: none;
+
+        &.loaded {
+          display: block;
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100vh;
+          object-fit: contain;
+          z-index: 9999;
+        }
       }
 
       .setup {
@@ -342,7 +352,7 @@
           }
 
           frame.src = buildEntry;
-          frame.style.display = "block";
+          frame.classList.add("loaded");
           statusEl.textContent =
             "Game assets loaded. Launching Celeste/Everest...";
           statusEl.classList.add("ok");
