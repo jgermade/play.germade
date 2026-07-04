@@ -9,7 +9,8 @@
     "preview": "astro preview"
   },
   "devDependencies": {
-    "astro": "^5.0.0"
+    "astro": "^5.0.0",
+    "playwright": "^1.61.1"
   },
   "dependencies": {
     "fflate": "^0.8.3"

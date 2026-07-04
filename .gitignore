@@ -11,6 +11,7 @@ dist/
 /.tmp
 public/game/celeste/build/
 public/game/celeste/assets.zip
+public/game/celeste/assets.*
 
 # Logs
 npm-debug.log*
