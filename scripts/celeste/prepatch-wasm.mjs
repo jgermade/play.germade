@@ -19,45 +19,35 @@ const prepatchHtml = `
 <!DOCTYPE html>
 <html><body>
 <script type="module">
-    import { Unzip, UnzipInflate, UnzipPassThrough } from "https://unpkg.com/fflate?module";
-    
     async function run() {
-        const res = await fetch("/game/celeste/assets.zip");
-        const reader = res.body.getReader();
-        const root = await navigator.storage.getDirectory();
+        const res = await fetch("/assets/celeste/celeste-assets.tar.gz");
+        if (!res.ok) throw new Error("Assets not found");
         
-        const unzipper = new Unzip();
-        unzipper.register(UnzipInflate);
-        unzipper.register(UnzipPassThrough);
-        
-        let activeWrites = 0;
-        let ended = false;
-        
-        const checkDone = async () => {
-            if (ended && activeWrites === 0) {
-                await root.getFileHandle(".ContentExists", { create: true });
-                window.location.href = "/game/celeste/build/index.html";
+        const ds = new DecompressionStream("gzip");
+        const stream = res.body.pipeThrough(ds);
+        const reader = stream.getReader();
+        const rootHandle = await navigator.storage.getDirectory();
+
+        let buffer = new Uint8Array(0);
+
+        async function readBytes(n) {
+            while (buffer.length < n) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const newBuf = new Uint8Array(buffer.length + value.length);
+                newBuf.set(buffer);
+                newBuf.set(value, buffer.length);
+                buffer = newBuf;
             }
-        };
-        
-        unzipper.onEnd = () => { ended = true; checkDone(); };
-        
-        const writeQueue = [];
-        let isWriting = false;
-        
-        async function processWriteQueue() {
-            if (isWriting) return;
-            isWriting = true;
-            while(writeQueue.length > 0) {
-                const task = writeQueue.shift();
-                await task();
-            }
-            isWriting = false;
+            if (buffer.length < n) return null;
+            const chunk = buffer.slice(0, n);
+            buffer = buffer.slice(n);
+            return chunk;
         }
-        
-        const dirCache = { "": root };
+
+        const dirCache = { "": rootHandle };
         async function getCachedDir(pathParts) {
-            let current = root;
+            let current = rootHandle;
             let currentPath = "";
             for (const part of pathParts) {
                 if (!part) continue;
@@ -69,43 +59,41 @@ const prepatchHtml = `
             }
             return current;
         }
-        
-        unzipper.onfile = (file) => {
-            if (file.name.endsWith("/")) {
-                file.ondata = () => {}; file.start(); return;
-            }
-            let fileData = [];
-            file.ondata = (err, data, final) => {
-                if (data) fileData.push(new Uint8Array(data));
-                if (final) {
-                    activeWrites++;
-                    writeQueue.push(async () => {
-                        try {
-                            const pathParts = file.name.split("/");
-                            const name = pathParts.pop();
-                            const dirHandle = await getCachedDir(pathParts);
-                            const fh = await dirHandle.getFileHandle(name, { create: true });
-                            const writable = await fh.createWritable();
-                            await writable.write(new Blob(fileData));
-                            await writable.close();
-                        } catch(e) {}
-                        activeWrites--;
-                        checkDone();
-                    });
-                    processWriteQueue();
+
+        while (true) {
+            const header = await readBytes(512);
+            if (!header || header[0] === 0) break; // End of tar or EOF
+
+            const name = new TextDecoder().decode(header.slice(0, 100)).replace(/\\0.*/, '');
+            if (!name) break;
+
+            const sizeStr = new TextDecoder().decode(header.slice(124, 135)).trim();
+            const size = parseInt(sizeStr, 8) || 0;
+            const typeflag = String.fromCharCode(header[156]);
+
+            const dataBlocks = Math.ceil(size / 512);
+            const dataSizeToRead = dataBlocks * 512;
+            const dataBuffer = await readBytes(dataSizeToRead);
+            
+            if (typeflag === '5' || name.endsWith('/')) {
+                const pathParts = name.split("/").filter(Boolean);
+                await getCachedDir(pathParts);
+            } else {
+                const fileData = dataBuffer ? dataBuffer.slice(0, size) : new Uint8Array(0);
+                const pathParts = name.split("/");
+                const fileName = pathParts.pop();
+                if (fileName) {
+                    const dirHandle = await getCachedDir(pathParts);
+                    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fileData);
+                    await writable.close();
                 }
-            };
-            file.start();
-        };
-        
-        while(true) {
-            while(writeQueue.length > 20) {
-                await new Promise(r => setTimeout(r, 10));
             }
-            const {done, value} = await reader.read();
-            if (done) { unzipper.push(new Uint8Array(0), true); ended = true; checkDone(); break; }
-            unzipper.push(value);
         }
+        
+        await rootHandle.getFileHandle(".ContentExists", { create: true });
+        window.location.href = "/game/celeste/index.html";
     }
     run();
 </script>

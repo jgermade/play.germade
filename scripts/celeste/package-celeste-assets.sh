@@ -5,7 +5,7 @@ set -euo pipefail
 # that can be hosted on the server and loaded automatically by the browser.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TARGET_ZIP="$ROOT_DIR/public/game/celeste/assets.zip"
+TARGET_TAR="$ROOT_DIR/public/assets/celeste/celeste-assets.tar.gz"
 
 DEFAULT_DIR=""
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -58,7 +58,7 @@ else
 fi
 
 echo "Packaging Celeste assets from: $CELESTE_DIR"
-echo "Target: $TARGET_ZIP"
+echo "Target: $TARGET_TAR"
 
 # Create a temporary directory for zipping
 TMP_DIR=$(mktemp -d)
@@ -81,9 +81,9 @@ if [[ -f "$CELESTE_DIR/orig/Celeste.exe" ]]; then
   fi
 fi
 
-echo "Creating zip archive (this may take a while)..."
-mkdir -p "$(dirname "$TARGET_ZIP")"
+echo "Creating tar.gz archive (this may take a while)..."
+mkdir -p "$(dirname "$TARGET_TAR")"
 cd "$TMP_DIR"
-zip -r "$TARGET_ZIP" . > /dev/null
+tar -czf "$TARGET_TAR" . > /dev/null
 
-echo "Success! Assets packaged to $TARGET_ZIP"
+echo "Success! Assets packaged to $TARGET_TAR"

@@ -9,9 +9,8 @@ dist/
 # Local build/cache artifacts
 .cache/
 /.tmp
-public/game/celeste/build/
-public/game/celeste/assets.zip
-public/game/celeste/assets.*
+public/game/celeste/*
+public/assets/celeste/celeste-assets.*
 
 # Logs
 npm-debug.log*

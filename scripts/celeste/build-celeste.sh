@@ -11,7 +11,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BRANCH="${CELESTE_WASM_BRANCH:-threads-v2}"
 CLONE_DIR="${CELESTE_WASM_DIR:-$ROOT_DIR/.cache/celeste-wasm}"
-TARGET_DIR="$ROOT_DIR/public/game/celeste/build"
+TARGET_DIR="$ROOT_DIR/public/game/celeste"
 UPSTREAM_MAKE_TARGET="publish"
 
 need_cmd() {
@@ -94,7 +94,7 @@ if [[ ! -f "$CLONE_DIR/frontend/dist/index.html" ]]; then
 fi
 
 mkdir -p "$TARGET_DIR"
-rsync -a --delete "$CLONE_DIR/frontend/dist/" "$TARGET_DIR/"
+rsync -a --delete --exclude 'assets*.zip' "$CLONE_DIR/frontend/dist/" "$TARGET_DIR/"
 
 echo "Running Gamepad SAB Proxy patcher..."
 node "$ROOT_DIR/scripts/celeste/patch-gamepad-proxy.mjs"
