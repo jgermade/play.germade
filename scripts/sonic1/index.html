@@ -91,6 +91,86 @@
         if (text) Module.printErr('[post-exception status] ' + text);
       };
     };
+
+    // 1. Hook AudioContext to guarantee we capture it
+    var audioContexts = [];
+    var OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OrigAudioContext) {
+      window.AudioContext = function() {
+        var ctx = new OrigAudioContext();
+        audioContexts.push(ctx);
+        return ctx;
+      };
+    }
+
+    // Fix for AudioContext autoplay policies
+    var audioResumed = false;
+    function resumeAudio() {
+      if (audioResumed) return;
+      audioContexts.forEach(function(ctx) {
+        if (ctx.state === 'suspended') {
+          ctx.resume().then(function() {
+            audioResumed = true;
+            console.log("AudioContext resumed by user interaction.");
+          }).catch(function(e) {
+            console.error("Failed to resume AudioContext", e);
+          });
+        } else if (ctx.state === 'running') {
+          audioResumed = true;
+        }
+      });
+    }
+
+    // Standard DOM events (These are the ONLY ones that can resume AudioContext due to browser security)
+    window.addEventListener('click', resumeAudio, { once: false });
+    window.addEventListener('keydown', resumeAudio, { once: false });
+    window.addEventListener('touchstart', resumeAudio, { once: false });
+
+    // 2. Gamepad Proxy for SDL2 Compatibility
+    // SDL2 in Emscripten only maps gamepads if they have mapping === 'standard'.
+    if (navigator.getGamepads) {
+      const origGetGamepads = navigator.getGamepads.bind(navigator);
+      let lastGamepadState = [];
+      
+      navigator.getGamepads = function() {
+        const pads = origGetGamepads();
+        if (!pads) return pads;
+        const newPads = [];
+        let newlyConnected = false;
+
+        for (let i = 0; i < pads.length; i++) {
+          const pad = pads[i];
+          if (!pad) {
+            newPads[i] = null;
+            continue;
+          }
+          
+          if (!lastGamepadState[i]) {
+            newlyConnected = true;
+          }
+
+          newPads[i] = {
+            id: pad.id || "Standard Gamepad",
+            mapping: "standard", // Force SDL2 to recognize it
+            connected: pad.connected,
+            index: pad.index,
+            axes: pad.axes,
+            buttons: pad.buttons
+          };
+        }
+        
+        if (newlyConnected) {
+          // Trigger the standard DOM event so Emscripten SDL2 picks it up
+          setTimeout(function() {
+            var event = new Event('gamepadconnected');
+            window.dispatchEvent(event);
+          }, 0);
+        }
+
+        lastGamepadState = newPads;
+        return newPads;
+      };
+    }
   </script>
   <script async type="text/javascript" src="index.js"></script>
 </body>
