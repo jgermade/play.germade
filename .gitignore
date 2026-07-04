@@ -10,7 +10,7 @@ dist/
 .cache/
 /.tmp
 public/game/celeste/*
-public/game/*
+public/game/sonic-1/*
 public/assets/celeste/celeste-assets.*
 
 # Logs
