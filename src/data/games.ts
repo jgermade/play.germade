@@ -49,9 +49,9 @@ export const gamesData: GameEntry[] = [
     title: "Sonic The Hedgehog 2",
     emoji: "⚡",
     description: "Sonic 2 decompilation, running via WASM.",
-    status: "wip",
+    status: "ready",
     category: "Juegos Previstos",
-    coverUrl: "/assets/covers/sonic_cover.png",
+    coverUrl: "/assets/covers/sonic2_cover.png",
     youtubeId: "8v4Cg2nE0R4"
   },
   {

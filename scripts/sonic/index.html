@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>Sonic 1</title>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      overflow: hidden;
+    }
+
+    .canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0px none;
+      background-color: black;
+    }
+
+    .canvas-container .emscripten {
+      aspect-ratio: 16/9;
+      display: block;
+      margin: auto;
+      max-width: 100%;
+      max-height: 100%;
+      outline: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="canvas-container">
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  </div>
+
+  <script type='text/javascript'>
+    var Module = {
+      canvas: (function () {
+        var canvas = document.getElementById('canvas');
+        // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+        // application robust, you may want to override this behavior before shipping!
+        canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+        return canvas;
+      })(),
+      print: (function () {
+        return function (text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.log(text);
+        };
+      })(),
+      printErr: function (text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+      },
+      setStatus: function (text) {
+        if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+        if (text === Module.setStatus.last.text) return;
+        var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        var now = Date.now();
+        if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+        if (m) {
+          text = m[1];
+        } else {
+          if (!text) return;
+        }
+        console.log("Status: " + text);
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+      }
+    };
+    Module.setStatus('Downloading...');
+    window.onerror = function (event) {
+      Module.setStatus('Exception thrown, see JavaScript console');
+      Module.setStatus = function (text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+      };
+    };
+
+    // 1. Hook AudioContext to guarantee we capture it
+    var audioContexts = [];
+    var OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OrigAudioContext) {
+      window.AudioContext = function () {
+        var ctx = new OrigAudioContext();
+        audioContexts.push(ctx);
+        return ctx;
+      };
+    }
+
+    // Fix for AudioContext autoplay policies
+    var audioResumed = false;
+    function resumeAudio() {
+      if (audioResumed) return;
+      audioContexts.forEach(function (ctx) {
+        if (ctx.state === 'suspended') {
+          ctx.resume().then(function () {
+            audioResumed = true;
+            console.log("AudioContext resumed by user interaction.");
+          }).catch(function (e) {
+            console.error("Failed to resume AudioContext", e);
+          });
+        } else if (ctx.state === 'running') {
+          audioResumed = true;
+        }
+      });
+    }
+
+    // Standard DOM events (These are the ONLY ones that can resume AudioContext due to browser security)
+    window.addEventListener('click', resumeAudio, { once: false });
+    window.addEventListener('keydown', resumeAudio, { once: false });
+    window.addEventListener('touchstart', resumeAudio, { once: false });
+
+    // 2. Gamepad → Keyboard translator (bypass SDL2 gamepad entirely)
+    // Maps standard gamepad buttons to keyboard keys that RSDKv4 already handles.
+    (function () {
+      const BUTTON_TO_KEY = {
+        0:  { key: 'z',          code: 'KeyZ',          keyCode: 90 },  // A → Jump
+        1:  { key: 'x',          code: 'KeyX',          keyCode: 88 },  // B → Run
+        2:  { key: 'c',          code: 'KeyC',          keyCode: 67 },  // X → C
+        3:  { key: 's',          code: 'KeyS',          keyCode: 83 },  // Y → Y
+        8:  { key: 'Tab',        code: 'Tab',           keyCode: 9  },  // Select
+        9:  { key: 'Enter',      code: 'Enter',         keyCode: 13 },  // Start
+        12: { key: 'ArrowUp',    code: 'ArrowUp',       keyCode: 38 },  // D-up
+        13: { key: 'ArrowDown',  code: 'ArrowDown',     keyCode: 40 },  // D-down
+        14: { key: 'ArrowLeft',  code: 'ArrowLeft',     keyCode: 37 },  // D-left
+        15: { key: 'ArrowRight', code: 'ArrowRight',    keyCode: 39 },  // D-right
+        4:  { key: 'q',          code: 'KeyQ',          keyCode: 81 },  // LB
+        5:  { key: 'e',          code: 'KeyE',          keyCode: 69 },  // RB
+      };
+      // Axis → key (left stick)
+      const DEADZONE = 0.5;
+      const axisState = {};  // tracks which axis-keys are currently pressed
+
+      const pressedButtons = new Set();
+      const canvas = document.getElementById('canvas');
+      const target = canvas || window;
+
+      function dispatchKey(type, mapping) {
+        const ev = new KeyboardEvent(type, {
+          key: mapping.key,
+          code: mapping.code,
+          keyCode: mapping.keyCode,
+          which: mapping.keyCode,
+          bubbles: true,
+          cancelable: true,
+        });
+        target.dispatchEvent(ev);
+      }
+
+      function pollGamepad() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let p = 0; p < pads.length; p++) {
+          const pad = pads[p];
+          if (!pad) continue;
+
+          // Buttons
+          for (let b = 0; b < pad.buttons.length; b++) {
+            const mapping = BUTTON_TO_KEY[b];
+            if (!mapping) continue;
+            const pressed = pad.buttons[b] && (pad.buttons[b].pressed || pad.buttons[b].value > 0.5);
+            const wasPressed = pressedButtons.has(b);
+            if (pressed && !wasPressed) { pressedButtons.add(b); dispatchKey('keydown', mapping); }
+            if (!pressed && wasPressed) { pressedButtons.delete(b); dispatchKey('keyup', mapping); }
+          }
+
+          // Left stick axes → arrow keys
+          const ax = pad.axes[0] || 0;  // X
+          const ay = pad.axes[1] || 0;  // Y
+          const axisMap = {
+            'left':  { axis: ax, neg: true,  key: BUTTON_TO_KEY[14] },
+            'right': { axis: ax, neg: false, key: BUTTON_TO_KEY[15] },
+            'up':    { axis: ay, neg: true,  key: BUTTON_TO_KEY[12] },
+            'down':  { axis: ay, neg: false, key: BUTTON_TO_KEY[13] },
+          };
+          for (const [id, cfg] of Object.entries(axisMap)) {
+            const active = cfg.neg ? cfg.axis < -DEADZONE : cfg.axis > DEADZONE;
+            if (active && !axisState[id]) { axisState[id] = true;  dispatchKey('keydown', cfg.key); }
+            if (!active && axisState[id]) { axisState[id] = false; dispatchKey('keyup',   cfg.key); }
+          }
+        }
+        requestAnimationFrame(pollGamepad);
+      }
+      requestAnimationFrame(pollGamepad);
+      console.log("GAMEPAD→KEYBOARD translator active");
+    })();
+
+    // 3. Gamepad Proxy for SDL2 Compatibility
+    // SDL2 in Emscripten only maps gamepads if they have mapping === 'standard'.
+    if (navigator.getGamepads) {
+      const origGetGamepads = navigator.getGamepads.bind(navigator);
+      let lastGamepadState = [];
+      let lastLog = 0;
+
+      navigator.getGamepads = function () {
+        const now = Date.now();
+        if (now - lastLog > 1000) {
+           console.log("GAMEPAD PROXY: Polled by Emscripten!");
+           lastLog = now;
+        }
+        
+        const pads = origGetGamepads();
+        if (!pads) return pads;
+        // Compact: remove nulls so gamepads start at index 0
+        const realPads = Array.from(pads).filter(p => p != null);
+        const newPads = [];
+
+        for (let i = 0; i < realPads.length; i++) {
+          const pad = realPads[i];
+
+          // Check if any button is pressed for logging
+          for (let j = 0; j < pad.buttons.length; j++) {
+            if (pad.buttons[j] && (pad.buttons[j].pressed || pad.buttons[j].value > 0.5)) {
+              console.log("GAMEPAD PROXY: Button pressed!", j, pad.id);
+            }
+          }
+
+          newPads[i] = {
+            id: "Standard Gamepad",
+            mapping: "standard",
+            connected: pad.connected,
+            index: i,  // Force remapped index starting from 0
+            axes: pad.axes,
+            buttons: pad.buttons,
+            timestamp: pad.timestamp
+          };
+
+          if (!window._seenGamepads) window._seenGamepads = {};
+          if (!window._seenGamepads[i]) {
+            window._seenGamepads[i] = true;
+            console.log("GAMEPAD PROXY: Emitting synthetic gamepadconnected for remapped index", i, "(original:", pad.index, ")");
+            const event = new Event('gamepadconnected');
+            event.gamepad = newPads[i];
+            window.dispatchEvent(event);
+          }
+        }
+
+        lastGamepadState = newPads;
+        return newPads;
+      };
+      
+      // Start polling loop to break the chicken-and-egg problem:
+      // Emscripten waits for 'gamepadconnected' before it starts polling.
+      // But our proxy only fires 'gamepadconnected' when it gets polled!
+      function forceGamepadPoll() {
+        if (navigator.getGamepads) navigator.getGamepads();
+        requestAnimationFrame(forceGamepadPoll);
+      }
+      requestAnimationFrame(forceGamepadPoll);
+    }
+  </script>
+  <script async type="text/javascript" src="index.js"></script>
+</body>
+
+</html>
