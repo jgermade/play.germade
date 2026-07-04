@@ -10,9 +10,10 @@ A WebAssembly (WASM) games collection and launcher.
 - Celeste engine is built via Docker with `make build.celeste` and outputs to `public/game/celeste/build`.
 - Scripts are organized inside `scripts/celeste/`.
 - Gamepad proxy (`patch-gamepad-proxy.mjs`) is applied post-build to support controllers in Emscripten web workers.
+- Console-style Launcher UI with horizontal and vertical grid navigation, keyboard and gamepad support, and in-place OPFS asset extraction.
 
 ## Todos
 - Implement hosted assets feature to bypass `showDirectoryPicker()` (In Progress, see `SESSIONS/2026-07-04_17h02.hosted-assets.session.md`).
-- Redesign Launcher UI to Netflix style (Pending session).
+- Redesign Launcher UI to Netflix style (Completed).
 - Add Sonic games (WIP).
 - Add Quake and Doom games (WIP).

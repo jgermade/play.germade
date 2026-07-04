@@ -393,7 +393,7 @@ gamesData.forEach(game => {
 
       // Check OPFS status for a game
       async function checkOPFS(slug) {
-        if (slug !== "celeste") return false;
+        if (slug !== "celeste") return true; // Pre-packaged games like sonic-1
         try {
           const root = await navigator.storage.getDirectory();
           await root.getFileHandle(".ContentExists", { create: false });
