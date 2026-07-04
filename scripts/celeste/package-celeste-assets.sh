@@ -77,15 +77,48 @@ echo "Copying files to temporary directory..."
 cp -r "$CELESTE_DIR/Content" "$TMP_DIR/Content"
 cp "$CELESTE_DIR/$CELESTE_EXE" "$TMP_DIR/Celeste.exe"
 
+ALREADY_PATCHED=0
+if [[ -f "$CELESTE_DIR/orig/Celeste.exe" ]]; then
+  ALREADY_PATCHED=1
+fi
+
 if [[ $PATCHED -eq 1 ]]; then
-  if [[ -d "$CELESTE_DIR/Everest" ]]; then
-    cp -r "$CELESTE_DIR/Everest" "$TMP_DIR/Everest" 2>/dev/null || true
-  fi
-  if [[ -d "$CELESTE_DIR/Mods" ]]; then
-    cp -r "$CELESTE_DIR/Mods" "$TMP_DIR/Mods" 2>/dev/null || true
-  fi
-  if [[ -d "$CELESTE_DIR/Saves" ]]; then
-    cp -r "$CELESTE_DIR/Saves" "$TMP_DIR/Saves" 2>/dev/null || true
+  if [[ $ALREADY_PATCHED -eq 1 ]]; then
+    echo "Everest already installed locally. Copying extra files..."
+    if [[ -d "$CELESTE_DIR/Everest" ]]; then
+      cp -r "$CELESTE_DIR/Everest" "$TMP_DIR/Everest" 2>/dev/null || true
+    fi
+    if [[ -d "$CELESTE_DIR/Mods" ]]; then
+      cp -r "$CELESTE_DIR/Mods" "$TMP_DIR/Mods" 2>/dev/null || true
+    fi
+    if [[ -d "$CELESTE_DIR/Saves" ]]; then
+      cp -r "$CELESTE_DIR/Saves" "$TMP_DIR/Saves" 2>/dev/null || true
+    fi
+  else
+    echo "Vanilla game detected. Downloading and installing Everest into zip..."
+    EVEREST_ZIP=$(mktemp)
+    curl -sL https://github.com/EverestAPI/Everest/releases/latest/download/main.zip -o "$EVEREST_ZIP"
+    
+    unzip -qo "$EVEREST_ZIP" -d "$TMP_DIR/everest-extract"
+    cp -r "$TMP_DIR"/everest-extract/main/* "$TMP_DIR/"
+    rm -rf "$TMP_DIR/everest-extract" "$EVEREST_ZIP"
+    
+    echo "Applying Everest patch via MiniInstaller..."
+    (
+      cd "$TMP_DIR"
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        chmod +x MiniInstaller-osx
+        ./MiniInstaller-osx
+      elif [[ "$(uname -s)" == "Linux" ]]; then
+        chmod +x MiniInstaller-linux
+        ./MiniInstaller-linux
+      elif [[ "$(uname -s)" == MINGW* ]] || [[ "$(uname -s)" == CYGWIN* ]] || [[ "$(uname -s)" == MSYS* ]]; then
+        ./MiniInstaller-win64.exe
+      else
+        dotnet MiniInstaller.dll
+      fi
+    )
+    echo "Patch applied."
   fi
 fi
 
