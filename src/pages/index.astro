@@ -1,13 +1,22 @@
 ---
-import { gamesData } from "../data/games";
+import { gamesData, type GameCategory } from "../data/games";
 import "../styles/main.css";
 
-const getStatusLabel = (status: string) => {
-  if (status === "ready") return "Ready";
-  if (status === "wip") return "WIP";
-  if (status === "broken") return "Broken";
-  return "Unknown";
+// Group games by category
+const categories: Record<GameCategory, typeof gamesData> = {
+  Featured: [],
+  Platformers: [],
+  Shooters: [],
+  "Sonic Collection": [],
 };
+
+gamesData.forEach((game) => {
+  if (categories[game.category]) {
+    categories[game.category].push(game);
+  }
+});
+
+const featuredGame = gamesData.find((g) => g.category === "Featured") || gamesData[0];
 ---
 
 <html lang="en">
@@ -15,60 +24,338 @@ const getStatusLabel = (status: string) => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>play.germade.dev - WASM Games</title>
+    <style>
+      :root {
+        --bg-netflix: #141414;
+        --text-netflix: #ffffff;
+        --muted-netflix: #808080;
+        --accent-netflix: #e50914;
+        --hover-netflix: #f40612;
+      }
+
+      body {
+        margin: 0;
+        background-color: var(--bg-netflix);
+        color: var(--text-netflix);
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        overflow-x: hidden;
+      }
+
+      /* Hero Section */
+      .hero {
+        position: relative;
+        height: 70vh;
+        min-height: 500px;
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: flex-end;
+        padding: 0 4% 10% 4%;
+      }
+      
+      .hero-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to top,
+          var(--bg-netflix) 0%,
+          rgba(20, 20, 20, 0.4) 50%,
+          rgba(20, 20, 20, 0) 100%
+        );
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 600px;
+      }
+
+      .hero-title {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.45);
+      }
+
+      .hero-description {
+        font-size: 1.2rem;
+        color: #e5e5e5;
+        margin-bottom: 1.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.45);
+        line-height: 1.4;
+      }
+
+      /* Buttons */
+      .btn-play, .btn-setup {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.6rem 1.8rem;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        transition: transform 0.2s, background-color 0.2s;
+      }
+      
+      .btn-play {
+        background-color: white;
+        color: black;
+      }
+      
+      .btn-play:hover {
+        background-color: rgba(255, 255, 255, 0.75);
+      }
+      
+      .btn-setup {
+        background-color: rgba(109, 109, 110, 0.7);
+        color: white;
+        margin-left: 10px;
+      }
+      
+      .btn-setup:hover {
+        background-color: rgba(109, 109, 110, 0.4);
+      }
+      
+      .btn-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Sliders */
+      .category-row {
+        margin-bottom: 3vw;
+        padding: 0 4%;
+      }
+
+      .category-title {
+        font-size: 1.4vw;
+        font-weight: bold;
+        margin-bottom: 0.5em;
+        color: #e5e5e5;
+        min-font-size: 1.2rem;
+      }
+
+      .slider-container {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 20px;
+        scrollbar-width: none; /* Firefox */
+      }
+      
+      .slider-container::-webkit-scrollbar {
+        display: none;
+      }
+
+      .game-card {
+        flex: 0 0 calc(100% / 6 - 10px); /* 6 cards per row */
+        min-width: 150px;
+        position: relative;
+        transition: transform 0.3s ease;
+        border-radius: 4px;
+        overflow: hidden;
+        cursor: pointer;
+        background-color: #222;
+        aspect-ratio: 2 / 3;
+      }
+
+      .game-card:hover {
+        transform: scale(1.05);
+        z-index: 10;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+      }
+
+      .card-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        inset: 0;
+      }
+      
+      .card-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 10px;
+        background: linear-gradient(45deg, #1f1f1f, #2a2a2a);
+      }
+      
+      .card-emoji {
+        font-size: 3rem;
+        margin-bottom: 10px;
+      }
+      
+      .card-title-fallback {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: #ddd;
+      }
+
+      .card-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 60%);
+        opacity: 0;
+        transition: opacity 0.3s;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 10px;
+      }
+      
+      .game-card:hover .card-overlay {
+        opacity: 1;
+      }
+
+      .card-status {
+        font-size: 0.8rem;
+        font-weight: bold;
+        color: var(--ok);
+        margin-bottom: 5px;
+      }
+      
+      .card-status.wip {
+        color: #f1c40f;
+      }
+
+      @media (max-width: 1024px) {
+        .game-card { flex: 0 0 calc(100% / 4 - 10px); }
+        .category-title { font-size: 1.5rem; }
+      }
+      
+      @media (max-width: 600px) {
+        .game-card { flex: 0 0 calc(100% / 2 - 10px); }
+        .hero-title { font-size: 2.5rem; }
+      }
+    </style>
   </head>
   <body>
-    <div class="page-wrapper">
-      <header class="site-header">
-        <div class="logo">
-          <span class="logo-icon">🎮</span>
-          <h1>play.germade.dev</h1>
+    <!-- Hero Section -->
+    <section class="hero" style={`background-image: url('${featuredGame.bannerUrl || ''}');`}>
+      <div class="hero-gradient"></div>
+      <div class="hero-content">
+        <h1 class="hero-title">{featuredGame.title}</h1>
+        <p class="hero-description">{featuredGame.description}</p>
+        <div class="hero-actions">
+          <a 
+            href={`/game/${featuredGame.slug}/game.html`}
+            class="btn-play data-opfs-play" 
+            data-slug={featuredGame.slug}
+            style="display: none;"
+          >
+            ▶ Play
+          </a>
+          <a 
+            href={`/game/${featuredGame.slug}/index.html#setup`} 
+            class="btn-play data-opfs-setup"
+            data-slug={featuredGame.slug}
+          >
+            ▶ Install
+          </a>
+          <a href={`/game/${featuredGame.slug}/index.html#details`} class="btn-setup">ℹ More Info</a>
         </div>
-        <p class="tagline">WebAssembly Games Collection</p>
-      </header>
+      </div>
+    </section>
 
-      <main class="games-container" id="games-grid">
-        {
-          gamesData.map((game) => {
-            const isReady = game.status === "ready";
-            return (
-              <article class="game-card">
-                <div class="card-cover-default">{game.emoji}</div>
-                <div class="card-content">
-                  <h2 class="card-title">{game.title}</h2>
-                  <div class="card-meta">
-                    <span class={`status-tag status-${game.status}`}>
-                      ● {getStatusLabel(game.status)}
-                    </span>
-                  </div>
-                  <p class="card-description">{game.description}</p>
-                  <div class="card-actions">
-                    {
-                      isReady ? (
-                        <a href={`/game/${game.slug}/index.html`} class="btn btn-primary">🕹️ Play</a>
-                      ) : (
-                        <button class="btn btn-primary" disabled>🕹️ Play</button>
-                      )
-                    }
-                    {
-                      isReady ? (
-                        <a href={`/game/${game.slug}/index.html#setup`} class="btn btn-secondary">📖 Details</a>
-                      ) : (
-                        <button class="btn btn-secondary" disabled>📖 Details</button>
-                      )
-                    }
-                  </div>
-                </div>
-              </article>
-            );
-          })
+    <!-- Categories -->
+    <main>
+      {Object.entries(categories).map(([categoryName, games]) => {
+        if (games.length === 0) return null;
+        return (
+          <div class="category-row">
+            <h2 class="category-title">{categoryName}</h2>
+            <div class="slider-container">
+              {games.map(game => {
+                const isReady = game.status === "ready";
+                return (
+                  <a href={`/game/${game.slug}/index.html`} class="game-card">
+                    {game.coverUrl ? (
+                      <img src={game.coverUrl} alt={game.title} class="card-image" />
+                    ) : (
+                      <div class="card-placeholder">
+                        <span class="card-emoji">{game.emoji}</span>
+                        <span class="card-title-fallback">{game.title}</span>
+                      </div>
+                    )}
+                    <div class="card-overlay">
+                      <span class={`card-status ${game.status}`}>
+                        {game.status === 'ready' ? 'Ready' : 'In Development'}
+                      </span>
+                      {isReady && (
+                        <div style="font-size: 0.85rem; font-weight: bold;" class="data-opfs-status" data-slug={game.slug}>
+                          Checking OPFS...
+                        </div>
+                      )}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </main>
+
+    <script>
+      // Client-side OPFS Detection
+      async function checkGameOPFS(slug) {
+        if (slug !== 'celeste') return false; // Currently only celeste uses OPFS in this way
+        try {
+          const root = await navigator.storage.getDirectory();
+          await root.getFileHandle(".ContentExists", { create: false });
+          return true; // Installed
+        } catch {
+          return false; // Not installed
         }
-      </main>
+      }
 
-      <footer class="site-footer">
-        <p>
-          Developed with ❤️ by <a href="https://germade.dev" target="_blank" rel="noopener">Germade</a>
-        </p>
-      </footer>
-    </div>
+      async function initializeOPFSUI() {
+        const playBtns = document.querySelectorAll('.data-opfs-play');
+        const setupBtns = document.querySelectorAll('.data-opfs-setup');
+        const statusBadges = document.querySelectorAll('.data-opfs-status');
+
+        // We could optimize this by batching, but for now we iterate unique slugs
+        const slugsToCheck = new Set();
+        playBtns.forEach(el => slugsToCheck.add(el.getAttribute('data-slug')));
+        statusBadges.forEach(el => slugsToCheck.add(el.getAttribute('data-slug')));
+
+        for (const slug of slugsToCheck) {
+          if (!slug) continue;
+          
+          const isInstalled = await checkGameOPFS(slug);
+          
+          // Update hero buttons
+          playBtns.forEach(el => {
+            if (el.getAttribute('data-slug') === slug) {
+              el.style.display = isInstalled ? 'inline-flex' : 'none';
+            }
+          });
+          setupBtns.forEach(el => {
+            if (el.getAttribute('data-slug') === slug) {
+              el.style.display = isInstalled ? 'none' : 'inline-flex';
+            }
+          });
+
+          // Update card statuses
+          statusBadges.forEach(el => {
+            if (el.getAttribute('data-slug') === slug) {
+              el.textContent = isInstalled ? '✓ Installed' : 'Not Installed';
+              if (isInstalled) el.style.color = '#fff';
+            }
+          });
+        }
+      }
+
+      // Run on DOM load
+      document.addEventListener('DOMContentLoaded', initializeOPFSUI);
+    </script>
   </body>
 </html>

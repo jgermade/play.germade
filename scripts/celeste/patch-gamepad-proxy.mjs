@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 
-const TARGET_DIR = path.resolve(process.cwd(), 'public/game/celeste/build');
+const TARGET_DIR = path.resolve(process.cwd(), 'public/game/celeste');
 const frameworkDir = path.join(TARGET_DIR, '_framework');
 
-// 1. Patch index.html
-const indexHtmlPath = path.join(TARGET_DIR, 'index.html');
+// 1. Patch game.html
+const indexHtmlPath = path.join(TARGET_DIR, 'game.html');
 if (fs.existsSync(indexHtmlPath)) {
   let indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
 
@@ -54,6 +54,20 @@ if (fs.existsSync(indexHtmlPath)) {
       const w = new OriginalWorker(scriptURL, options);
       w.postMessage({ type: 'GAMEPAD_SAB', sab: window.gamepadSAB });
       return w;
+    };
+    
+    // Exit Hooks
+    const _close = window.close;
+    window.close = function() {
+      if (window.parent) window.parent.postMessage({ type: 'CELESTE_EXIT' }, '*');
+      if (_close) return _close.apply(this, arguments);
+    };
+    
+    window.Module = window.Module || {};
+    const _onExit = window.Module.onExit;
+    window.Module.onExit = function() {
+      if (window.parent) window.parent.postMessage({ type: 'CELESTE_EXIT' }, '*');
+      if (_onExit) return _onExit.apply(this, arguments);
     };
   })();
 </script>`;

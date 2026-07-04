@@ -157,7 +157,7 @@
     <script>
       import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
-      const buildEntry = "/game/celeste/build/index.html";
+      const buildEntry = "/game/celeste/game.html";
       const statusEl = document.getElementById("runtime-status");
       const frame = document.getElementById("celeste-frame");
 
@@ -167,6 +167,16 @@
       ) {
         throw new Error("Runtime UI elements were not found in the page.");
       }
+      
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "CELESTE_EXIT") {
+          frame.classList.remove("loaded");
+          frame.src = "";
+          statusEl.textContent = "Game exited.";
+          statusEl.classList.remove("ok");
+          statusEl.classList.remove("err");
+        }
+      });
 
       async function checkOpfsPopulated() {
         try {
