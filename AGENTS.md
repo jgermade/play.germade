@@ -35,3 +35,5 @@ When the user says **"capitular"**:
 1. Complete current session
 2. Ask user to start a new session.
 3. Unless user require to capitulate explicitly, never create a new session file. Instead attach proposal to the current session file and ask the user to review and approve it.
+
+For temp files, use `.tmp/` into project root.

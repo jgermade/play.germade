@@ -144,6 +144,8 @@
     </main>
 
     <script>
+      import { Unzip } from 'fflate';
+
       const buildEntry = '/game/celeste/build/index.html';
       const statusEl = document.getElementById('runtime-status');
       const frame = document.getElementById('celeste-frame');
@@ -152,21 +154,115 @@
         throw new Error('Runtime UI elements were not found in the page.');
       }
 
-      fetch(buildEntry, { method: 'HEAD' })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error('Build not found');
+      async function checkOpfsPopulated() {
+        try {
+          const root = await navigator.storage.getDirectory();
+          await root.getFileHandle('.ContentExists', { create: false });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      async function extractAssetsStreaming() {
+        const res = await fetch('/game/celeste/assets.zip');
+        if (!res.ok) throw new Error('assets.zip not found on the server. Please run the packaging script first.');
+        
+        const contentLength = res.headers.get('content-length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        let loaded = 0;
+
+        const reader = res.body!.getReader();
+        const root = await navigator.storage.getDirectory();
+
+        return new Promise<void>((resolve, reject) => {
+            const unzipper = new Unzip();
+            let activeWrites = 0;
+            let ended = false;
+
+            const checkDone = async () => {
+                if (ended && activeWrites === 0) {
+                    await root.getFileHandle('.ContentExists', { create: true });
+                    resolve();
+                }
+            };
+
+            unzipper.onEnd = () => {
+                ended = true;
+                checkDone();
+            };
+
+            unzipper.onfile = (file) => {
+                let fileData: Uint8Array[] = [];
+                file.ondata = (err, data, final) => {
+                    if (err) return reject(err);
+                    fileData.push(data);
+                    if (final) {
+                        activeWrites++;
+                        (async () => {
+                            const pathParts = file.name.split('/');
+                            const name = pathParts.pop();
+                            if (name) {
+                                let current = root;
+                                for (const part of pathParts.filter(Boolean)) {
+                                    current = await current.getDirectoryHandle(part, { create: true });
+                                }
+                                const fileHandle = await current.getFileHandle(name, { create: true });
+                                const writable = await fileHandle.createWritable();
+                                for (const chunk of fileData) {
+                                    await writable.write(chunk);
+                                }
+                                await writable.close();
+                            }
+                            activeWrites--;
+                            checkDone();
+                        })();
+                    }
+                };
+            };
+
+            (async () => {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        unzipper.push(new Uint8Array(0), true);
+                        break;
+                    }
+                    loaded += value.byteLength;
+                    if (total > 0) {
+                        statusEl.textContent = `Downloading assets... ${Math.round((loaded / total) * 100)}%`;
+                    }
+                    unzipper.push(value);
+                }
+            })();
+        });
+      }
+
+      async function boot() {
+        try {
+          const res = await fetch(buildEntry, { method: 'HEAD' });
+          if (!res.ok) throw new Error('Build not found');
+
+          statusEl.textContent = 'Checking local game assets...';
+          const populated = await checkOpfsPopulated();
+          
+          if (!populated) {
+            statusEl.textContent = 'Downloading assets... 0%';
+            statusEl.classList.remove('err');
+            await extractAssetsStreaming();
           }
 
           frame.src = buildEntry;
           frame.style.display = 'block';
-          statusEl.textContent = 'Build found. Launching Celeste/Everest...';
+          statusEl.textContent = 'Game assets loaded. Launching Celeste/Everest...';
           statusEl.classList.add('ok');
-        })
-        .catch(() => {
-          statusEl.textContent = 'No build detected yet. Add files to public/game/celeste/build to run.';
+        } catch (e: any) {
+          statusEl.textContent = e.message || 'No build detected yet. Add files to public/game/celeste/build to run.';
           statusEl.classList.add('err');
-        });
+        }
+      }
+
+      boot();
     </script>
   </body>
 </html>
