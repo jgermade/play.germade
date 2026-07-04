@@ -1,4 +1,5 @@
 ---
+
 ---
 
 <html lang="en">
@@ -29,8 +30,16 @@
         font-family: "Segoe UI", Tahoma, sans-serif;
         color: var(--text);
         background:
-          radial-gradient(circle at 10% 20%, rgba(124, 232, 255, 0.12), transparent 28%),
-          radial-gradient(circle at 90% 10%, rgba(83, 211, 255, 0.1), transparent 25%),
+          radial-gradient(
+            circle at 10% 20%,
+            rgba(124, 232, 255, 0.12),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at 90% 10%,
+            rgba(83, 211, 255, 0.1),
+            transparent 25%
+          ),
           var(--bg);
         min-height: 100vh;
         padding: 24px;
@@ -126,38 +135,33 @@
     <main class="layout">
       <section class="panel">
         <h1>Celeste/Everest</h1>
-        <p>Runtime page configured. If a web build exists in <code>public/game/celeste/build/index.html</code>, it will load automatically.</p>
         <p id="runtime-status" class="status">Checking local build...</p>
         <div class="actions">
           <a class="btn" href="/">Back to launcher</a>
-          <a class="btn" href="#setup">Setup</a>
         </div>
       </section>
 
-      <section class="panel" id="setup">
-        <h2>Setup</h2>
-        <div class="setup">
-          <p>Place your Celeste/Everest browser build at <code>public/game/celeste/build/index.html</code> and include required assets in the same folder tree.</p>
-        </div>
-        <iframe id="celeste-frame" title="Celeste/Everest"></iframe>
-      </section>
+      <iframe id="celeste-frame" title="Celeste/Everest"></iframe>
     </main>
 
     <script>
-      import { Unzip } from 'fflate';
+      import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
-      const buildEntry = '/game/celeste/build/index.html';
-      const statusEl = document.getElementById('runtime-status');
-      const frame = document.getElementById('celeste-frame');
+      const buildEntry = "/game/celeste/build/index.html";
+      const statusEl = document.getElementById("runtime-status");
+      const frame = document.getElementById("celeste-frame");
 
-      if (!(statusEl instanceof HTMLElement) || !(frame instanceof HTMLIFrameElement)) {
-        throw new Error('Runtime UI elements were not found in the page.');
+      if (
+        !(statusEl instanceof HTMLElement) ||
+        !(frame instanceof HTMLIFrameElement)
+      ) {
+        throw new Error("Runtime UI elements were not found in the page.");
       }
 
       async function checkOpfsPopulated() {
         try {
           const root = await navigator.storage.getDirectory();
-          await root.getFileHandle('.ContentExists', { create: false });
+          await root.getFileHandle(".ContentExists", { create: false });
           return true;
         } catch {
           return false;
@@ -165,10 +169,13 @@
       }
 
       async function extractAssetsStreaming() {
-        const res = await fetch('/game/celeste/assets.zip');
-        if (!res.ok) throw new Error('assets.zip not found on the server. Please run the packaging script first.');
-        
-        const contentLength = res.headers.get('content-length');
+        const res = await fetch("/game/celeste/assets.zip");
+        if (!res.ok)
+          throw new Error(
+            "assets.zip not found on the server. Please run the packaging script first.",
+          );
+
+        const contentLength = res.headers.get("content-length");
         const total = contentLength ? parseInt(contentLength, 10) : 0;
         let loaded = 0;
 
@@ -176,89 +183,174 @@
         const root = await navigator.storage.getDirectory();
 
         return new Promise<void>((resolve, reject) => {
-            const unzipper = new Unzip();
-            let activeWrites = 0;
-            let ended = false;
+          const unzipper = new Unzip();
+          unzipper.register(UnzipInflate);
+          unzipper.register(UnzipPassThrough);
 
-            const checkDone = async () => {
-                if (ended && activeWrites === 0) {
-                    await root.getFileHandle('.ContentExists', { create: true });
-                    resolve();
+          let activeWrites = 0;
+          let ended = false;
+
+          const checkDone = async () => {
+            if (ended && activeWrites === 0) {
+              try {
+                await root.getFileHandle(".ContentExists", { create: true });
+                resolve();
+              } catch (e) {
+                reject(e);
+              }
+            }
+          };
+
+          unzipper.onEnd = () => {
+            console.log("fflate onEnd called!");
+            ended = true;
+            checkDone();
+          };
+
+          const writeQueue: (() => Promise<void>)[] = [];
+          let isWriting = false;
+
+          async function processWriteQueue() {
+            if (isWriting) return;
+            isWriting = true;
+            while (writeQueue.length > 0) {
+              const task = writeQueue.shift();
+              if (task) {
+                try {
+                  await task();
+                } catch (e) {
+                  console.error("Queue task error:", e);
                 }
-            };
+              }
+              // Update UI with queue status
+              if (ended) {
+                statusEl.textContent = `Writing to disk... (${activeWrites} files remaining)`;
+              }
+            }
+            isWriting = false;
+          }
 
-            unzipper.onEnd = () => {
-                ended = true;
-                checkDone();
-            };
+          const dirCache: Record<string, FileSystemDirectoryHandle> = {
+            "": root,
+          };
+          async function getCachedDir(pathParts: string[]) {
+            let current = root;
+            let currentPath = "";
+            for (const part of pathParts) {
+              if (!part) continue;
+              currentPath += (currentPath ? "/" : "") + part;
+              if (!dirCache[currentPath]) {
+                dirCache[currentPath] = await current.getDirectoryHandle(part, {
+                  create: true,
+                });
+              }
+              current = dirCache[currentPath];
+            }
+            return current;
+          }
 
-            unzipper.onfile = (file) => {
-                let fileData: Uint8Array[] = [];
-                file.ondata = (err, data, final) => {
-                    if (err) return reject(err);
-                    fileData.push(data);
-                    if (final) {
-                        activeWrites++;
-                        (async () => {
-                            const pathParts = file.name.split('/');
-                            const name = pathParts.pop();
-                            if (name) {
-                                let current = root;
-                                for (const part of pathParts.filter(Boolean)) {
-                                    current = await current.getDirectoryHandle(part, { create: true });
-                                }
-                                const fileHandle = await current.getFileHandle(name, { create: true });
-                                const writable = await fileHandle.createWritable();
-                                for (const chunk of fileData) {
-                                    await writable.write(chunk);
-                                }
-                                await writable.close();
-                            }
-                            activeWrites--;
-                            checkDone();
-                        })();
-                    }
-                };
-            };
+          unzipper.onfile = (file) => {
+            if (file.name.endsWith("/")) {
+              file.ondata = () => {};
+              file.start();
+              return;
+            }
 
-            (async () => {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        unzipper.push(new Uint8Array(0), true);
-                        break;
+            let fileData: Uint8Array[] = [];
+            file.ondata = (err, data, final) => {
+              if (err) return reject(err);
+              if (data) fileData.push(new Uint8Array(data));
+
+              if (final) {
+                activeWrites++;
+                writeQueue.push(async () => {
+                  try {
+                    const pathParts = file.name.split("/");
+                    const name = pathParts.pop();
+                    if (name) {
+                      // Update UI to show the current file (this will help debug if it hangs)
+                      if (ended || activeWrites < 10) {
+                        statusEl.textContent = `Writing (${activeWrites} left): ${name}`;
+                      }
+                      console.log("START WRITE:", name);
+                      const dirHandle = await getCachedDir(pathParts);
+                      const fileHandle = await dirHandle.getFileHandle(name, {
+                        create: true,
+                      });
+                      const writable = await fileHandle.createWritable();
+                      // Safari OPFS can deadlock if you write multiple small chunks or call write() in a loop.
+                      // Since we have all chunks in memory, writing it as a single Blob is 100% reliable and faster.
+                      await writable.write(new Blob(fileData));
+                      await writable.close();
+                      console.log("END WRITE:", name);
                     }
-                    loaded += value.byteLength;
-                    if (total > 0) {
-                        statusEl.textContent = `Downloading assets... ${Math.round((loaded / total) * 100)}%`;
-                    }
-                    unzipper.push(value);
+                  } catch (e) {
+                    console.error("Error writing file", file.name, e);
+                  } finally {
+                    activeWrites--;
+                    checkDone();
+                  }
+                });
+                processWriteQueue();
+              }
+            };
+            file.start();
+          };
+
+          (async () => {
+            try {
+              while (true) {
+                // Backpressure: wait if there are too many pending file writes
+                while (writeQueue.length > 10) {
+                  await new Promise((resolve) => setTimeout(resolve, 10));
                 }
-            })();
+
+                const { done, value } = await reader.read();
+                if (done) {
+                  console.log("reader returned done=true!");
+                  unzipper.push(new Uint8Array(0), true);
+                  ended = true;
+                  checkDone();
+                  break;
+                }
+                loaded += value.byteLength;
+                if (total > 0) {
+                  statusEl.textContent = `Downloading & Extracting assets... ${Math.round((loaded / total) * 100)}%`;
+                }
+                unzipper.push(value);
+              }
+            } catch (e) {
+              console.error("Stream reader error:", e);
+              reject(e);
+            }
+          })();
         });
       }
 
       async function boot() {
         try {
-          const res = await fetch(buildEntry, { method: 'HEAD' });
-          if (!res.ok) throw new Error('Build not found');
+          const res = await fetch(buildEntry, { method: "HEAD" });
+          if (!res.ok) throw new Error("Build not found");
 
-          statusEl.textContent = 'Checking local game assets...';
+          statusEl.textContent = "Checking local game assets...";
           const populated = await checkOpfsPopulated();
-          
+
           if (!populated) {
-            statusEl.textContent = 'Downloading assets... 0%';
-            statusEl.classList.remove('err');
+            statusEl.textContent = "Downloading assets... 0%";
+            statusEl.classList.remove("err");
             await extractAssetsStreaming();
           }
 
           frame.src = buildEntry;
-          frame.style.display = 'block';
-          statusEl.textContent = 'Game assets loaded. Launching Celeste/Everest...';
-          statusEl.classList.add('ok');
+          frame.style.display = "block";
+          statusEl.textContent =
+            "Game assets loaded. Launching Celeste/Everest...";
+          statusEl.classList.add("ok");
         } catch (e: any) {
-          statusEl.textContent = e.message || 'No build detected yet. Add files to public/game/celeste/build to run.';
-          statusEl.classList.add('err');
+          statusEl.textContent =
+            e.message ||
+            "No build detected yet. Add files to public/game/celeste/build to run.";
+          statusEl.classList.add("err");
         }
       }
 

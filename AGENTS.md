@@ -37,3 +37,4 @@ When the user says **"capitular"**:
 3. Unless user require to capitulate explicitly, never create a new session file. Instead attach proposal to the current session file and ask the user to review and approve it.
 
 For temp files, use `.tmp/` into project root.
+Temporary scripts should be created in `.tmp/scripts/`.

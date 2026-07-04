@@ -8,7 +8,7 @@ set -euo pipefail
 #   CELESTE_WASM_DIR=/absolute/path/to/local/celeste-wasm clone
 #   CELESTE_WASM_BRANCH=threads-v2
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BRANCH="${CELESTE_WASM_BRANCH:-threads-v2}"
 CLONE_DIR="${CELESTE_WASM_DIR:-$ROOT_DIR/.cache/celeste-wasm}"
 TARGET_DIR="$ROOT_DIR/public/game/celeste/build"

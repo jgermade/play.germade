@@ -9,7 +9,7 @@ install:; npm install
 node_modules: install
 
 build.celeste:
-	./scripts/build-celeste-docker.sh
+	./scripts/celeste/build-celeste-docker.sh
 
 build.ui: node_modules
 	npm run build
