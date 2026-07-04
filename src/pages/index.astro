@@ -1,181 +1,174 @@
 ---
-import { gamesData, type GameCategory } from "../data/games";
+import { gamesData } from "../data/games";
 import "../styles/main.css";
 
 // Group games by category
-const categories: Record<GameCategory, typeof gamesData> = {
-  Featured: [],
-  Platformers: [],
-  Shooters: [],
-  "Sonic Collection": [],
-};
-
-gamesData.forEach((game) => {
-  if (categories[game.category]) {
-    categories[game.category].push(game);
+const rows = [];
+const categoriesMap = new Map();
+gamesData.forEach(game => {
+  if (!categoriesMap.has(game.category)) {
+    categoriesMap.set(game.category, []);
+    rows.push({ title: game.category, games: categoriesMap.get(game.category) });
   }
+  categoriesMap.get(game.category).push(game);
 });
-
-const featuredGame = gamesData.find((g) => g.category === "Featured") || gamesData[0];
 ---
 
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>play.germade.dev - WASM Games</title>
+    <title>WASM Console</title>
     <style>
       :root {
-        --bg-netflix: #141414;
-        --text-netflix: #ffffff;
-        --muted-netflix: #808080;
-        --accent-netflix: #e50914;
-        --hover-netflix: #f40612;
+        --bg-color: #0b0c10;
+        --text-main: #ffffff;
+        --text-muted: #8b8e98;
+        --highlight: #66fcf1;
+        --highlight-dim: #45a29e;
       }
 
       body {
         margin: 0;
-        background-color: var(--bg-netflix);
-        color: var(--text-netflix);
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        overflow-x: hidden;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        overflow: hidden; /* Console feel, no scrolling */
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
 
-      /* Hero Section */
-      .hero {
-        position: relative;
-        height: 70vh;
-        min-height: 500px;
-        background-size: cover;
-        background-position: center;
-        display: flex;
-        align-items: flex-end;
-        padding: 0 4% 10% 4%;
+      /* Background Image */
+      .bg-image {
+        position: fixed;
+        inset: -10%;
+        width: 120vw;
+        height: 120vh;
+        object-fit: cover;
+        z-index: -2;
+        filter: blur(8px) brightness(0.8);
+        transition: opacity 0.5s ease;
       }
-      
-      .hero-gradient {
-        position: absolute;
+      .bg-overlay {
+        position: fixed;
         inset: 0;
-        background: linear-gradient(
-          to top,
-          var(--bg-netflix) 0%,
-          rgba(20, 20, 20, 0.4) 50%,
-          rgba(20, 20, 20, 0) 100%
+        background: radial-gradient(
+          circle at top right,
+          transparent,
+          var(--bg-color)
         );
+        z-index: -1;
+        pointer-events: none;
       }
 
-      .hero-content {
-        position: relative;
-        z-index: 2;
-        max-width: 600px;
-      }
-
-      .hero-title {
-        font-size: 3.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.45);
-      }
-
-      .hero-description {
-        font-size: 1.2rem;
-        color: #e5e5e5;
-        margin-bottom: 1.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.45);
-        line-height: 1.4;
-      }
-
-      /* Buttons */
-      .btn-play, .btn-setup {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0.6rem 1.8rem;
-        font-size: 1.1rem;
-        font-weight: bold;
-        border-radius: 4px;
-        cursor: pointer;
-        border: none;
-        text-decoration: none;
-        transition: transform 0.2s, background-color 0.2s;
-      }
-      
-      .btn-play {
-        background-color: white;
-        color: black;
-      }
-      
-      .btn-play:hover {
-        background-color: rgba(255, 255, 255, 0.75);
-      }
-      
-      .btn-setup {
-        background-color: rgba(109, 109, 110, 0.7);
-        color: white;
-        margin-left: 10px;
-      }
-      
-      .btn-setup:hover {
-        background-color: rgba(109, 109, 110, 0.4);
-      }
-      
-      .btn-disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      /* Sliders */
-      .category-row {
-        margin-bottom: 3vw;
-        padding: 0 4%;
-      }
-
-      .category-title {
-        font-size: 1.4vw;
-        font-weight: bold;
-        margin-bottom: 0.5em;
-        color: #e5e5e5;
-        min-font-size: 1.2rem;
-      }
-
-      .slider-container {
+      /* Top Bar */
+      .top-bar {
+        padding: 20px 40px;
         display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 20px;
-        scrollbar-width: none; /* Firefox */
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--text-muted);
       }
-      
-      .slider-container::-webkit-scrollbar {
-        display: none;
+
+      .btn-prompt {
+        display: inline-block;
+        border: 2px solid var(--text-muted);
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 0.8rem;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      /* Carousel Container & Multi-row */
+      .carousel-container {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        position: relative;
+        padding: 0;
+        overflow: hidden;
+        width: 100vw;
+      }
+
+      .rows-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 60px;
+        transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        width: 100%;
+      }
+
+      .category-row {
+        display: flex;
+        flex-direction: column;
+        transition: opacity 0.5s, transform 0.5s;
+        opacity: 0.4;
+        transform: scale(0.95);
+        transform-origin: 40px center;
+      }
+      .category-row.active {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .row-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0 0 15px 40px;
+        color: var(--text-main);
+        text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+      }
+
+      .carousel-track {
+        display: flex;
+        gap: 20px;
+        transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        align-items: center;
+        padding-left: 40px; /* Base offset for left alignment */
       }
 
       .game-card {
-        flex: 0 0 calc(100% / 6 - 10px); /* 6 cards per row */
-        min-width: 150px;
-        position: relative;
-        transition: transform 0.3s ease;
-        border-radius: 4px;
-        overflow: hidden;
-        cursor: pointer;
-        background-color: #222;
+        flex: 0 0 clamp(150px, 30vw, 300px);
         aspect-ratio: 2 / 3;
+        background: #111;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        transform-style: preserve-3d;
+        box-shadow: -10px 10px 20px rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+        transform-origin: center;
       }
 
-      .game-card:hover {
-        transform: scale(1.05);
+      /* Unselected State */
+      .game-card:not(.selected) {
+        transform: perspective(1200px) rotateY(-20deg) scale(0.9);
+        opacity: 0.6;
+      }
+
+      /* Selected State */
+      .game-card.selected {
+        transform: perspective(1200px) rotateY(0deg) scale(1.05);
+        opacity: 1;
         z-index: 10;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+        box-shadow:
+          0 20px 40px rgba(0, 0, 0, 0.8),
+          0 0 0 3px var(--text-main);
       }
 
       .card-image {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        position: absolute;
-        inset: 0;
       }
-      
+
       .card-placeholder {
         position: absolute;
         inset: 0;
@@ -183,179 +176,679 @@ const featuredGame = gamesData.find((g) => g.category === "Featured") || gamesDa
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        background: linear-gradient(45deg, #1f2833, #0b0c10);
+        font-size: 1.5rem;
         text-align: center;
-        padding: 10px;
-        background: linear-gradient(45deg, #1f1f1f, #2a2a2a);
-      }
-      
-      .card-emoji {
-        font-size: 3rem;
-        margin-bottom: 10px;
-      }
-      
-      .card-title-fallback {
-        font-weight: bold;
-        font-size: 1.1rem;
-        color: #ddd;
+        padding: 20px;
       }
 
-      .card-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 60%);
-        opacity: 0;
-        transition: opacity 0.3s;
+      /* Details Section */
+      .details-section {
+        height: 25vh;
+        padding: 40px 40px 20px 40px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        padding: 10px;
-      }
-      
-      .game-card:hover .card-overlay {
-        opacity: 1;
+        position: relative;
+        width: 100%;
+        box-sizing: border-box;
+        z-index: 20;
+        flex-shrink: 0;
       }
 
-      .card-status {
-        font-size: 0.8rem;
+      .game-title {
+        font-size: 3rem;
+        font-weight: 900;
+        margin: 0 0 5px 0;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.8);
+      }
+
+      .game-meta {
+        font-size: 1rem;
+        color: var(--text-muted);
+        margin-bottom: 15px;
+      }
+
+      .game-desc {
+        font-size: 1.1rem;
+        max-width: 800px;
+        line-height: 1.5;
+        margin-bottom: 25px;
+      }
+
+      /* Actions */
+      .action-row {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        padding-bottom: 30px;
+      }
+
+      .action-item {
+        display: flex;
+        align-items: center;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+
+      .action-item:hover {
+        color: var(--highlight);
+      }
+
+      .btn-circle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        margin-right: 12px;
         font-weight: bold;
-        color: var(--ok);
-        margin-bottom: 5px;
-      }
-      
-      .card-status.wip {
-        color: #f1c40f;
       }
 
-      @media (max-width: 1024px) {
-        .game-card { flex: 0 0 calc(100% / 4 - 10px); }
-        .category-title { font-size: 1.5rem; }
+      .action-play {
+        color: #87e8b0;
       }
-      
-      @media (max-width: 600px) {
-        .game-card { flex: 0 0 calc(100% / 2 - 10px); }
-        .hero-title { font-size: 2.5rem; }
+      .action-install {
+        color: #53d3ff;
+      }
+      .action-clear {
+        color: #ff9292;
+      }
+      .action-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* Progress UI */
+      .progress-container {
+        display: none;
+        width: 100%;
+        max-width: 600px;
+        margin-bottom: 30px;
+      }
+      .progress-bar-bg {
+        width: 100%;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: var(--highlight);
+        width: 0%;
+        transition: width 0.2s;
+      }
+      .progress-text {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: var(--text-muted);
       }
     </style>
   </head>
   <body>
-    <!-- Hero Section -->
-    <section class="hero" style={`background-image: url('${featuredGame.bannerUrl || ''}');`}>
-      <div class="hero-gradient"></div>
-      <div class="hero-content">
-        <h1 class="hero-title">{featuredGame.title}</h1>
-        <p class="hero-description">{featuredGame.description}</p>
-        <div class="hero-actions">
-          <a 
-            href={`/game/${featuredGame.slug}/game.html`}
-            class="btn-play data-opfs-play" 
-            data-slug={featuredGame.slug}
-            style="display: none;"
-          >
-            ▶ Play
-          </a>
-          <a 
-            href={`/game/${featuredGame.slug}/index.html#setup`} 
-            class="btn-play data-opfs-setup"
-            data-slug={featuredGame.slug}
-          >
-            ▶ Install
-          </a>
-          <a href={`/game/${featuredGame.slug}/index.html#details`} class="btn-setup">ℹ More Info</a>
-        </div>
-      </div>
-    </section>
+    <img id="bg-image" class="bg-image" src="" alt="Background" />
+    <div class="bg-overlay"></div>
 
-    <!-- Categories -->
-    <main>
-      {Object.entries(categories).map(([categoryName, games]) => {
-        if (games.length === 0) return null;
-        return (
-          <div class="category-row">
-            <h2 class="category-title">{categoryName}</h2>
-            <div class="slider-container">
-              {games.map(game => {
-                const isReady = game.status === "ready";
-                return (
-                  <a href={`/game/${game.slug}/index.html`} class="game-card">
+    <div class="top-bar">
+      <div id="ui-nav-prompt">
+        <span class="btn-prompt">↑↓</span><span class="btn-prompt">←→</span> Navigate
+      </div>
+      <div>WASM Console</div>
+    </div>
+
+    <div class="carousel-container">
+      <div class="rows-wrapper" id="rows-wrapper">
+        {
+          rows.map((row, rIdx) => (
+            <div class={`category-row ${rIdx === 0 ? "active" : ""}`} data-row-idx={rIdx}>
+              <div class="row-title">{row.title}</div>
+              <div class="carousel-track" id={`track-${rIdx}`}>
+                {row.games.map((game, cIdx) => (
+                  <div
+                    class={`game-card ${rIdx === 0 && cIdx === 0 ? "selected" : ""}`}
+                    data-row={rIdx}
+                    data-col={cIdx}
+                    data-slug={game.slug}
+                  >
                     {game.coverUrl ? (
-                      <img src={game.coverUrl} alt={game.title} class="card-image" />
+                      <img src={game.coverUrl} class="card-image" alt={game.title} />
                     ) : (
                       <div class="card-placeholder">
-                        <span class="card-emoji">{game.emoji}</span>
-                        <span class="card-title-fallback">{game.title}</span>
+                        <div style="font-size:3rem; margin-bottom:10px;">
+                          {game.emoji}
+                        </div>
+                        <div>{game.title}</div>
                       </div>
                     )}
-                    <div class="card-overlay">
-                      <span class={`card-status ${game.status}`}>
-                        {game.status === 'ready' ? 'Ready' : 'In Development'}
-                      </span>
-                      {isReady && (
-                        <div style="font-size: 0.85rem; font-weight: bold;" class="data-opfs-status" data-slug={game.slug}>
-                          Checking OPFS...
-                        </div>
-                      )}
-                    </div>
-                  </a>
-                );
-              })}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </main>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h1 class="game-title" id="ui-title">Loading...</h1>
+      <div class="game-meta" id="ui-meta">Developer • Year</div>
+      <p class="game-desc" id="ui-desc">Description goes here.</p>
+
+      <div class="action-row" id="ui-actions">
+        <!-- Actions dynamically injected by JS -->
+      </div>
+
+      <div class="progress-container" id="ui-progress">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">Downloading... 0%</div>
+      </div>
+    </div>
+
+    <!-- Pass server data to client -->
+    <script define:vars={{ rows }}>
+      window.rows = rows;
+    </script>
 
     <script>
-      // Client-side OPFS Detection
-      async function checkGameOPFS(slug) {
-        if (slug !== 'celeste') return false; // Currently only celeste uses OPFS in this way
+      const rowsWrapper = document.getElementById("rows-wrapper");
+      const categoryRows = document.querySelectorAll(".category-row");
+      const cards = document.querySelectorAll(".game-card");
+      const uiTitle = document.getElementById("ui-title");
+      const uiMeta = document.getElementById("ui-meta");
+      const uiDesc = document.getElementById("ui-desc");
+      const uiActions = document.getElementById("ui-actions");
+      const uiProgress = document.getElementById("ui-progress");
+      const progressFill = document.getElementById("progress-fill");
+      const progressText = document.getElementById("progress-text");
+      const bgImage = document.getElementById("bg-image");
+      const uiNavPrompt = document.getElementById("ui-nav-prompt");
+
+      let activeRow = 0;
+      let activeCols = new Array(window.rows.length).fill(0);
+      let inputMode = "keyboard"; // 'keyboard' or 'gamepad'
+      const gameStates = {}; // slug -> { installed: boolean }
+      let isExtracting = false;
+
+      function setInputMode(mode) {
+        if (inputMode !== mode) {
+          inputMode = mode;
+          if (mode === "gamepad") {
+            uiNavPrompt.innerHTML = '<span class="btn-prompt">LB</span><span class="btn-prompt">RB</span> Category';
+          } else {
+            uiNavPrompt.innerHTML = '<span class="btn-prompt">↑↓</span><span class="btn-prompt">←→</span> Navigate';
+          }
+          updateDetails();
+        }
+      }
+
+      // Check OPFS status for a game
+      async function checkOPFS(slug) {
+        if (slug !== "celeste") return false;
         try {
           const root = await navigator.storage.getDirectory();
           await root.getFileHandle(".ContentExists", { create: false });
-          return true; // Installed
+          return true;
         } catch {
-          return false; // Not installed
+          return false;
         }
       }
 
-      async function initializeOPFSUI() {
-        const playBtns = document.querySelectorAll('.data-opfs-play');
-        const setupBtns = document.querySelectorAll('.data-opfs-setup');
-        const statusBadges = document.querySelectorAll('.data-opfs-status');
+      async function initStates() {
+        for (const row of window.rows) {
+          for (const game of row.games) {
+            gameStates[game.slug] = { installed: await checkOPFS(game.slug) };
+          }
+        }
+        updateUI();
+      }
 
-        // We could optimize this by batching, but for now we iterate unique slugs
-        const slugsToCheck = new Set();
-        playBtns.forEach(el => slugsToCheck.add(el.getAttribute('data-slug')));
-        statusBadges.forEach(el => slugsToCheck.add(el.getAttribute('data-slug')));
+      function updateCarousel() {
+        // Update Row Active States
+        categoryRows.forEach((rowDiv, idx) => {
+          if (idx === activeRow) {
+            rowDiv.classList.add("active");
+          } else {
+            rowDiv.classList.remove("active");
+          }
+        });
 
-        for (const slug of slugsToCheck) {
-          if (!slug) continue;
+        // Vertically scroll rowsWrapper
+        // Center the active row vertically inside carousel-container.
+        // Assuming row heights are approx 250px (cards) + title (40px) + gap
+        const activeRowEl = categoryRows[activeRow];
+        if (activeRowEl) {
+          const containerHeight = rowsWrapper.parentElement.offsetHeight;
+          const offsetTop = activeRowEl.offsetTop;
+          const rowHeight = activeRowEl.offsetHeight;
+          const translateY = (containerHeight / 2) - (offsetTop + rowHeight / 2);
+          rowsWrapper.style.transform = `translateY(${translateY}px)`;
+        }
+
+        // Update Cards Active State & Horizontal Scroll
+        window.rows.forEach((row, rIdx) => {
+          const track = document.getElementById(`track-${rIdx}`);
+          const cIdx = activeCols[rIdx];
           
-          const isInstalled = await checkGameOPFS(slug);
-          
-          // Update hero buttons
-          playBtns.forEach(el => {
-            if (el.getAttribute('data-slug') === slug) {
-              el.style.display = isInstalled ? 'inline-flex' : 'none';
-            }
-          });
-          setupBtns.forEach(el => {
-            if (el.getAttribute('data-slug') === slug) {
-              el.style.display = isInstalled ? 'none' : 'inline-flex';
+          let selectedCard = null;
+          // Apply .selected only to the active column in the active row
+          cards.forEach((card) => {
+            const cr = parseInt(card.dataset.row);
+            const cc = parseInt(card.dataset.col);
+            if (cr === rIdx) {
+              if (cr === activeRow && cc === cIdx) {
+                card.classList.add("selected");
+                selectedCard = card;
+              } else {
+                card.classList.remove("selected");
+              }
             }
           });
 
-          // Update card statuses
-          statusBadges.forEach(el => {
-            if (el.getAttribute('data-slug') === slug) {
-              el.textContent = isInstalled ? '✓ Installed' : 'Not Installed';
-              if (isInstalled) el.style.color = '#fff';
+          // Horizontal align
+          if (track) {
+            // Find the active card element for this row to get its width
+            const firstCard = track.querySelector('.game-card');
+            if (firstCard) {
+               const cardWidth = firstCard.offsetWidth;
+               const gap = 20;
+               const offset = -(cardWidth + gap) * cIdx;
+               track.style.transform = `translateX(${offset}px)`;
             }
-          });
+          }
+        });
+      }
+
+      function getSelectedGame() {
+        const row = window.rows[activeRow];
+        return row.games[activeCols[activeRow]];
+      }
+
+      function updateDetails() {
+        const game = getSelectedGame();
+        const state = gameStates[game.slug];
+
+        uiTitle.textContent = game.title;
+        uiMeta.textContent = `${game.category} • Status: ${game.status.toUpperCase()}`;
+        uiDesc.textContent = game.description;
+
+        const targetBg = game.bannerUrl || game.coverUrl;
+        if (targetBg) {
+          if (
+            bgImage.src !== targetBg &&
+            bgImage.getAttribute("src") !== targetBg
+          ) {
+            bgImage.src = targetBg;
+          }
+        } else {
+          bgImage.src = "";
+        }
+
+        if (isExtracting) {
+          uiActions.style.display = "none";
+          uiProgress.style.display = "block";
+          return;
+        }
+
+        uiActions.style.display = "flex";
+        uiProgress.style.display = "none";
+
+        uiActions.innerHTML = "";
+
+        if (game.status === "ready") {
+          if (state && state.installed) {
+            // PLAY BUTTON
+            const playBtn = document.createElement("div");
+            playBtn.className = "action-item action-play";
+            playBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Play`;
+            playBtn.onclick = () =>
+              (window.location.href = `/game/${game.slug}/index.html`);
+            uiActions.appendChild(playBtn);
+
+            // CLEAR OPFS BUTTON
+            const clearBtn = document.createElement("div");
+            clearBtn.className = "action-item action-clear";
+            clearBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'Y' : 'C'}</span> Clear Storage`;
+            clearBtn.onclick = () => clearStorage(game.slug);
+            uiActions.appendChild(clearBtn);
+          } else {
+            // INSTALL BUTTON
+            const installBtn = document.createElement("div");
+            installBtn.className = "action-item action-install";
+            installBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Install`;
+            installBtn.onclick = () => installGame(game.slug);
+            uiActions.appendChild(installBtn);
+          }
+        } else {
+          // WIP
+          const wipBtn = document.createElement("div");
+          wipBtn.className = "action-item action-disabled";
+          wipBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Not Available`;
+          uiActions.appendChild(wipBtn);
         }
       }
 
-      // Run on DOM load
-      document.addEventListener('DOMContentLoaded', initializeOPFSUI);
+      function updateUI() {
+        updateCarousel();
+        updateDetails();
+      }
+
+      // Input handling
+      window.addEventListener("keydown", (e) => {
+        setInputMode("keyboard");
+        
+        if (isExtracting) return;
+
+        if (e.key === "ArrowRight") {
+          const maxCols = window.rows[activeRow].games.length - 1;
+          activeCols[activeRow] = Math.min(activeCols[activeRow] + 1, maxCols);
+          updateUI();
+        } else if (e.key === "ArrowLeft") {
+          activeCols[activeRow] = Math.max(activeCols[activeRow] - 1, 0);
+          updateUI();
+        } else if (e.key === "ArrowUp") {
+          activeRow = Math.max(activeRow - 1, 0);
+          updateUI();
+        } else if (e.key === "ArrowDown") {
+          activeRow = Math.min(activeRow + 1, window.rows.length - 1);
+          updateUI();
+        } else if (e.key === "Enter") {
+          const playBtn = uiActions.querySelector(".action-play");
+          const installBtn = uiActions.querySelector(".action-install");
+          if (playBtn) playBtn.click();
+          else if (installBtn) installBtn.click();
+        } else if (e.key === "c") {
+          const clearBtn = uiActions.querySelector(".action-clear");
+          if (clearBtn) clearBtn.click();
+        }
+      });
+
+      cards.forEach((card) => {
+        card.addEventListener("click", () => {
+          setInputMode("keyboard");
+          if (isExtracting) return;
+          const cr = parseInt(card.dataset.row);
+          const cc = parseInt(card.dataset.col);
+          if (activeRow === cr && activeCols[activeRow] === cc) {
+            // Simulate 'A' on second click
+            const playBtn = uiActions.querySelector(".action-play");
+            const installBtn = uiActions.querySelector(".action-install");
+            if (playBtn) playBtn.click();
+            else if (installBtn) installBtn.click();
+          } else {
+            activeRow = cr;
+            activeCols[activeRow] = cc;
+            updateUI();
+          }
+        });
+      });
+
+      // Gamepad input handling
+      const gamepadState = { left: false, right: false, up: false, down: false, a: false, y: false };
+      
+      function pollGamepads() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (const pad of pads) {
+          if (!pad) continue;
+          
+          // D-Pad or Left Stick
+          const right = pad.axes[0] > 0.5 || pad.buttons[15]?.pressed;
+          const left = pad.axes[0] < -0.5 || pad.buttons[14]?.pressed;
+          const up = pad.axes[1] < -0.5 || pad.buttons[12]?.pressed;
+          const down = pad.axes[1] > 0.5 || pad.buttons[13]?.pressed;
+          
+          // Buttons
+          const a = pad.buttons[0]?.pressed;
+          const y = pad.buttons[3]?.pressed;
+          
+          if (right || left || up || down || a || y) {
+            setInputMode("gamepad");
+          }
+
+          if (isExtracting) continue;
+          
+          if (right && !gamepadState.right) {
+            const maxCols = window.rows[activeRow].games.length - 1;
+            activeCols[activeRow] = Math.min(activeCols[activeRow] + 1, maxCols);
+            updateUI();
+          } else if (left && !gamepadState.left) {
+            activeCols[activeRow] = Math.max(activeCols[activeRow] - 1, 0);
+            updateUI();
+          }
+
+          if (up && !gamepadState.up) {
+            activeRow = Math.max(activeRow - 1, 0);
+            updateUI();
+          } else if (down && !gamepadState.down) {
+            activeRow = Math.min(activeRow + 1, window.rows.length - 1);
+            updateUI();
+          }
+          
+          if (a && !gamepadState.a) {
+            const playBtn = uiActions.querySelector(".action-play");
+            const installBtn = uiActions.querySelector(".action-install");
+            if (playBtn) playBtn.click();
+            else if (installBtn) installBtn.click();
+          }
+          
+          if (y && !gamepadState.y) {
+            const clearBtn = uiActions.querySelector(".action-clear");
+            if (clearBtn) clearBtn.click();
+          }
+          
+          gamepadState.right = right;
+          gamepadState.left = left;
+          gamepadState.up = up;
+          gamepadState.down = down;
+          gamepadState.a = a;
+          gamepadState.y = y;
+        }
+        requestAnimationFrame(pollGamepads);
+      }
+      pollGamepads();
+
+      // Clear OPFS
+      async function clearStorage(slug) {
+        if (
+          !confirm(
+            `Are you sure you want to delete all saved data and assets for ${slug}?`,
+          )
+        )
+          return;
+
+        try {
+          const root = await navigator.storage.getDirectory();
+          // To clear OPFS we can recursively delete the root's contents
+          for await (const [name, handle] of root.entries()) {
+            await root.removeEntry(name, { recursive: true });
+          }
+          alert(`Storage cleared for ${slug}`);
+          gameStates[slug].installed = false;
+          updateUI();
+        } catch (e) {
+          console.error("Failed to clear OPFS", e);
+          alert("Failed to clear storage.");
+        }
+      }
+
+      // In-Place Installation Logic
+      async function installGame(slug) {
+        if (slug !== "celeste")
+          return alert("Only Celeste is supported for installation right now.");
+
+        isExtracting = true;
+        updateUI();
+
+        try {
+          const res = await fetch(`/assets/${slug}/${slug}-assets.tar.gz`);
+          if (!res.ok)
+            throw new Error(
+              "Assets not found on the server. Please run the packaging script first.",
+            );
+
+          const contentLength = res.headers.get("content-length");
+          const total = contentLength ? parseInt(contentLength, 10) : 0;
+          let loaded = 0;
+
+          // Progress tracker
+          const progressTracker = new TransformStream({
+            transform(chunk, controller) {
+              loaded += chunk.byteLength;
+              if (total > 0) {
+                const pct = Math.round((loaded / total) * 100);
+                progressFill.style.width = pct + "%";
+                progressText.textContent = `Downloading... ${pct}%`;
+              }
+              controller.enqueue(chunk);
+            },
+          });
+
+          // 1. Read first chunk to detect if browser auto-decompressed it (Vite sends Content-Encoding: gzip)
+          const reader = res.body.getReader();
+          const firstRead = await reader.read();
+          if (firstRead.done) {
+            throw new Error("Empty response");
+          }
+          const firstChunk = firstRead.value;
+          
+          // Gzip magic bytes are 1F 8B
+          const isGzip = firstChunk.length >= 2 && firstChunk[0] === 0x1f && firstChunk[1] === 0x8b;
+
+          // Reconstruct the stream
+          const reconstructedStream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(firstChunk);
+            },
+            async pull(controller) {
+              const { done, value } = await reader.read();
+              if (done) {
+                controller.close();
+              } else {
+                controller.enqueue(value);
+              }
+            }
+          });
+
+          // 2. Setup the stream pipeline
+          let finalStream = reconstructedStream.pipeThrough(progressTracker);
+          
+          // Only decompress if it wasn't already decompressed by the browser's fetch!
+          if (isGzip) {
+            finalStream = finalStream.pipeThrough(new DecompressionStream("gzip"));
+          }
+
+          const reader2 = finalStream.getReader();
+          let buffer = new Uint8Array();
+
+          async function readBytes(n) {
+            while (buffer.length < n) {
+              const { done, value } = await reader2.read();
+              if (done) {
+                if (buffer.length === 0) return null;
+                break;
+              }
+              const newBuffer = new Uint8Array(buffer.length + value.length);
+              newBuffer.set(buffer);
+              newBuffer.set(value, buffer.length);
+              buffer = newBuffer;
+            }
+            const chunk = buffer.slice(0, n);
+            buffer = buffer.slice(n);
+            return chunk;
+          }
+
+          const rootHandle = await navigator.storage.getDirectory();
+          const dirCache = {};
+
+          async function getCachedDir(pathParts) {
+            let current = rootHandle;
+            let currentPath = "";
+            for (const part of pathParts) {
+              if (!part) continue;
+              currentPath += (currentPath ? "/" : "") + part;
+              if (!dirCache[currentPath]) {
+                dirCache[currentPath] = await current.getDirectoryHandle(part, {
+                  create: true,
+                });
+              }
+              current = dirCache[currentPath];
+            }
+            return current;
+          }
+
+          while (true) {
+            const header = await readBytes(512);
+            if (!header || header[0] === 0) break; // End of tar or EOF
+
+            const name = new TextDecoder()
+              .decode(header.slice(0, 100))
+              .replace(/\0.*/, "");
+            if (!name) break;
+
+            progressText.textContent = `Extracting: ${name}`;
+
+            const sizeStr = new TextDecoder()
+              .decode(header.slice(124, 135))
+              .trim();
+            const size = parseInt(sizeStr, 8) || 0;
+            const typeflag = String.fromCharCode(header[156]);
+
+            const dataBlocks = Math.ceil(size / 512);
+            const dataSizeToRead = dataBlocks * 512;
+            const dataBuffer = await readBytes(dataSizeToRead);
+
+            if (typeflag === "5" || name.endsWith("/")) {
+              const pathParts = name.split("/").filter(Boolean);
+              await getCachedDir(pathParts);
+            } else {
+              const fileData = dataBuffer
+                ? dataBuffer.slice(0, size)
+                : new Uint8Array(0);
+              const pathParts = name.split("/");
+              const fileName = pathParts.pop();
+              if (fileName) {
+                const dirHandle = await getCachedDir(pathParts);
+                const fileHandle = await dirHandle.getFileHandle(fileName, {
+                  create: true,
+                });
+                const writable = await fileHandle.createWritable();
+                await writable.write(fileData);
+                await writable.close();
+              }
+            }
+          }
+
+          // Mark as installed
+          const marker = await rootHandle.getFileHandle(".ContentExists", {
+            create: true,
+          });
+          const mw = await marker.createWritable();
+          await mw.write("OK");
+          await mw.close();
+
+          gameStates[slug].installed = true;
+          alert("Installation complete!");
+        } catch (err) {
+          console.error(err);
+          alert("Installation failed: " + err.message);
+        } finally {
+          isExtracting = false;
+          updateUI();
+        }
+      }
+
+      // Start
+      initStates();
+      window.addEventListener("resize", updateCarousel);
     </script>
   </body>
 </html>

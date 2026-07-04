@@ -4,8 +4,8 @@ import path from 'path';
 const TARGET_DIR = path.resolve(process.cwd(), 'public/game/celeste');
 const frameworkDir = path.join(TARGET_DIR, '_framework');
 
-// 1. Patch game.html
-const indexHtmlPath = path.join(TARGET_DIR, 'game.html');
+// 1. Patch index.html
+const indexHtmlPath = path.join(TARGET_DIR, 'index.html');
 if (fs.existsSync(indexHtmlPath)) {
   let indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
 

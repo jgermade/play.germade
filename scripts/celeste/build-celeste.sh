@@ -95,7 +95,6 @@ fi
 
 mkdir -p "$TARGET_DIR"
 rsync -a --delete --exclude 'assets*.zip' "$CLONE_DIR/frontend/dist/" "$TARGET_DIR/"
-mv "$TARGET_DIR/index.html" "$TARGET_DIR/game.html"
 
 echo "Running Gamepad SAB Proxy patcher..."
 node "$ROOT_DIR/scripts/celeste/patch-gamepad-proxy.mjs"
