@@ -23,13 +23,61 @@ if [ ! -f "$ASSETS_DIR/Data.rsdk" ]; then
     exit 1
 fi
 
-echo "Copying Data.rsdk into build directory..."
+echo "Copying Data.rsdk and settings.ini into build directory..."
 cp "$ASSETS_DIR/Data.rsdk" "$WORK_DIR/Data.rsdk"
+cp "$ASSETS_DIR/settings.ini" "$WORK_DIR/settings.ini"
 
 echo "Patching Makefile to increase STACK_SIZE and change output to index.js..."
 # Increase stack size to 5MB and total memory to 128MB to prevent Stack Overflow in InitUserdata
 # Also output to index.js instead of index.html so we can provide our own custom index.html
-sed -i.bak -e 's/-s TOTAL_MEMORY=60MB -s ALLOW_MEMORY_GROWTH=1/-s TOTAL_MEMORY=134217728 -s STACK_SIZE=5242880/g' -e 's/wasm\/index\.html/wasm\/index.js/g' "$WORK_DIR/Makefile"
+sed -i.bak -e 's/-s TOTAL_MEMORY=60MB -s ALLOW_MEMORY_GROWTH=1/-s TOTAL_MEMORY=134217728 -s STACK_SIZE=5242880/g' -e 's/wasm\/index\.html/wasm\/index.js/g' -e 's/--preload-file Data.rsdk/--preload-file Data.rsdk --preload-file settings.ini/g' "$WORK_DIR/Makefile"
+
+echo "Patching main.cpp to fix Emscripten initialization order..."
+cat << 'EOF' > "$WORK_DIR/patch_main.cpp"
+#include "RetroEngine.hpp"
+
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"
+
+void main_loop()
+{
+    static bool init = false;
+    if (!init) {
+        Engine.Init();
+        init = true;
+    }
+	Engine.Run();
+}
+#endif
+
+
+int main(int argc, char *argv[])
+{
+    for (int i = 0; i < argc; ++i) {
+        if (StrComp(argv[i], "UsingCWD"))
+            usingCWD = true;
+    }
+    
+    SDL_SetHint(SDL_HINT_WINRT_HANDLE_BACK_BUTTON, "1");
+#ifdef __EMSCRIPTEN__
+    SDL_Init(SDL_INIT_EVERYTHING);
+	emscripten_set_main_loop(main_loop, 0, 1);
+#else
+    Engine.Init();
+    Engine.Run();
+#endif
+
+    return 0;
+}
+
+#if RETRO_PLATFORM == RETRO_UWP
+int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) { return SDL_WinRTRunApp(main, NULL); }
+#endif
+EOF
+mv "$WORK_DIR/patch_main.cpp" "$WORK_DIR/RSDKv4/main.cpp"
+
+echo "Patching Audio.cpp to initialize audio explicitly..."
+sed -i.bak 's/if ((audioDevice = SDL_OpenAudioDevice/SDL_InitSubSystem(SDL_INIT_AUDIO); if ((audioDevice = SDL_OpenAudioDevice/' "$WORK_DIR/RSDKv4/Audio.cpp"
 
 echo "Building WASM via Docker (emscripten/emsdk:latest)..."
 docker run --rm \

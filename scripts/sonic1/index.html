@@ -162,8 +162,13 @@
         if (newlyConnected) {
           // Trigger the standard DOM event so Emscripten SDL2 picks it up
           setTimeout(function() {
-            var event = new Event('gamepadconnected');
-            window.dispatchEvent(event);
+            for (let i = 0; i < newPads.length; i++) {
+              if (newPads[i] && !lastGamepadState[i]) {
+                var event = new Event('gamepadconnected');
+                event.gamepad = newPads[i];
+                window.dispatchEvent(event);
+              }
+            }
           }, 0);
         }
 
