@@ -12,6 +12,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRANCH="${CELESTE_WASM_BRANCH:-threads-v2}"
 CLONE_DIR="${CELESTE_WASM_DIR:-$ROOT_DIR/.cache/celeste-wasm}"
 TARGET_DIR="$ROOT_DIR/public/game/celeste/build"
+UPSTREAM_MAKE_TARGET="publish"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -83,8 +84,8 @@ if ! (cd "$CLONE_DIR/loader" && DOTNET_SKIP_WORKLOAD_MANIFEST_UPDATE=1 dotnet wo
   (cd "$CLONE_DIR/loader" && DOTNET_SKIP_WORKLOAD_MANIFEST_UPDATE=1 dotnet workload install wasm-tools)
 fi
 
-echo "Running upstream publish build (make publish)..."
-make -C "$CLONE_DIR" publish
+echo "Running upstream publish build (make ${UPSTREAM_MAKE_TARGET})..."
+make -C "$CLONE_DIR" "$UPSTREAM_MAKE_TARGET"
 
 if [[ ! -f "$CLONE_DIR/frontend/dist/index.html" ]]; then
   echo "Build completed but frontend/dist/index.html was not found." >&2
