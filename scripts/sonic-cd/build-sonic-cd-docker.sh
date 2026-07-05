@@ -161,22 +161,50 @@ anchor = (
     "        }\n"
 )
 replacement = (
+    "#ifdef __EMSCRIPTEN__\n"
+    "        vsync = false; // Force software pacing for WASM\n"
+    "#endif\n"
     "        if (!vsync) {\n"
     "            unsigned long long curTime = SDL_GetPerformanceCounter();\n"
     "            if (prevTicks == 0) prevTicks = curTime;\n"
-    "            curTicks += (curTime - prevTicks); // curTicks acts as accumulator\n"
+    "            curTicks += (curTime - prevTicks);\n"
     "            prevTicks = curTime;\n"
-    "            if (curTicks + (targetFreq / 8) < targetFreq) {\n"
+    "            if (curTicks > targetFreq * 4) curTicks = targetFreq * 4;\n"
+    "            if (curTicks + (targetFreq / 8) >= targetFreq && curTicks < targetFreq) curTicks = targetFreq;\n"
+    "            if (curTicks < targetFreq) {\n"
     "#ifndef __EMSCRIPTEN__\n"
     "                continue;\n"
     "#else\n"
     "                return;\n"
     "#endif\n"
     "            }\n"
-    "            if (curTicks < targetFreq) curTicks = 0;\n"
-    "            else curTicks -= targetFreq;\n"
-    "            if (curTicks > targetFreq * 4) curTicks = 0;\n"
     "        }\n"
+    "#ifndef __EMSCRIPTEN__\n"
+    "        else {\n"
+    "            curTicks = targetFreq;\n"
+    "        }\n"
+    "#endif\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+anchor = (
+    "        running = ProcessEvents();\n"
+)
+replacement = (
+    "        int logicLoops = 0;\n"
+    "        while (curTicks >= targetFreq && logicLoops < 4) {\n"
+    "            curTicks -= targetFreq;\n"
+    "            logicLoops++;\n"
+    "            running = ProcessEvents();\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+anchor = (
+    "        FlipScreen();\n"
+)
+replacement = (
+    "        }\n"
+    "        FlipScreen();\n"
 )
 content = content.replace(anchor, replacement, 1)
 
