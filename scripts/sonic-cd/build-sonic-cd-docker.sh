@@ -162,16 +162,20 @@ anchor = (
 )
 replacement = (
     "        if (!vsync) {\n"
-    "            curTicks = SDL_GetPerformanceCounter();\n"
-    "            if (curTicks + (targetFreq / 8) < prevTicks + targetFreq)\n"
+    "            unsigned long long curTime = SDL_GetPerformanceCounter();\n"
+    "            if (prevTicks == 0) prevTicks = curTime;\n"
+    "            curTicks += (curTime - prevTicks); // curTicks acts as accumulator\n"
+    "            prevTicks = curTime;\n"
+    "            if (curTicks + (targetFreq / 8) < targetFreq) {\n"
     "#ifndef __EMSCRIPTEN__\n"
     "                continue;\n"
     "#else\n"
     "                return;\n"
     "#endif\n"
-    "            if (prevTicks == 0) prevTicks = curTicks;\n"
-    "            else prevTicks += targetFreq;\n"
-    "            if (curTicks > prevTicks + targetFreq * 4) prevTicks = curTicks;\n"
+    "            }\n"
+    "            if (curTicks < targetFreq) curTicks = 0;\n"
+    "            else curTicks -= targetFreq;\n"
+    "            if (curTicks > targetFreq * 4) curTicks = 0;\n"
     "        }\n"
 )
 content = content.replace(anchor, replacement, 1)
