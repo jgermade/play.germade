@@ -163,7 +163,7 @@ anchor = (
 replacement = (
     "        if (!vsync) {\n"
     "            curTicks = SDL_GetPerformanceCounter();\n"
-    "            if (curTicks < prevTicks + targetFreq)\n"
+    "            if (curTicks + (targetFreq / 8) < prevTicks + targetFreq)\n"
     "#ifndef __EMSCRIPTEN__\n"
     "                continue;\n"
     "#else\n"
