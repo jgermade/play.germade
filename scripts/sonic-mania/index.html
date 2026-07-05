@@ -93,91 +93,16 @@
       };
     };
 
-    // Hook AudioContext to guarantee we capture it, then resume it on the
-    // first user gesture (autoplay policies block it from starting itself).
-    var audioContexts = [];
-    var OrigAudioContext = window.AudioContext || window.webkitAudioContext;
-    if (OrigAudioContext) {
-      window.AudioContext = function () {
-        var ctx = new OrigAudioContext();
-        audioContexts.push(ctx);
-        return ctx;
-      };
-    }
-
-    var audioResumed = false;
-    function resumeAudio() {
-      if (audioResumed) return;
-      audioContexts.forEach(function (ctx) {
-        if (ctx.state === 'suspended') {
-          ctx.resume().then(function () {
-            audioResumed = true;
-          }).catch(function (e) {
-            console.error("Failed to resume AudioContext", e);
-          });
-        } else if (ctx.state === 'running') {
-          audioResumed = true;
-        }
-      });
-    }
-    window.addEventListener('click', resumeAudio, { once: false });
-    window.addEventListener('keydown', resumeAudio, { once: false });
-    window.addEventListener('touchstart', resumeAudio, { once: false });
-
-    // Gamepad Proxy for SDL2 Compatibility.
-    // RSDKv5's SDL2 input backend only opens a browser gamepad via
-    // SDL_CONTROLLERDEVICEADDED (see SDL2RenderDevice.cpp's event loop,
-    // which calls SDL_GameControllerOpen on that event) — Emscripten's SDL2
-    // port only fires that event for gamepads the browser itself reports
-    // with mapping === "standard"; anything else (many wired/wireless pads,
-    // and some browsers) is left as a plain, unmapped SDL joystick that the
-    // engine never opens, so no input reaches the game at all. Force the
-    // mapping and re-dispatch 'gamepadconnected' so Emscripten's SDL2 layer
-    // (and thus RSDKv5) picks it up as a proper game controller.
-    if (navigator.getGamepads) {
-      const origGetGamepads = navigator.getGamepads.bind(navigator);
-
-      navigator.getGamepads = function () {
-        const pads = origGetGamepads();
-        if (!pads) return pads;
-        // Compact: remove nulls so gamepads start at index 0.
-        const realPads = Array.from(pads).filter(p => p != null);
-        const newPads = [];
-
-        for (let i = 0; i < realPads.length; i++) {
-          const pad = realPads[i];
-          newPads[i] = {
-            id: "Standard Gamepad",
-            mapping: "standard",
-            connected: pad.connected,
-            index: i, // Force remapped index starting from 0.
-            axes: pad.axes,
-            buttons: pad.buttons,
-            timestamp: pad.timestamp
-          };
-
-          if (!window._seenGamepads) window._seenGamepads = {};
-          if (!window._seenGamepads[i]) {
-            window._seenGamepads[i] = true;
-            const event = new Event('gamepadconnected');
-            event.gamepad = newPads[i];
-            window.dispatchEvent(event);
-          }
-        }
-
-        return newPads;
-      };
-
-      // Start polling loop to break the chicken-and-egg problem: Emscripten
-      // waits for 'gamepadconnected' before it starts polling, but our proxy
-      // only fires 'gamepadconnected' when it gets polled.
-      function forceGamepadPoll() {
-        if (navigator.getGamepads) navigator.getGamepads();
-        requestAnimationFrame(forceGamepadPoll);
-      }
-      requestAnimationFrame(forceGamepadPoll);
-    }
+    // RSDKv5's default P1 keyboard bindings (arrows + A/S/D, Q/W/E, Enter,
+    // Tab) for the shared gamepad→keyboard translator — same approach that
+    // made pads work in Sonic 1/2; the SDL2 gamepad proxy alone wasn't
+    // enough to deliver pad input to the engine.
+    window.__gamepadKeyMap = 'rsdkv5';
   </script>
+  <!-- Audio autoplay unlock + gamepad→keyboard translator + SDL2 gamepad
+       proxy. Loaded synchronously (no defer/async) so its AudioContext and
+       navigator.getGamepads hooks are installed before the engine runs. -->
+  <script src="/shared/game-input.js"></script>
   <script>
     // Unlike Sonic 1/2 (RSDKv4's own native Dev Menu, bridged to the web via
     // WebDevMenu.cpp), RSDKv5/Mania has no such bridge yet, so — same as
