@@ -23,6 +23,9 @@ build.sonic-3:
 build.sonic-mania:
 	./scripts/sonic-mania/build-sonic-mania-docker.sh
 
+build.sonic-cd:
+	./scripts/sonic-cd/build-sonic-cd-docker.sh
+
 build.ui: node_modules
 	npm run build
 

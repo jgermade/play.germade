@@ -75,6 +75,16 @@ export const gamesData: GameEntry[] = [
     youtubeId: "8v4Cg2nE0R4"
   },
   {
+    slug: "sonic-cd",
+    title: "Sonic CD",
+    emoji: "💿",
+    description: "Sonic CD decompilation, running via WASM.",
+    status: "ready",
+    category: "Juegos Previstos",
+    coverUrl: "/assets/covers/sonic_cover.png",
+    youtubeId: "8v4Cg2nE0R4"
+  },
+  {
     slug: "quake",
     title: "Quake (Qwasm)",
     emoji: "🔨",
