@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 PORT ?= 8080
 
-.PHONY: build.celeste build.sonic-1 build.sonic-2 build.sonic-3 build ui up
+.PHONY: build.celeste build.sonic-1 build.sonic-2 build.sonic-3 build.sonic-mania build ui up
 
 i: install
 install:; npm install
@@ -19,6 +19,9 @@ build.sonic-2:
 
 build.sonic-3:
 	./scripts/sonic3/build-sonic3-web.sh
+
+build.sonic-mania:
+	./scripts/sonic-mania/build-sonic-mania-docker.sh
 
 build.ui: node_modules
 	npm run build

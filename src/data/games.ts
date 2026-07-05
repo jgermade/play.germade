@@ -69,7 +69,7 @@ export const gamesData: GameEntry[] = [
     title: "Sonic Mania",
     emoji: "🦔",
     description: "Sonic Mania decompilation, running via WASM.",
-    status: "wip",
+    status: "ready",
     category: "Juegos Previstos",
     coverUrl: "/assets/covers/sonic_cover.png",
     youtubeId: "8v4Cg2nE0R4"
