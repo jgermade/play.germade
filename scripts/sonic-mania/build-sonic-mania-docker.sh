@@ -340,6 +340,45 @@ with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 PYEOF
 
+echo "Patching SDL2AudioDevice.hpp to load music streams synchronously (no threads under Emscripten)..."
+python3 - "$RSDK_DIR/RSDKv5/RSDK/Audio/SDL2/SDL2AudioDevice.hpp" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+# Music is streamed: the game always calls PlayStream(..., loadASync=true),
+# which this backend services with SDL_CreateThread(LoadStream). This build
+# has no -pthread, so under Emscripten SDL_CreateThread fails, LoadStream
+# never runs, and the channel stays parked in CHANNEL_LOADING_STREAM -- music
+# is silent while SFX (loaded synchronously up front) still play. Loading
+# synchronously is safe and cheap here: LoadStream just reads the .ogg out of
+# the MEMFS-preloaded datapack and opens the stb_vorbis stream; the actual
+# decoding stays incremental inside the audio callback.
+anchor = (
+    "        if (async)\n"
+    "            SDL_CreateThread((SDL_ThreadFunction)LoadStream, \"LoadStream\", (void *)channel);\n"
+    "        else\n"
+    "            LoadStream(channel);\n"
+)
+assert content.count(anchor) == 1
+replacement = (
+    "#ifdef __EMSCRIPTEN__\n"
+    "        // No threads in this build: async stream loads would silently never\n"
+    "        // run (SDL_CreateThread fails), leaving music channels stuck in\n"
+    "        // CHANNEL_LOADING_STREAM. Load inline instead.\n"
+    "        (void)async;\n"
+    "        LoadStream(channel);\n"
+    "#else\n"
+    + anchor
+    + "#endif\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+PYEOF
+
 echo "Writing dependencies/RSDKv5/platforms/Emscripten.cmake..."
 cat << 'EOF' > "$RSDK_DIR/platforms/Emscripten.cmake"
 add_executable(RetroEngine ${RETRO_FILES})
