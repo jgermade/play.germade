@@ -85,6 +85,15 @@ export const gamesData: GameEntry[] = [
     youtubeId: "8v4Cg2nE0R4"
   },
   {
+    slug: "smario-world",
+    title: "Super Mario World",
+    emoji: "🍄",
+    description:
+      "Super Mario World reimplemented in C (snesrev/smw), running via WASM.",
+    status: "ready",
+    category: "Juegos Previstos",
+  },
+  {
     slug: "quake",
     title: "Quake (Qwasm)",
     emoji: "🔨",
