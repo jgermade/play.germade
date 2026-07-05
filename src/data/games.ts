@@ -58,8 +58,8 @@ export const gamesData: GameEntry[] = [
     slug: "sonic-3",
     title: "Sonic The Hedgehog 3",
     emoji: "💎",
-    description: "Sonic 3 decompilation, running via WASM.",
-    status: "wip",
+    description: "Sonic 3 A.I.R. (Angel Island Revisited), running via WASM.",
+    status: "ready",
     category: "Juegos Previstos",
     coverUrl: "/assets/covers/sonic_cover.png",
     youtubeId: "8v4Cg2nE0R4"
