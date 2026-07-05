@@ -9,8 +9,10 @@ games). Patches src/main.c to:
   3. skip the desktop OpenGL renderer (SDL renderer only on the web);
   4. explicitly init the SDL audio subsystem before opening the device;
   5. extract the main `while (running)` loop body into a file-scope
-     function driven by emscripten_set_main_loop (rAF-paced), with a
-     millisecond accumulator so game logic stays at 60fps on >60Hz displays.
+     function driven by emscripten_set_main_loop (rAF-paced), behind a
+     wall-clock accumulator so game logic stays at 60fps regardless of the
+     display's rAF rate (skips surplus >60Hz ticks, catches up on <60Hz
+     ticks with up to 4 logic frames per callback).
 
 Usage: patch-smw-emscripten.py <smw-repo-root>
 """
@@ -148,21 +150,28 @@ frame_func = (
     "static GamepadInfo *gi;\n"
     "\n"
     "static void RunOneFrameIteration(void) {\n"
-    "#ifdef __EMSCRIPTEN__\n"
-    "  // rAF-paced: accumulate wall time and only run a 60fps logic frame\n"
-    "  // when one is due, so 120Hz+ displays don't fast-forward the game.\n"
-    "  {\n"
-    "    static double accum, last_time;\n"
-    "    double now = emscripten_get_now();\n"
-    "    accum += (last_time == 0) ? 16.6667 : now - last_time;\n"
-    "    last_time = now;\n"
-    "    if (accum < 16.0) return;\n"
-    "    accum -= 16.6667;\n"
-    "    if (accum > 50.0) accum = 0;  // tab was hidden: drop the backlog\n"
-    "  }\n"
-    "#endif\n"
     + body
     + "}\n"
+    "\n"
+    "#ifdef __EMSCRIPTEN__\n"
+    "// rAF-paced: rAF fires at the display's refresh rate (or slower when the\n"
+    "// tab is throttled), so run 60fps logic frames from a wall-clock\n"
+    "// accumulator: surplus ticks on 120Hz+ displays run no frame, and slow\n"
+    "// ticks (<60Hz) catch up with up to 4 frames per tick.\n"
+    "static void EmscriptenFrameLoop(void) {\n"
+    "  static double accum, last_time;\n"
+    "  double now = emscripten_get_now();\n"
+    "  accum += (last_time == 0) ? 16.6667 : now - last_time;\n"
+    "  last_time = now;\n"
+    "  if (accum > 66.7) accum = 66.7;  // tab was hidden: drop the backlog\n"
+    "  // 16.0 (not 16.667) so vsync jitter at exactly 60Hz doesn't skip frames.\n"
+    "  for (int loops = 0; accum >= 16.0 && loops < 4; loops++) {\n"
+    "    accum -= 16.6667;\n"
+    "    if (accum < 0) accum = 0;\n"
+    "    RunOneFrameIteration();\n"
+    "  }\n"
+    "}\n"
+    "#endif\n"
     "\n"
 )
 
@@ -175,7 +184,7 @@ content = (
     head
     + "  lastTick = SDL_GetTicks();\n"
     "#ifdef __EMSCRIPTEN__\n"
-    "  emscripten_set_main_loop(RunOneFrameIteration, 0, 1);\n"
+    "  emscripten_set_main_loop(EmscriptenFrameLoop, 0, 1);\n"
     "#else\n"
     "  while (running)\n"
     "    RunOneFrameIteration();\n"
