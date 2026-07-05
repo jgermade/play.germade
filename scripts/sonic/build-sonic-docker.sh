@@ -92,6 +92,90 @@ sed -i.bak 's/if ((audioDevice = SDL_OpenAudioDevice/SDL_InitSubSystem(SDL_INIT_
 echo "Patching Input.cpp to forcibly initialize controllers continuously with fallback mapping..."
 perl -0777 -pi -e 's/void ProcessInput\(\)\n\{/void ProcessInput()\n{\n#if RETRO_USING_SDL2\n    for (int i = 0; i < SDL_NumJoysticks(); ++i) {\n        if (!SDL_GameControllerFromInstanceID(i)) {\n            if (!SDL_IsGameController(i)) {\n                char mapping[1024];\n                SDL_JoystickGUID guid = SDL_JoystickGetDeviceGUID(i);\n                char guid_str[33];\n                SDL_JoystickGetGUIDString(guid, guid_str, sizeof(guid_str));\n                snprintf(mapping, sizeof(mapping), "%s,Web Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,start:b9,leftstick:b10,rightstick:b11,leftshoulder:b4,rightshoulder:b5,dpup:b12,dpdown:b13,dpleft:b14,dpright:b15,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:b6,righttrigger:b7,", guid_str);\n                SDL_GameControllerAddMapping(mapping);\n            }\n            controllerInit(i);\n        }\n    }\n#endif/g' "$WORK_DIR/RSDKv4/Input.cpp"
 
+echo "Adding WebDevMenu.cpp (web replacement for the native Escape dev menu)..."
+cat << 'EOF' > "$WORK_DIR/RSDKv4/WebDevMenu.cpp"
+// Bridges a subset of RSDKv4's native Dev Menu (normally opened via Escape,
+// see RetroEngine.cpp's SDLK_ESCAPE handler and Debug.cpp's initDevMenu())
+// to JS, so the web shell can replace the in-canvas menu screen with an
+// HTML overlay. Only stage browsing/loading is exposed here; F1/F2/F3/F10/F12/
+// Backspace remain native, untouched, raw hotkeys (still gated by DevMenu=true
+// in settings.ini).
+#include "RetroEngine.hpp"
+#include <emscripten/bind.h>
+#include <sstream>
+
+namespace {
+std::string jsonEscape(const char *s)
+{
+    std::string out;
+    for (const char *p = s; *p; ++p) {
+        if (*p == '"' || *p == '\\')
+            out += '\\';
+        out += *p;
+    }
+    return out;
+}
+}
+
+std::string web_devmenu_get_stage_list()
+{
+    std::ostringstream json;
+    json << "[";
+    for (int list = 0; list < STAGELIST_MAX; ++list) {
+        if (list > 0)
+            json << ",";
+        json << "{\"name\":\"" << jsonEscape(stageListNames[list]) << "\",\"stages\":[";
+        for (int i = 0; i < stageListCount[list]; ++i) {
+            if (i > 0)
+                json << ",";
+            json << "{\"name\":\"" << jsonEscape(stageList[list][i].name) << "\"}";
+        }
+        json << "]}";
+    }
+    json << "]";
+    return json.str();
+}
+
+void web_devmenu_load_stage(int listIdx, int stageIdx)
+{
+    if (listIdx < 0 || listIdx >= STAGELIST_MAX)
+        return;
+    if (stageIdx < 0 || stageIdx >= stageListCount[listIdx])
+        return;
+
+    // Mirrors the native F2/F3 hotkey handler and the DEVMENU_STAGELISTSEL
+    // selection handler in Debug.cpp, so behavior stays identical.
+    activeStageList   = listIdx;
+    stageListPosition = stageIdx;
+    stageMode         = STAGEMODE_LOAD;
+    Engine.gameMode   = ENGINE_MAINGAME;
+    SetGlobalVariableByName("options.gameMode", 0);
+    SetGlobalVariableByName("lampPostID", 0); // For S1
+    SetGlobalVariableByName("starPostID", 0); // For S2
+}
+
+EMSCRIPTEN_BINDINGS(web_devmenu)
+{
+    emscripten::function("web_devmenu_get_stage_list", &web_devmenu_get_stage_list);
+    emscripten::function("web_devmenu_load_stage", &web_devmenu_load_stage);
+}
+EOF
+
+echo "Registering WebDevMenu.cpp in the Makefile SOURCES list..."
+python3 - "$WORK_DIR/Makefile" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+anchor = "          RSDKv4/Userdata.cpp      \\\n"
+assert content.count(anchor) == 1, "expected exactly one Userdata.cpp SOURCES line"
+content = content.replace(anchor, anchor + "          RSDKv4/WebDevMenu.cpp   \\\n", 1)
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+PYEOF
+
 echo "Building WASM via Docker (emscripten/emsdk:latest)..."
 docker run --rm \
     -v "$WORK_DIR:/workspace" \
