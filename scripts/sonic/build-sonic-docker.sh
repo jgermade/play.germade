@@ -185,6 +185,144 @@ with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 PYEOF
 
+echo "Patching RetroEngine.cpp to use decoupled logic for 120Hz/30Hz..."
+python3 - "$WORK_DIR/RSDKv4/RetroEngine.cpp" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+anchor = (
+    "void RetroEngine::Run()\n"
+    "{\n"
+    "    uint frameStart, frameEnd = SDL_GetTicks();\n"
+    "    float frameDelta = 0.0f;\n"
+    "\n"
+    "#ifndef __EMSCRIPTEN__\n"
+    "    while (running) \n"
+    "#endif\n"
+    "    {\n"
+)
+replacement = (
+    "void RetroEngine::Run()\n"
+    "{\n"
+    "#ifndef __EMSCRIPTEN__\n"
+    "    uint frameStart, frameEnd = SDL_GetTicks();\n"
+    "    float frameDelta = 0.0f;\n"
+    "    while (running) \n"
+    "#else\n"
+    "    static unsigned long long curTicks = 0;\n"
+    "    static unsigned long long prevTicks = 0;\n"
+    "    unsigned long long targetFreq = SDL_GetPerformanceFrequency() / refreshRate;\n"
+    "    if (running)\n"
+    "#endif\n"
+    "    {\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+anchor = (
+    "        running = processEvents();\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "        for (int s = 0; s < gameSpeed; ++s) {\n"
+    "            ProcessInput();\n"
+    "#endif\n"
+    "\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "            if (!masterPaused || frameStep) {\n"
+    "#endif\n"
+    "                ProcessNativeObjects();\n"
+    "                FlipScreen();\n"
+    "\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "#if RETRO_USING_OPENGL && RETRO_USING_SDL2 && RETRO_HARDWARE_RENDER\n"
+    "                if (s == gameSpeed - 1)\n"
+    "                    SDL_GL_SwapWindow(Engine.window);\n"
+    "#endif\n"
+    "                frameStep = false;\n"
+    "            }\n"
+    "        }\n"
+    "#endif\n"
+)
+replacement = (
+    "#ifndef __EMSCRIPTEN__\n"
+    "        running = processEvents();\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "        for (int s = 0; s < gameSpeed; ++s) {\n"
+    "            ProcessInput();\n"
+    "#endif\n"
+    "\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "            if (!masterPaused || frameStep) {\n"
+    "#endif\n"
+    "                ProcessNativeObjects();\n"
+    "                FlipScreen();\n"
+    "\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "#if RETRO_USING_OPENGL && RETRO_USING_SDL2 && RETRO_HARDWARE_RENDER\n"
+    "                if (s == gameSpeed - 1)\n"
+    "                    SDL_GL_SwapWindow(Engine.window);\n"
+    "#endif\n"
+    "                frameStep = false;\n"
+    "            }\n"
+    "        }\n"
+    "#endif\n"
+    "#else\n"
+    "        int logicLoops = 0;\n"
+    "        while (curTicks >= targetFreq && logicLoops < 4) {\n"
+    "            curTicks -= targetFreq;\n"
+    "            logicLoops++;\n"
+    "            running = processEvents();\n"
+    "            for (int s = 0; s < gameSpeed; ++s) {\n"
+    "                ProcessInput();\n"
+    "                if (!masterPaused || frameStep) {\n"
+    "                    ProcessNativeObjects();\n"
+    "                    frameStep = false;\n"
+    "                }\n"
+    "            }\n"
+    "        }\n"
+    "        FlipScreen();\n"
+    "#endif\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+anchor = (
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "        frameStart = SDL_GetTicks();\n"
+    "        frameDelta = frameStart - frameEnd;\n"
+    "\n"
+    "        if (frameDelta < 1000.0f / (float)refreshRate)\n"
+    "            SDL_Delay(1000.0f / (float)refreshRate - frameDelta);\n"
+    "\n"
+    "        frameEnd = SDL_GetTicks();\n"
+    "#endif\n"
+)
+replacement = (
+    "#ifndef __EMSCRIPTEN__\n"
+    "#if !RETRO_USE_ORIGINAL_CODE\n"
+    "        frameStart = SDL_GetTicks();\n"
+    "        frameDelta = frameStart - frameEnd;\n"
+    "\n"
+    "        if (frameDelta < 1000.0f / (float)refreshRate)\n"
+    "            SDL_Delay(1000.0f / (float)refreshRate - frameDelta);\n"
+    "\n"
+    "        frameEnd = SDL_GetTicks();\n"
+    "#endif\n"
+    "#else\n"
+    "        unsigned long long curTime = SDL_GetPerformanceCounter();\n"
+    "        if (prevTicks == 0) prevTicks = curTime;\n"
+    "        curTicks += (curTime - prevTicks);\n"
+    "        prevTicks = curTime;\n"
+    "        if (curTicks > targetFreq * 4) curTicks = targetFreq * 4;\n"
+    "        if (curTicks + (targetFreq / 8) >= targetFreq && curTicks < targetFreq) curTicks = targetFreq;\n"
+    "        if (curTicks < targetFreq) return;\n"
+    "#endif\n"
+)
+content = content.replace(anchor, replacement, 1)
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+PYEOF
+
 echo "Building WASM via Docker (emscripten/emsdk:latest)..."
 docker run --rm \
     -v "$WORK_DIR:/workspace" \

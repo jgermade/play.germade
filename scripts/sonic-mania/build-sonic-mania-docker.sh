@@ -217,6 +217,8 @@ replacement = (
     "    emscripten_cancel_main_loop();\n"
     "    ShutdownRetroEngine();\n"
     "}\n"
+    "static unsigned long long emsCurTicks = 0;\n"
+    "static unsigned long long emsPrevTicks = 0;\n"
     "#endif\n"
     "\n"
     "static void RunRetroEngineFrame()\n"
@@ -230,8 +232,23 @@ replacement = (
     "        return;\n"
     "    }\n"
     "\n"
+    "#ifdef __EMSCRIPTEN__\n"
+    "    unsigned long long targetFreq = SDL_GetPerformanceFrequency() / videoSettings.refreshRate;\n"
+    "    unsigned long long curTime = SDL_GetPerformanceCounter();\n"
+    "    if (emsPrevTicks == 0) emsPrevTicks = curTime;\n"
+    "    emsCurTicks += (curTime - emsPrevTicks);\n"
+    "    emsPrevTicks = curTime;\n"
+    "    if (emsCurTicks > targetFreq * 4) emsCurTicks = targetFreq * 4;\n"
+    "    if (emsCurTicks + (targetFreq / 8) >= targetFreq && emsCurTicks < targetFreq) emsCurTicks = targetFreq;\n"
+    "    if (emsCurTicks < targetFreq) return;\n"
+    "    int logicLoops = 0;\n"
+    "    while (emsCurTicks >= targetFreq && logicLoops < 4) {\n"
+    "        emsCurTicks -= targetFreq;\n"
+    "        logicLoops++;\n"
+    "#else\n"
     "    if (RenderDevice::CheckFPSCap()) {\n"
     "        RenderDevice::UpdateFPSCap();\n"
+    "#endif\n"
     "\n"
     "        AudioDevice::FrameInit();\n"
     "\n"
@@ -239,46 +256,12 @@ replacement = (
     "        SKU::userCore->FrameInit();\n"
     "\n"
     "        if (SKU::userCore->CheckEnginePause())\n"
-    "            return;\n"
+    "            continue;\n"
 )
 content = content.replace(anchor, replacement, 1)
 
-# 4. The rest of the old loop body is unchanged except every remaining bare
-# `continue;` (still at its original indentation, since only the lines above
-# were touched) becomes `return;` -- two left.
-anchor = (
-    "            if (!engine.initialized || (engine.focusState & 1)) {\n"
-    "                if (videoSettings.windowState != WINDOWSTATE_ACTIVE)\n"
-    "                    continue;\n"
-    "            }\n"
-)
-assert content.count(anchor) == 1
-content = content.replace(
-    anchor,
-    "            if (!engine.initialized || (engine.focusState & 1)) {\n"
-    "                if (videoSettings.windowState != WINDOWSTATE_ACTIVE)\n"
-    "                    return;\n"
-    "            }\n",
-    1,
-)
-
-anchor = (
-    "                if (videoSettings.windowState != WINDOWSTATE_ACTIVE)\n"
-    "                    continue;\n"
-    "\n"
-    "#if !RETRO_USE_ORIGINAL_CODE\n"
-    "                for (int32 t = 0; t < touchInfo.count; ++t) {\n"
-)
-assert content.count(anchor) == 1
-content = content.replace(
-    anchor,
-    "                if (videoSettings.windowState != WINDOWSTATE_ACTIVE)\n"
-    "                    return;\n"
-    "\n"
-    "#if !RETRO_USE_ORIGINAL_CODE\n"
-    "                for (int32 t = 0; t < touchInfo.count; ++t) {\n",
-    1,
-)
+# We removed step 4 because we no longer need to change `continue` to `return`!
+# `continue` works perfectly to skip to the next iteration of our new `while` loop!
 
 # 5. Close RunRetroEngineFrame() where the while loop used to close, and turn
 # the old inline "// Shutdown" tail into its own function (called both from
