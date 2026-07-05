@@ -379,6 +379,81 @@ with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 PYEOF
 
+echo "Patching function-pointer signature mismatches (wasm call_indirect traps)..."
+# Native ABIs tolerate calling a function through a pointer whose type doesn't
+# exactly match the function's real signature (the stray return value just sits
+# ignored in a register); wasm's call_indirect validates the signature at every
+# call and traps with "function signature mismatch" instead. An earlier build
+# papered over this with -sEMULATE_FUNCTION_POINTER_CASTS=1, which routes EVERY
+# indirect call in the program through a runtime-adapting wrapper -- a large
+# constant tax on RSDKv5's function-pointer-heavy object dispatch (the hottest
+# code in the engine). A full static sweep of the game + engine (all
+# StateMachine stores, CREATE_ENTITY data smuggles, cutscene state tables, a
+# clang -Wincompatible-function-pointer-types pass over all objects, and a
+# slot-by-slot diff of the RSDK/API/Mod function tables between the engine's
+# Link.cpp/ModAPI.cpp fill order and the game's GameLink.h struct decls) found
+# exactly the mismatches below, so they get fixed at the source and the
+# emulation flag dropped entirely.
+python3 - "$WORK_DIR" <<'PYEOF'
+import sys, pathlib
+root = pathlib.Path(sys.argv[1])
+
+def patch(relpath, replacements):
+    p = root / relpath
+    content = p.read_text(encoding="utf-8")
+    for old, new in replacements:
+        assert content.count(old) == 1, f"{relpath}: anchor not unique: {old!r}"
+        content = content.replace(old, new, 1)
+    p.write_text(content, encoding="utf-8")
+
+# GameLink.h declares the engine's function tables for the game's (C) side.
+# Five API-table entries and one RSDK-table entry declare the wrong return
+# type vs. what the v5U engine actually registers (UserStorage.hpp /
+# Drawing.hpp) -- the API.TryAuth()/TryInitStorage()/LoadUserFile() calls fire
+# during menu + save init, which is exactly where gameplay crashed. C callers
+# may freely ignore the now-declared return value, so this changes nothing on
+# other platforms.
+patch("SonicMania/GameLink.h", [
+    ("    void (*TryAuth)(void);",
+     "    int32 (*TryAuth)(void);"),
+    ("    void (*TryInitStorage)(void);",
+     "    int32 (*TryInitStorage)(void);"),
+    ("    void (*LoadUserFile)(const char *name, void *buffer, uint32 size, void (*callback)(int32 status)); // load user file from game dir",
+     "    bool32 (*LoadUserFile)(const char *name, void *buffer, uint32 size, void (*callback)(int32 status)); // load user file from game dir"),
+    ("    void (*SaveUserFile)(const char *name, void *buffer, uint32 size, void (*callback)(int32 status), bool32 compressed); // save user file to game dir",
+     "    bool32 (*SaveUserFile)(const char *name, void *buffer, uint32 size, void (*callback)(int32 status), bool32 compressed); // save user file to game dir"),
+    ("    void (*DeleteUserFile)(const char *name, void (*callback)(int32 status)); // delete user file from game dir",
+     "    bool32 (*DeleteUserFile)(const char *name, void (*callback)(int32 status)); // delete user file from game dir"),
+    # Engine's SetScreenSize returns void; no game code reads a return value
+    # (it currently has no callers at all), but keep the decl truthful so any
+    # future caller doesn't trap.
+    ("    int32 (*SetScreenSize)(uint8 screenID, uint16 width, uint16 height);",
+     "    void (*SetScreenSize)(uint8 screenID, uint16 width, uint16 height);"),
+])
+
+# CPZBoss parks itself in a state that just polls CheckMatchReset() -- but
+# CheckMatchReset returns bool32, and states run through void(*)(void).
+# Give the state its own correctly-typed wrapper.
+patch("SonicMania/Objects/CPZ/CPZBoss.c", [
+    ("bool32 CPZBoss_CheckMatchReset(void)\n{",
+     "static void CPZBoss_State_CheckMatchReset(void) { CPZBoss_CheckMatchReset(); }\n\n"
+     "bool32 CPZBoss_CheckMatchReset(void)\n{"),
+    ("            self->state = (Type_StateMachine)CPZBoss_CheckMatchReset;",
+     "            self->state = CPZBoss_State_CheckMatchReset;"),
+])
+
+# Cutscene states are stored and invoked as bool32(*)(EntityCutsceneSeq *);
+# this one alone is declared without the host parameter.
+patch("SonicMania/Objects/GHZ/GHZCutsceneK.c", [
+    ("bool32 GHZCutsceneK_Cutscene_None(void)",
+     "bool32 GHZCutsceneK_Cutscene_None(EntityCutsceneSeq *host)"),
+])
+patch("SonicMania/Objects/GHZ/GHZCutsceneK.h", [
+    ("bool32 GHZCutsceneK_Cutscene_None(void);",
+     "bool32 GHZCutsceneK_Cutscene_None(EntityCutsceneSeq *host);"),
+])
+PYEOF
+
 echo "Writing dependencies/RSDKv5/platforms/Emscripten.cmake..."
 cat << 'EOF' > "$RSDK_DIR/platforms/Emscripten.cmake"
 add_executable(RetroEngine ${RETRO_FILES})
@@ -405,6 +480,16 @@ target_compile_options(RetroEngine PRIVATE -sUSE_SDL=2)
 
 target_link_options(RetroEngine PRIVATE
     -sUSE_SDL=2
+    # CMAKE_BUILD_TYPE=Release only puts -O3 on the COMPILE lines; emcc's link
+    # stage (wasm-opt passes + JS glue minification) runs at -O0 unless the
+    # optimization level is repeated here.
+    -O3
+    # No -sEMULATE_FUNCTION_POINTER_CASTS: the function-pointer signature
+    # mismatches that made wasm's call_indirect trap ("function signature
+    # mismatch" during menus/gameplay) are fixed at the source by the
+    # signature-mismatch patch step in build-sonic-mania-docker.sh, so every
+    # indirect call -- the hottest path in RSDKv5's object dispatch -- stays a
+    # plain call_indirect instead of going through fpcast-emu thunks.
     # NOT ALLOW_MEMORY_GROWTH: once wasm memory has `maximum > initial` (what
     # growth requires), Chromium backs Memory.buffer with a "resizable"
     # ArrayBuffer, and its WebGL/TextDecoder APIs outright refuse to read from
@@ -415,19 +500,6 @@ target_link_options(RetroEngine PRIVATE
     # ever proves too small.
     -sTOTAL_MEMORY=536870912
     -sSTACK_SIZE=5242880
-    # RSDKv5/Mania's object system calls Update/Draw/etc. through generic
-    # function-pointer tables; some registered functions don't exactly match
-    # the pointer type they're called through (native ABIs tolerate this,
-    # it's technically UB; wasm's call_indirect does not, and traps with
-    # "function signature mismatch" instead -- only reproduces once you
-    # actually enter a zone and play, not just sitting on the title screen).
-    # This routes mismatched indirect calls through a runtime-adapting
-    # wrapper instead of trapping.
-    -sEMULATE_FUNCTION_POINTER_CASTS=1
-    # wasm-opt's --fpcast-emu pass (added by the flag above) refuses to run
-    # against its own default limit ("max-func-params needs to be at least
-    # 17"); raise it explicitly.
-    -sBINARYEN_EXTRA_PASSES=pass-arg=max-func-params@17
     -sFORCE_FILESYSTEM=1
     -sEXPORTED_RUNTIME_METHODS=[FS,callMain]
     "SHELL:--preload-file ${GAME_DATA_DIR}/Data.rsdk@Data.rsdk"
