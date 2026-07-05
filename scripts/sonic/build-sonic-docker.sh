@@ -154,10 +154,19 @@ void web_devmenu_load_stage(int listIdx, int stageIdx)
     SetGlobalVariableByName("starPostID", 0); // For S2
 }
 
+void web_devmenu_set_paused(bool paused)
+{
+    // Same flag F12/Pause toggle natively (masterPaused): freezes
+    // ProcessNativeObjects()/FlipScreen() in the main loop, so the game
+    // stays frozen behind the HTML overlay while it's open.
+    Engine.masterPaused = paused;
+}
+
 EMSCRIPTEN_BINDINGS(web_devmenu)
 {
     emscripten::function("web_devmenu_get_stage_list", &web_devmenu_get_stage_list);
     emscripten::function("web_devmenu_load_stage", &web_devmenu_load_stage);
+    emscripten::function("web_devmenu_set_paused", &web_devmenu_set_paused);
 }
 EOF
 

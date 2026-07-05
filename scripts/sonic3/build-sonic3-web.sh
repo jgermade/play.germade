@@ -107,4 +107,26 @@ with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 PYEOF
 
+echo "Patching index.html to load the shared launcher-overlay script..."
+python3 - "$TARGET_DIR/index.html" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+anchor = "</body>"
+assert content.count(anchor) == 1, "expected exactly one </body> tag"
+# No native in-game "return to launcher" option here (unlike Sonic 1/2's own
+# Dev Menu), so use the shared script's Escape-triggered mini-menu instead of
+# its persistent corner button.
+snippet = (
+    '<script>window.__launcherReturnViaEscMenu = true;</script>\n'
+    '<script src="/shared/launcher-overlay.js" defer></script>\n'
+)
+content = content.replace(anchor, snippet + anchor, 1)
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+PYEOF
+
 echo "Build complete. Output available in $TARGET_DIR"
