@@ -511,7 +511,7 @@ gamesData.forEach(game => {
             playBtn.className = "action-item action-play";
             playBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Play`;
             playBtn.onclick = () =>
-              (window.location.href = `/game/${game.slug}/index.html`);
+              (window.location.href = game.urlPath || `/game/${game.slug}/index.html`);
             uiActions.appendChild(playBtn);
 
             // CLEAR OPFS BUTTON

@@ -11,6 +11,8 @@ export interface GameEntry {
   coverUrl?: string;
   bannerUrl?: string;
   youtubeId?: string;
+  /** Custom URL path to launch the game (defaults to `/game/${slug}/index.html`). */
+  urlPath?: string;
 }
 
 export const gamesData: GameEntry[] = [
@@ -27,12 +29,14 @@ export const gamesData: GameEntry[] = [
     youtubeId: "ioGvtPMX5s0"
   },
   {
-    slug: "megadrive-emu",
+    slug: "megadrive",
     title: "SEGA Megadrive",
     emoji: "🦔",
-    description: "Sega Megadrive / Genesis emulator core. Plays .md and .gen roms.",
-    status: "wip",
+    description:
+      "Sega Megadrive / Genesis emulator (jgenesis, Rust/WASM + WebGPU). Plays .md and .gen ROMs.",
+    status: "ready",
     category: "Consolas Retro",
+    urlPath: "/console/megadrive/index.html",
   },
   {
     slug: "sonic-1",
