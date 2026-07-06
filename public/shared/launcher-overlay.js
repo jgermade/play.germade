@@ -55,6 +55,9 @@
     '#launcher-esc-menu-item {' +
     '  color: ' + HIGHLIGHT + '; background: rgba(102, 252, 241, 0.15);' +
     '  padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 1rem;' +
+    '}' +
+    '[tabindex="0"]:focus {' +
+    '  outline: 2px solid white; outline-offset: -2px;' +
     '}';
   document.head.appendChild(style);
 
@@ -77,6 +80,7 @@
     panel.id = 'launcher-esc-menu-panel';
     escMenuItem = document.createElement('div');
     escMenuItem.id = 'launcher-esc-menu-item';
+    escMenuItem.tabIndex = 0;
     escMenuItem.textContent = '⬅ Return to Launcher (Enter)';
     escMenuItem.addEventListener('click', function () {
       window.location.href = '/';
@@ -110,12 +114,31 @@
         e.preventDefault();
         e.stopImmediatePropagation();
         toggleEscMenu();
+        if (escMenuOpen) {
+          setTimeout(function() {
+            var first = escMenu.querySelector('[tabindex="0"]');
+            if (first) first.focus();
+          }, 10);
+        }
         return;
       }
       if (!escMenuOpen) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (e.key === 'Enter') window.location.href = '/';
+      
+      var focusables = Array.prototype.slice.call(escMenu.querySelectorAll('[tabindex="0"]'));
+      if (focusables.length === 0) return;
+      var idx = focusables.indexOf(document.activeElement);
+
+      if (e.key === 'ArrowDown') {
+        var next = (idx + 1) % focusables.length;
+        focusables[next].focus();
+      } else if (e.key === 'ArrowUp') {
+        var prev = idx <= 0 ? focusables.length - 1 : idx - 1;
+        focusables[prev].focus();
+      } else if (e.key === 'Enter') {
+        if (idx >= 0) focusables[idx].click();
+      }
     }, true);
   }
 
