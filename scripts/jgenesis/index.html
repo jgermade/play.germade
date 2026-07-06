@@ -158,7 +158,7 @@
     <body>
         <div id="loading-text">Loading...</div>
 
-        <div id="rom-list-toggle" class="hidden">🎮</div>
+        <div id="rom-list-toggle" class="hide-fullscreen">🎮</div>
 
         <div id="rom-list-panel" class="closed">
             <div id="rom-list-header">
@@ -168,7 +168,7 @@
             <div id="rom-list-items"></div>
         </div>
 
-        <div id="settings-toggle" class="hidden">⚙ Settings</div>
+        <div id="settings-toggle" class="hide-fullscreen">⚙ Settings</div>
 
         <div id="header-text" class="hidden hide-fullscreen">
             SEGA Megadrive
@@ -178,7 +178,7 @@
                 <div id="jgenesis-wasm"></div>
                 <div id="jgenesis-rom-title" class="hide-fullscreen">(No ROM loaded)</div>
                 <div class="jgenesis-controls hide-fullscreen">
-                    <input type="button" id="open-file" value="Open ROM file">
+                    <input type="button" id="open-file" value="Open ROM file" style="display:none;">
                     <input type="button" id="reset-emulator" value="Reset">
                     <input type="button" id="download-save-file" class="save-button" value="Download save file" disabled>
                     <input type="button" id="upload-save-file" class="save-button" value="Upload save file and reset" disabled>
@@ -387,7 +387,7 @@
                 WebConfigRef,
                 build_commit_hash,
                 run_emulator,
-            } from "./pkg/jgenesis_web.js";
+            } from "./jgenesis_web.js";
 
             await init();
 

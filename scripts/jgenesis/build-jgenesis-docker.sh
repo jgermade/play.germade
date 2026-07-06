@@ -49,6 +49,8 @@ cp -R "$WORK_DIR/frontend/jgenesis-web/pkg/"* "$TARGET_DIR/"
 echo "Copying JS helpers (audio-processor.js, idb.js, polyfill.js, ui.js) to $TARGET_DIR/js/..."
 mkdir -p "$TARGET_DIR/js"
 cp "$WORK_DIR/frontend/jgenesis-web/js/"*.js "$TARGET_DIR/js/"
+sed -i.bak 's/\.\.\/pkg\/jgenesis_web\.js/\.\.\/jgenesis_web\.js/g' "$TARGET_DIR/js/audio-processor.js"
+rm -f "$TARGET_DIR/js/audio-processor.js.bak"
 
 echo "Copying custom index.html to $TARGET_DIR..."
 cp "$SCRIPTS_DIR/index.html" "$TARGET_DIR/index.html"
