@@ -55,6 +55,9 @@ cp "$SCRIPTS_DIR/Makefile.emscripten" "$WORK_DIR/Makefile.emscripten"
 echo "Patching src/main.c for Emscripten..."
 python3 "$SCRIPTS_DIR/patch-smw-emscripten.py" "$WORK_DIR"
 
+echo "Patching widescreen support (ExtendedAspectRatio)..."
+python3 "$SCRIPTS_DIR/patch-smw-widescreen.py" "$WORK_DIR"
+
 echo "Extracting assets + building WASM via Docker (emscripten/emsdk:latest)..."
 docker run --rm \
   -v "$WORK_DIR:/workspace" \

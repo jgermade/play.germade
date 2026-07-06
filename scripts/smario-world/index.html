@@ -30,12 +30,14 @@
     }
 
     .canvas-container .emscripten {
-      /* Square-pixel SNES frame (256x224), like the upstream desktop port.
-         Definite size (not just max-*): Emscripten's SDL2 consults the
-         canvas CSS size, which must never compute to 0.
-         Phase 2 (widescreen) will widen this together with g_snes_width. */
-      aspect-ratio: 8/7;
-      width: min(100vw, calc(100vh * 8 / 7));
+      /* Square-pixel SNES frame, like the upstream desktop port. Definite
+         size (not just max-*): Emscripten's SDL2 consults the canvas CSS
+         size, which must never compute to 0.
+         --snes-w is the internal width in pixels, set from ?aspect= by the
+         script below (398 = default 16:9; vanilla 4:3 is 256). It must stay
+         in sync with the engine's g_snes_width. */
+      aspect-ratio: calc(var(--snes-w, 398) / 224);
+      width: min(100vw, calc(100vh * var(--snes-w, 398) / 224));
       display: block;
       margin: auto;
       max-width: 100%;
@@ -45,6 +47,24 @@
     }
   </style>
   <script>
+    // Widescreen (?aspect=W:H, default 16:9): one build serves every ratio.
+    // Mirrors the engine's config.c math exactly (square pixels, C integer
+    // division): extra side pixels = (224*W/H - 256)/2, "4:3" = vanilla,
+    // clamped to the PPU headroom (96/side = 18:9). The canvas CSS var here
+    // and the smw.ini rewrite in onRuntimeInitialized must agree, or SDL's
+    // drawing buffer and the engine's g_snes_width would diverge.
+    var __aspect = (function () {
+      var q = new URLSearchParams(window.location.search).get('aspect') || '';
+      var m = /^(\d{1,2}):(\d{1,2})$/.exec(q);
+      var w = m ? parseInt(m[1], 10) : 16;
+      var h = m ? parseInt(m[2], 10) : 9;
+      if (!(w > 0 && h > 0)) { w = 16; h = 9; }
+      var extra = (w === 4 && h === 3) ? 0 :
+        Math.min(Math.max(Math.trunc((Math.trunc(224 * w / h) - 256) / 2), 0), 96);
+      return { w: w, h: h, snesWidth: 256 + 2 * extra };
+    })();
+    document.documentElement.style.setProperty('--snes-w', __aspect.snesWidth);
+
     // Optional debug flag (?rAF=60fps): replace requestAnimationFrame with a
     // 60fps setTimeout loop, bypassing VSync. For perf testing/QA only.
     if (window.location.search.includes('rAF=60fps')) {
@@ -82,6 +102,19 @@
           Module.removeRunDependency('idbfs-load');
         });
       }],
+      // All run dependencies (including the preloaded smw_assets.dat/smw.ini
+      // package) are resolved by the time this fires, and main() has not run
+      // yet: the right moment to rewrite the ini for the requested aspect.
+      onRuntimeInitialized: function () {
+        try {
+          var ini = Module.FS.readFile('/smw.ini', { encoding: 'utf8' });
+          ini = ini.replace(/^ExtendedAspectRatio *=.*$/m,
+            'ExtendedAspectRatio = ' + __aspect.w + ':' + __aspect.h);
+          Module.FS.writeFile('/smw.ini', ini);
+        } catch (e) {
+          console.error('aspect: smw.ini rewrite failed', e);
+        }
+      },
       canvas: (function () {
         var canvas = document.getElementById('canvas');
         canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
