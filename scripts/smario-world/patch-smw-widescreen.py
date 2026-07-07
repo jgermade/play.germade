@@ -2142,4 +2142,104 @@ patch_file("src/smw_04.c", [
     ),
 ])
 
+# --- step 3, iteration 13: shooters + generators -------------------------------
+# level_shooters.asm + level_generators.asm. The C port already computes
+# generator spawn positions in 16 bits (PAIR16 hi/lo tables), so wide-snes'
+# generator_high_table JSL ($02B135) and its hi-byte fixups ($02B073) are
+# covered by plain signed arithmetic here. Skipped like upstream: fish
+# generator ("range is already tight") and parachute enemies ("ignored").
+
+patch_file("src/smw_02.c", [
+    # $02B3CC torpedo ted: the on-screen-x + 8-bit range check becomes one
+    # 16-bit range check [0x10-extra, 0xF1+extra) against the camera (the
+    # Y check stays vanilla, like the ASM). 4:3 keeps the vanilla pair.
+    (
+        "        shooter_spr_xpos_hi[k] ==\n"
+        "            (uint8)((shooter_spr_xpos_lo[k] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)) &&\n"
+        "        (uint8)(shooter_spr_xpos_lo[k] - mirror_current_layer1_xpos + 16) >= 0x20) {\n",
+        "        (g_widescreen_extra\n"
+        "             ? (int16)(PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) - mirror_current_layer1_xpos) >=\n"
+        "                       0x10 - (int16)g_widescreen_extra &&\n"
+        "               (int16)(PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) - mirror_current_layer1_xpos) <\n"
+        "                       0xF1 + (int16)g_widescreen_extra\n"
+        "             : shooter_spr_xpos_hi[k] ==\n"
+        "                   (uint8)((shooter_spr_xpos_lo[k] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)) &&\n"
+        "               (uint8)(shooter_spr_xpos_lo[k] - mirror_current_layer1_xpos + 16) >= 0x20)) {\n",
+    ),
+    # $02B47C bullet bill shooter: same 16-bit range, plus the don't-fire-
+    # point-blank player-distance check recomputed in 16 bits (the vanilla
+    # 8-bit distance aliases every 256px in widescreen).
+    (
+        "        shooter_spr_xpos_hi[k] ==\n"
+        "            (uint8)((shooter_spr_xpos_lo[k] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)) &&\n"
+        "        (uint8)(shooter_spr_xpos_lo[k] - mirror_current_layer1_xpos + 0x10) >= 0x10 &&\n"
+        "        (uint8)(player_xpos - shooter_spr_xpos_lo[k] + 0x11) >= 0x22) {\n",
+        "        (g_widescreen_extra\n"
+        "             ? (int16)(PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) - mirror_current_layer1_xpos) >=\n"
+        "                       0x10 - (int16)g_widescreen_extra &&\n"
+        "               (int16)(PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) - mirror_current_layer1_xpos) <\n"
+        "                       0xF1 + (int16)g_widescreen_extra &&\n"
+        "               (uint16)(player_xpos - PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) + 0x10) >= 0x21\n"
+        "             : shooter_spr_xpos_hi[k] ==\n"
+        "                   (uint8)((shooter_spr_xpos_lo[k] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)) &&\n"
+        "               (uint8)(shooter_spr_xpos_lo[k] - mirror_current_layer1_xpos + 0x10) >= 0x10 &&\n"
+        "               (uint8)(player_xpos - shooter_spr_xpos_lo[k] + 0x11) >= 0x22)) {\n",
+    ),
+    # $02B06D/$02B073 Bowser-statue fire: spawns at the wide right edge.
+    (
+        "      SetSprXPos(j, mirror_current_layer1_xpos + 255);\n",
+        "      SetSprXPos(j, mirror_current_layer1_xpos + 255 + g_widescreen_extra);\n",
+    ),
+    # $02B1B8 shared super-koopa/bubble/bullet spawn offsets {-0x20, +0x110}
+    # pushed extra further out (three call sites read the same table; the
+    # +/-0 case self-gates in 4:3).
+    (
+        "      SetSprYPos(j, (mirror_current_layer1_ypos + (r & 0x7F) + 32) & ~0xf);\n"
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]));\n",
+        "      SetSprYPos(j, (mirror_current_layer1_ypos + (r & 0x7F) + 32) & ~0xf);\n"
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]) +\n"
+        "                        ((r & 1) ? (int)g_widescreen_extra : -(int)g_widescreen_extra));\n",
+    ),
+    (
+        "      spr_yspeed[j] = 40;\n"
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]));\n",
+        "      spr_yspeed[j] = 40;\n"
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]) +\n"
+        "                        ((r & 1) ? (int)g_widescreen_extra : -(int)g_widescreen_extra));\n",
+    ),
+    (
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]));\n"
+        "      spr_table157c[j] = r & 1;\n"
+        "      spr_table00c2[j] = kGenSpr0A_GenerateBubbles_DATA_02B25A[GetRand() & 3];\n",
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr09_GenerateSuperKoopa_InitialXHi[r & 1], kGenSpr09_GenerateSuperKoopa_InitialXLo[r & 1]) +\n"
+        "                        ((r & 1) ? (int)g_widescreen_extra : -(int)g_widescreen_extra));\n"
+        "      spr_table157c[j] = r & 1;\n"
+        "      spr_table00c2[j] = kGenSpr0A_GenerateBubbles_DATA_02B25A[GetRand() & 3];\n",
+    ),
+    # $02B25E dolphins {+0x110, -0x20}: note the flipped index order.
+    (
+        "    SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSprXX_GenerateDolphins_InitialXHi[v5 - 5], kGenSprXX_GenerateDolphins_InitialXLo[v5 - 5]));\n",
+        "    SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSprXX_GenerateDolphins_InitialXHi[v5 - 5], kGenSprXX_GenerateDolphins_InitialXLo[v5 - 5]) +\n"
+        "                      ((v5 - 5) ? -(int)g_widescreen_extra : (int)g_widescreen_extra));\n",
+    ),
+    # $02B2D0 eerie {-0x10, +0xFF}. Deviation, documented: upstream's
+    # "db $FF+!extra_columns" truncates mod 256 (their right-side spawn
+    # lands inside the view); the 16-bit add here does what the patch means.
+    (
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr01_GenerateEerie_InitialXHi[v6], kGenSpr01_GenerateEerie_InitialXLo[v6]));\n",
+        "      SetSprXPos(j, mirror_current_layer1_xpos + PAIR16(kGenSpr01_GenerateEerie_InitialXHi[v6], kGenSpr01_GenerateEerie_InitialXLo[v6]) +\n"
+        "                        (v6 ? (int)g_widescreen_extra : -(int)g_widescreen_extra));\n",
+    ),
+    # $02B0FA/$02B135 surrounded/diagonal bullet star: edge spawn offsets
+    # widened (surrounded keeps upstream's extra +/-0x10 "personal
+    # improvement" margin); the hi-table JSL is subsumed by 16-bit math.
+    (
+        "    SetSprXPos(j, mirror_current_layer1_xpos + kGenSpr0C_GenerateSurroundingBullets_InitialXLo[r13]);\n",
+        "    static const int8 kWideBulletSign[9] = { -1, -1, 0, 0, 1, -1, -1, 1, 1 };\n"
+        "    static const uint8 kWideBulletPad[9] = { 0x10, 0x10, 0, 0, 0x10, 0, 0, 0, 0 };\n"
+        "    SetSprXPos(j, mirror_current_layer1_xpos + kGenSpr0C_GenerateSurroundingBullets_InitialXLo[r13] +\n"
+        "                      (g_widescreen_extra ? kWideBulletSign[r13] * (int)(g_widescreen_extra + kWideBulletPad[r13]) : 0));\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
