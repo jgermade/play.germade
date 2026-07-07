@@ -1872,4 +1872,274 @@ patch_file("src/smw_02.c", [
     ),
 ])
 
-print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/05.c patched OK")
+# --- step 3, iteration 12: windowing_effects ----------------------------------
+# windowing_effects.asm. wide-snes runs the whole game in the SNES 512px
+# hi-res mode, so its window HDMA writes are in 2px units centered on the
+# wide view (unit u covers screen x = 2u-128 .. 2u-126); every windowing
+# effect's coordinates are halved at the source ("the low quality version
+# but with support for any size"). Our PPU renders native-wide instead, so
+# the bridge is a render flag: kPpuRenderFlags_WideWindow makes
+# PpuWindows_Calc interpret the 8-bit window registers in that same 2px
+# space (clamped to the visible span), and the game-side writers below are
+# converted exactly like wide-snes converts them. Degenerate windows -
+# empty (left > right) and full ([0, 255]) - keep their meaning under the
+# transform, which is what keeps every writer wide-snes did NOT patch
+# correct: the credits vertical wipe (smw_0c.c, full/empty rows only) and
+# the port's own WH0=0/WH1=0xff file-select reset. The credits enemy-cast
+# pillarbox wide-snes *adds* in credits.asm is deferred to the
+# title/overworld/credits iteration.
+
+patch_file("src/snes/ppu.h", [
+    (
+        "  // Disable sprite render limits\n"
+        "  kPpuRenderFlags_NoSpriteLimits = 8,\n",
+        "  // Disable sprite render limits\n"
+        "  kPpuRenderFlags_NoSpriteLimits = 8,\n"
+        "  // Window registers hold 2px units centered on the wide view\n"
+        "  // (screen x = 2u - 128), wide-snes' 512px-mode windowing scheme.\n"
+        "  kPpuRenderFlags_WideWindow = 16,\n",
+    ),
+])
+
+patch_file("src/snes/ppu.c", [
+    # Transform both windows' edges once, clamp into the visible span, and
+    # use the locals everywhere (the equality searches below must see the
+    # same values that were inserted). With the flag off every local equals
+    # the vanilla expression, so 4:3 is bit-exact.
+    (
+        "  uint i, j;\n"
+        "  int t;\n"
+        "  bool w1_ena = (winflags & kWindow1Enabled) && ppu->window1left <= ppu->window1right;\n"
+        "  if (w1_ena) {\n"
+        "    if (ppu->window1left > win->edges[0]) {\n"
+        "      win->edges[nr] = ppu->window1left;\n"
+        "      win->edges[++nr] = window_right;\n"
+        "    }\n"
+        "    if (ppu->window1right + 1 < window_right) {\n"
+        "      win->edges[nr] = ppu->window1right + 1;\n"
+        "      win->edges[++nr] = window_right;\n"
+        "    }\n"
+        "  }\n"
+        "  bool w2_ena = (winflags & kWindow2Enabled) && ppu->window2left <= ppu->window2right;\n",
+        "  uint i, j;\n"
+        "  int t;\n"
+        "  int w1l = ppu->window1left, w1r1 = ppu->window1right + 1;\n"
+        "  int w2l = ppu->window2left, w2r1 = ppu->window2right + 1;\n"
+        "  if (ppu->renderFlags & kPpuRenderFlags_WideWindow) {\n"
+        "    w1l = w1l * 2 - 128, w1r1 = w1r1 * 2 - 128;\n"
+        "    w2l = w2l * 2 - 128, w2r1 = w2r1 * 2 - 128;\n"
+        "    if (w1l < win->edges[0]) w1l = win->edges[0];\n"
+        "    if (w1r1 > window_right) w1r1 = window_right;\n"
+        "    if (w2l < win->edges[0]) w2l = win->edges[0];\n"
+        "    if (w2r1 > window_right) w2r1 = window_right;\n"
+        "  }\n"
+        "  bool w1_ena = (winflags & kWindow1Enabled) && w1l < w1r1;\n"
+        "  if (w1_ena) {\n"
+        "    if (w1l > win->edges[0]) {\n"
+        "      win->edges[nr] = w1l;\n"
+        "      win->edges[++nr] = window_right;\n"
+        "    }\n"
+        "    if (w1r1 < window_right) {\n"
+        "      win->edges[nr] = w1r1;\n"
+        "      win->edges[++nr] = window_right;\n"
+        "    }\n"
+        "  }\n"
+        "  bool w2_ena = (winflags & kWindow2Enabled) && w2l < w2r1;\n",
+    ),
+    (
+        "    for (i = 0; i <= nr && (t = ppu->window2left) != win->edges[i]; i++) {\n",
+        "    for (i = 0; i <= nr && (t = w2l) != win->edges[i]; i++) {\n",
+    ),
+    (
+        "    for (; i <= nr && (t = ppu->window2right + 1) != win->edges[i]; i++) {\n",
+        "    for (; i <= nr && (t = w2r1) != win->edges[i]; i++) {\n",
+    ),
+    (
+        "    for (i = 0; win->edges[i] != ppu->window1left; i++);\n"
+        "    for (j = i; win->edges[j] != ppu->window1right + 1; j++);\n",
+        "    for (i = 0; win->edges[i] != w1l; i++);\n"
+        "    for (j = i; win->edges[j] != w1r1; j++);\n",
+    ),
+    (
+        "    for (i = 0; win->edges[i] != ppu->window2left; i++);\n"
+        "    for (j = i; win->edges[j] != ppu->window2right + 1; j++);\n",
+        "    for (i = 0; win->edges[i] != w2l; i++);\n"
+        "    for (j = i; win->edges[j] != w2r1; j++);\n",
+    ),
+])
+
+patch_file("src/main.c", [
+    (
+        "    g_config.no_sprite_limits * kPpuRenderFlags_NoSpriteLimits;\n",
+        "    g_config.no_sprite_limits * kPpuRenderFlags_NoSpriteLimits |\n"
+        "    (g_config.extended_aspect_ratio ? kPpuRenderFlags_WideWindow : 0);\n",
+    ),
+])
+
+patch_file("src/smw_00.c", [
+    # $00CA74 set_up_x_pos (iris circle): 16-bit center (the 8-bit read of
+    # the uint16 $7E wraps when the player stands in a side extension),
+    # +0x80 into wide-window space, clamped [0, 0x1FF], halved with the
+    # ASM's LSR/ADC #0 rounding.
+    (
+        "void UpdateHDMAWindowBuffer_IrisInOnPlayerEntry(uint8 a, HdmaPtrs hptr) {  // 00ca6d\n"
+        "  timer_hdmawindow_scaling_factor += a;\n"
+        "  uint8 r0 = player_on_screen_pos_x + 8;\n",
+        "void UpdateHDMAWindowBuffer_IrisInOnPlayerEntry(uint8 a, HdmaPtrs hptr) {  // 00ca6d\n"
+        "  timer_hdmawindow_scaling_factor += a;\n"
+        "  uint8 r0;\n"
+        "  if (g_widescreen_extra) {\n"
+        "    uint16 t = player_on_screen_pos_x + 8 + 0x80;\n"
+        "    if ((t & 0x8000) != 0)\n"
+        "      t = 0;\n"
+        "    else if (t >= 0x1ff)\n"
+        "      t = 0x1ff;\n"
+        "    r0 = (t >> 1) + (t & 1);\n"
+        "  } else {\n"
+        "    r0 = player_on_screen_pos_x + 8;\n"
+        "  }\n",
+    ),
+    # $00CC51 circle_window_halve: the circle/keyhole radius products are in
+    # 2px window units. Covers the iris, the keyhole and the title-screen
+    # circle (whose fixed 0x80 center is the same point in both spaces).
+    (
+        "  uint8 r2 = result;\n"
+        "  return (PairU8) { .first = r2, .second = r3 };\n",
+        "  uint8 r2 = result;\n"
+        "  if (g_widescreen_extra) {\n"
+        "    r2 >>= 1;\n"
+        "    r3 >>= 1;\n"
+        "  }\n"
+        "  return (PairU8) { .first = r2, .second = r3 };\n",
+    ),
+    # $00C4DD set_up_keyhole_x_pos: same 16-bit + clamp + halve for the
+    # keyhole center ($1436 - $1A + 4).
+    (
+        "      uint8 r0 = player_on_tilting_platform_xpos - mirror_current_layer1_xpos + 4;\n",
+        "      uint8 r0;\n"
+        "      if (g_widescreen_extra) {\n"
+        "        uint16 t = player_on_tilting_platform_xpos - mirror_current_layer1_xpos + 4 + 0x80;\n"
+        "        if ((t & 0x8000) != 0)\n"
+        "          t = 0;\n"
+        "        else if (t >= 0x1ff)\n"
+        "          t = 0x1ff;\n"
+        "        r0 = (t >> 1) + (t & 1);\n"
+        "      } else {\n"
+        "        r0 = player_on_tilting_platform_xpos - mirror_current_layer1_xpos + 4;\n"
+        "      }\n",
+    ),
+    # $00C470: keyhole window size targets $90 -> $A0 (wide-snes makes the
+    # halved keyhole ~11% bigger to compensate the lost pixel).
+    (
+        "    if (timer_hdmawindow_scaling_factor == kGameMode14_InLevel_DATA_00C470[flag_keyhole_anim_phase]) {\n",
+        "    static const uint8 kWideKeyholeSize_00C470[4] = { 0xa0, 0x0, 0xa0, 0x0,  };\n"
+        "    if (timer_hdmawindow_scaling_factor ==\n"
+        "        (g_widescreen_extra ? kWideKeyholeSize_00C470 : kGameMode14_InLevel_DATA_00C470)[flag_keyhole_anim_phase]) {\n",
+    ),
+])
+
+patch_file("src/smw_05.c", [
+    # $05B25D recalc_x (layer-3 message box): half-width in 2px units, same
+    # 0x80 center. The row-filling comparison keeps the unhalved timer, like
+    # the ASM (it compares $1B89 itself).
+    (
+        "    timer_wait_before_message_window_size_change += kDisplayMessage_DATA_05B10A[flag_message_window_size_change_direction];\n"
+        "    HIBYTE(v7) = timer_wait_before_message_window_size_change + 0x80;\n"
+        "    LOBYTE(v7) = 0x80 - timer_wait_before_message_window_size_change;\n",
+        "    timer_wait_before_message_window_size_change += kDisplayMessage_DATA_05B10A[flag_message_window_size_change_direction];\n"
+        "    uint8 wt = g_widescreen_extra ? timer_wait_before_message_window_size_change >> 1\n"
+        "                                  : timer_wait_before_message_window_size_change;\n"
+        "    HIBYTE(v7) = wt + 0x80;\n"
+        "    LOBYTE(v7) = 0x80 - wt;\n",
+    ),
+])
+
+patch_file("src/smw_03.c", [
+    # $03C52E/$03C533/$03C538/$03C53D spotlight lamp: edges and expansion
+    # size in 2px units; the expansion covers the whole wide view
+    # (0x48 * screen_size / 256 - wide-snes' "compensation" constants, with
+    # !screen_size = 256 + 2*extra computed at runtime here).
+    (
+        "      sprc6_spotlight_left_bottom_x = 0;\n"
+        "      sprc6_spotlight_right_bottom_x = -112;\n"
+        "      sprc6_spotlight_left_top_x = 120;\n"
+        "      sprc6_spotlight_right_top_x = -121;\n",
+        "      sprc6_spotlight_left_bottom_x = 0;\n"
+        "      if (g_widescreen_extra) {\n"
+        "        sprc6_spotlight_right_bottom_x = 0x48 * (256 + 2 * g_widescreen_extra) >> 8;\n"
+        "        sprc6_spotlight_left_top_x = 0x78 + 4 + 1;\n"
+        "        sprc6_spotlight_right_top_x = 0x87 - 4;\n"
+        "      } else {\n"
+        "        sprc6_spotlight_right_bottom_x = -112;\n"
+        "        sprc6_spotlight_left_top_x = 120;\n"
+        "        sprc6_spotlight_right_top_x = -121;\n"
+        "      }\n",
+    ),
+    # $03C491: the dir-1 expansion target scales the same way (speeds are
+    # +/-1, so the equality compare still hits exactly).
+    (
+        "    if (sprc6_spotlight_right_bottom_x == kSpr0C6_Spotlight_DATA_03C491[sprc6_spotlight_dir])\n",
+        "    uint8 wide_lamp_target = kSpr0C6_Spotlight_DATA_03C491[sprc6_spotlight_dir];\n"
+        "    if (g_widescreen_extra && sprc6_spotlight_dir)\n"
+        "      wide_lamp_target = 0x48 * (256 + 2 * g_widescreen_extra) >> 8;\n"
+        "    if (sprc6_spotlight_right_bottom_x == wide_lamp_target)\n",
+    ),
+])
+
+patch_file("src/smw_04.c", [
+    # $04F453/$04F46E continue/save prompt: box half-width halved in 2px
+    # units. The scanline-extent math (v2/v3 loops) keeps vanilla's rounding
+    # (wide-snes' register reuse drops one +1-rounding term there; the box
+    # height is intentionally unchanged either way).
+    (
+        "    HIBYTE(v0) = timer_wait_before_message_window_size_change + 0x80;\n",
+        "    uint8 wt = g_widescreen_extra ? timer_wait_before_message_window_size_change >> 1\n"
+        "                                  : timer_wait_before_message_window_size_change;\n"
+        "    HIBYTE(v0) = wt + 0x80;\n",
+    ),
+    (
+        "    LOBYTE(v0) = 0x80 - timer_wait_before_message_window_size_change;\n",
+        "    LOBYTE(v0) = 0x80 - wt;\n",
+    ),
+    # $04DB08/$04DB0C overworld shrink/expand transition: horizontal speed
+    # and max size halved and rescaled 28 -> 32 blocks like wide-snes
+    # (256px effective area; the vertical tables stay vanilla).
+    (
+        "  int v0 = ow_hdmatransition_effect_flag >> 1;\n"
+        "  ow_hdmatransition_effect_xpos += kInitializeWindowHDMA_DATA_04DB08[v0];\n"
+        "  if (((kInitializeWindowHDMA_DATA_04DB08[v0] ^\n"
+        "        (ow_hdmatransition_effect_xpos -\n"
+        "         *(uint16 *)&kInitializeWindowHDMA_DATA_04DB0C[ow_hdmatransition_effect_flag])) &\n"
+        "       0x8000) == 0 ||\n"
+        "      (ow_hdmatransition_effect_ypos += kInitializeWindowHDMA_DATA_04DB10[v0],\n"
+        "       ((kInitializeWindowHDMA_DATA_04DB10[v0] ^\n"
+        "         (ow_hdmatransition_effect_ypos -\n"
+        "          *(uint16 *)&kInitializeWindowHDMA_DATA_04DB14[ow_hdmatransition_effect_flag])) &\n"
+        "        0x8000) == 0)) {\n"
+        "    ow_hdmatransition_effect_xpos = *(uint16 *)&kInitializeWindowHDMA_DATA_04DB0C[ow_hdmatransition_effect_flag];\n",
+        "  static const uint16 kWideWindowHDMA_Speed_04DB08[2] = { 0xfc00, 0x400,  };\n"
+        "  static const uint8 kWideWindowHDMA_MinMax_04DB0C[4] = { 0x0, 0x0, 0x0, 0x40,  };\n"
+        "  const uint16 *spd = g_widescreen_extra ? kWideWindowHDMA_Speed_04DB08 : kInitializeWindowHDMA_DATA_04DB08;\n"
+        "  const uint8 *mm = g_widescreen_extra ? kWideWindowHDMA_MinMax_04DB0C : kInitializeWindowHDMA_DATA_04DB0C;\n"
+        "  int v0 = ow_hdmatransition_effect_flag >> 1;\n"
+        "  ow_hdmatransition_effect_xpos += spd[v0];\n"
+        "  if (((spd[v0] ^\n"
+        "        (ow_hdmatransition_effect_xpos -\n"
+        "         *(uint16 *)&mm[ow_hdmatransition_effect_flag])) &\n"
+        "       0x8000) == 0 ||\n"
+        "      (ow_hdmatransition_effect_ypos += kInitializeWindowHDMA_DATA_04DB10[v0],\n"
+        "       ((kInitializeWindowHDMA_DATA_04DB10[v0] ^\n"
+        "         (ow_hdmatransition_effect_ypos -\n"
+        "          *(uint16 *)&kInitializeWindowHDMA_DATA_04DB14[ow_hdmatransition_effect_flag])) &\n"
+        "        0x8000) == 0)) {\n"
+        "    ow_hdmatransition_effect_xpos = *(uint16 *)&mm[ow_hdmatransition_effect_flag];\n",
+    ),
+    # $049630: the shrink animation's initial size, same halved-and-rescaled
+    # value as the expand maximum.
+    (
+        "    ow_hdmatransition_effect_xpos = 0x7000;\n",
+        "    ow_hdmatransition_effect_xpos = g_widescreen_extra ? 0x4000 : 0x7000;\n",
+    ),
+])
+
+print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
