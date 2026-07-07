@@ -1755,4 +1755,121 @@ patch_file("src/smw_03.c", [
     ),
 ])
 
+# --- step 3, iteration 11: cluster sprites ------------------------------------
+# level_cluster_sprites.asm + the $02FEC5 bounds deferred since iteration 1.
+# $02FEC9's consumer was deduplicated away by the C port (no usage to patch);
+# boo-buddies spread ($02F880) is SA-1-only upstream; boo ring is "functional
+# as is" (its draw shares the boo routine below); the bonus-game 1up is
+# 1-screen-room only.
+
+patch_file("src/smw_02.c", [
+    # $02DF83 sumo flame: spawn regardless of on-screen position (the
+    # GetDrawInfo draw path, wide since iteration 4, handles culling).
+    (
+        "  if (cluster_spr_xpos_hi[j] ==\n"
+        "        ((cluster_spr_xpos_lo[j] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)))\n"
+        "    cluster_spr_spriteid[j] = 6;\n",
+        "  if (g_widescreen_extra ||\n"
+        "      cluster_spr_xpos_hi[j] ==\n"
+        "        ((cluster_spr_xpos_lo[j] < (uint8)mirror_current_layer1_xpos) + HIBYTE(mirror_current_layer1_xpos)))\n"
+        "    cluster_spr_spriteid[j] = 6;\n",
+    ),
+    # $02FEC5 cluster X process bounds {0x40,0xB0} -> range [-0x40, 0x140),
+    # inlined by the port as a single compare; widened per direction.
+    (
+        "  uint16 r0w = PAIR16(cluster_spr_xpos_hi[k], cluster_spr_xpos_lo[k]);\n"
+        "  if ((uint16)(r0w - mirror_current_layer1_xpos + 64) < 0x180) {\n",
+        "  uint16 r0w = PAIR16(cluster_spr_xpos_hi[k], cluster_spr_xpos_lo[k]);\n"
+        "  if ((uint16)(r0w - mirror_current_layer1_xpos + 64 + g_widescreen_extra) < 0x180 + 2 * g_widescreen_extra) {\n",
+    ),
+    # ... and its MSB-as-hide else-branch becomes 4:3-only (in widescreen the
+    # draw below stores the real bit 8).
+    (
+        "    } else if ((uint16)(xpos - mirror_current_layer1_xpos) >> 8) {\n"
+        "      sprites_oamtile_size_buffer[(kClusterSpriteOAMIndexes[k] >> 2) + 64] = 3;\n"
+        "    }\n",
+        "    } else if (!g_widescreen_extra && (uint16)(xpos - mirror_current_layer1_xpos) >> 8) {\n"
+        "      sprites_oamtile_size_buffer[(kClusterSpriteOAMIndexes[k] >> 2) + 64] = 3;\n"
+        "    }\n",
+    ),
+    # $02FD4D/$02FD8C boo_get_x: 9-bit OAM x for the shared boo draw (boo
+    # ceiling/bat, boo ring, reappearing boo). The PPU's wrap-to-negative at
+    # 256+extra reproduces the ASM's AND #$01FF culling.
+    (
+        "  int8 v4 = (!__CFSHL__(cluster_spr_table1e66[k], 1)) ? 0x40 : 0;\n"
+        "  oam[64].flags = r2 | v4 | 0x31;\n"
+        "  sprites_oamtile_size_buffer[(v2 >> 2) + 64] = 2;\n",
+        "  int8 v4 = (!__CFSHL__(cluster_spr_table1e66[k], 1)) ? 0x40 : 0;\n"
+        "  oam[64].flags = r2 | v4 | 0x31;\n"
+        "  sprites_oamtile_size_buffer[(v2 >> 2) + 64] =\n"
+        "      2 | (g_widescreen_extra\n"
+        "               ? (uint8)((uint16)(PAIR16(cluster_spr_xpos_hi[k], cluster_spr_xpos_lo[k]) -\n"
+        "                                  mirror_current_layer1_xpos) >> 8) & 1\n"
+        "               : 0);\n",
+    ),
+    # $02AA71/$02AA78 castle candles: 8 candles instead of 4, covering the
+    # 512px entrance-hall BG (new ones on screen 1, OAM slots 0xE0-0xEC per
+    # wide-snes' DATA_02FA0A). First 4 entries stay vanilla for 4:3.
+    (
+        "static const uint8 kSpr0E6_LoadCandleFlames_xlo[4] = { 0x50, 0x90, 0xd0, 0x10,  };\n",
+        "static const uint8 kSpr0E6_LoadCandleFlames_xlo[8] = { 0x50, 0x90, 0xd0, 0x10, 0x50, 0x90, 0xd0, 0x10,  };\n",
+    ),
+    (
+        "static const uint8 kClusterSpr05_CandleFlame_OAMIndex[4] = { 0xf0, 0xf4, 0xf8, 0xfc,  };\n",
+        "static const uint8 kClusterSpr05_CandleFlame_OAMIndex[8] = { 0xf0, 0xf4, 0xf8, 0xfc, 0xe0, 0xe4, 0xe8, 0xec,  };\n",
+    ),
+    (
+        "  case 0xE6:\n"
+        "    spr_current_status[3] = 7;\n"
+        "    for (uint8 j = 3; (j & 0x80) == 0; --j) {\n"
+        "      cluster_spr_spriteid[j] = 5;\n"
+        "      cluster_spr_xpos_lo[j] = kSpr0E6_LoadCandleFlames_xlo[j];\n"
+        "      cluster_spr_ypos_lo[j] = -16;\n"
+        "      cluster_spr_table0f4a[j] = 4 * j;\n"
+        "    }\n"
+        "    break;\n",
+        "  case 0xE6:\n"
+        "    spr_current_status[3] = 7;\n"
+        "    for (uint8 j = g_widescreen_extra ? 7 : 3; (j & 0x80) == 0; --j) {\n"
+        "      cluster_spr_spriteid[j] = 5;\n"
+        "      cluster_spr_xpos_lo[j] = kSpr0E6_LoadCandleFlames_xlo[j];\n"
+        "      if (g_widescreen_extra)\n"
+        "        cluster_spr_xpos_hi[j] = j >> 2;\n"
+        "      cluster_spr_ypos_lo[j] = -16;\n"
+        "      cluster_spr_table0f4a[j] = 4 * j;\n"
+        "    }\n"
+        "    break;\n",
+    ),
+    # $02FA2B/$02FA59/$02FA5F candles_grab_screen_x: 16-bit x against the
+    # layer-2 camera + MSB; the vanilla seam-duplicate hack (hidden via
+    # MSB=1, which now shows) becomes 4:3-only, matching wide-snes' RTS.
+    (
+        "  uint8 v1 = kClusterSpr05_CandleFlame_OAMIndex[k];\n"
+        "  OamEnt *oam = get_OamEnt(oam_buf, v1);\n"
+        "  oam[64].xpos = cluster_spr_xpos_lo[k] - mirror_current_layer2_xpos;\n"
+        "  oam[64].ypos = cluster_spr_ypos_lo[k] - mirror_current_layer2_ypos;\n"
+        "  uint8 v3 = cluster_spr_table0f4a[k] & 3;\n"
+        "  oam[64].charnum = kClusterSpr05_CandleFlame_Tiles[v3];\n"
+        "  oam[64].flags = kClusterSpr05_CandleFlame_Prop[v3];\n"
+        "  sprites_oamtile_size_buffer[(v1 >> 2) + 64] = 2;\n"
+        "  if (oam[64].xpos >= 0xF0) {\n"
+        "    get_OamEnt(oam_buf, 0)[123] = oam[64];\n"
+        "    sprites_oamtile_size_buffer[123] = 3;\n"
+        "  }\n",
+        "  uint8 v1 = kClusterSpr05_CandleFlame_OAMIndex[k];\n"
+        "  OamEnt *oam = get_OamEnt(oam_buf, v1);\n"
+        "  uint16 candle_sx = PAIR16(cluster_spr_xpos_hi[k], cluster_spr_xpos_lo[k]) - mirror_current_layer2_xpos;\n"
+        "  oam[64].xpos = cluster_spr_xpos_lo[k] - mirror_current_layer2_xpos;\n"
+        "  oam[64].ypos = cluster_spr_ypos_lo[k] - mirror_current_layer2_ypos;\n"
+        "  uint8 v3 = cluster_spr_table0f4a[k] & 3;\n"
+        "  oam[64].charnum = kClusterSpr05_CandleFlame_Tiles[v3];\n"
+        "  oam[64].flags = kClusterSpr05_CandleFlame_Prop[v3];\n"
+        "  sprites_oamtile_size_buffer[(v1 >> 2) + 64] = 2 | (g_widescreen_extra ? (candle_sx >> 8) & 1 : 0);\n"
+        "  if (!g_widescreen_extra && oam[64].xpos >= 0xF0) {\n"
+        "    get_OamEnt(oam_buf, 0)[123] = oam[64];\n"
+        "    sprites_oamtile_size_buffer[123] = 3;\n"
+        "  }\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/05.c patched OK")
