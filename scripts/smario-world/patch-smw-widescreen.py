@@ -374,25 +374,18 @@ patch_file("src/smw_05.c", [
         "      mirror_current_layer1_xpos = g_widescreen_extra;\n"
         "      mirror_current_layer2_xpos = g_widescreen_extra;\n",
     ),
-    # $05D923 horz_customizer: rooms whose camera must stay fixed (and
-    # centered relative to the wide region). Y at the hook == r14w.
-    (
-        "  flag_layer1_horiz_scroll_level_setting = 1;\n",
-        "  flag_layer1_horiz_scroll_level_setting = 1;\n"
-        "  if (g_widescreen_extra) {\n"
-        "    if (r14w == 0xFA)  // ghost house bonus: no scroll\n"
-        "      flag_layer1_horiz_scroll_level_setting = 0;\n"
-        "    if (r14w == 0x003 || r14w == 0x0E4 || r14w == 0x104) {\n"
-        "      // top secret area / big boo fight / yoshi's house\n"
-        "      mirror_current_layer1_xpos = 0x100;\n"
-        "      flag_layer1_horiz_scroll_level_setting = 0;\n"
-        "    } else if (r14w == 0x0D3 || r14w == 0x1F2 || r14w == 0x1C9) {\n"
-        "      // wendy / lemmy / cloud sublevel\n"
-        "      mirror_current_layer1_xpos = 0x400;\n"
-        "      flag_layer1_horiz_scroll_level_setting = 0;\n"
-        "    }\n"
-        "  }\n",
-    ),
+    # $05D923 horz_customizer is deliberately NOT ported. wide-snes pins the
+    # camera to 0x100 (top secret $003 / big boo $0E4 / yoshi's house $104)
+    # or 0x400 (wendy $0D3 / lemmy $1F2 / cloud $1C9) and disables scroll
+    # ($FA ghost bonus) because on hardware the SNES tilemap wraps mod 512
+    # and those pins center the fixed view inside the force-rendered buffer.
+    # Every one of those rooms is a 1-screen level (ROM header screens == 1),
+    # and this port's 1-screen path (camera pinned to 0 in the $00F73F clamp
+    # + force_whole_render below) already produces the same centered wrapped
+    # view with the camera where Mario actually is. Porting the pin verbatim
+    # put the camera a screen away from Mario's entrance (px 0x80, camera
+    # 0x100) and the widened $00E9A1 camera-kill check killed him on entry —
+    # the "TIME UP!" on entering Yoshi's House ($104).
     # $0580A9/$0580B0 force_whole_render: on 1-screen levels compute the
     # tilemap columns as if the camera were at 0x80 so the whole 512px
     # buffer is filled (the side extensions then have real content).
@@ -1188,4 +1181,578 @@ patch_file("src/smw_00.c", [
     ),
 ])
 
-print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, smw_00/01/02/03/05.c patched OK")
+# --- step 3, iteration 10: smoke_position -------------------------------------
+# smoke_position.asm (the MarioE/Tattletale patch wide-snes bundles): smoke
+# sprites only carry 8-bit x/y, wrapping at the old 256px window. Hi-byte
+# tables go in the same free RAM the ASM uses (unused in the C port too), so
+# savestates carry them. Hi-table writes are unconditional (nothing reads
+# them in 4:3); every behavior change stays keyed on g_widescreen_extra.
+
+patch_file("src/variables.h", [
+    (
+        "#define smoke_spr_timer ((uint8*)(g_ram+0x17CC))\n",
+        "#define smoke_spr_timer ((uint8*)(g_ram+0x17CC))\n"
+        "// Widescreen (wide-snes smoke_position.asm): smoke x/y high bytes, in the\n"
+        "// same free-RAM slots the ASM patch uses so savestates carry them.\n"
+        "#define smoke_spr_ypos_hi ((uint8*)(g_ram+0x18C5))\n"
+        "#define smoke_spr_xpos_hi ((uint8*)(g_ram+0x18C9))\n",
+    ),
+])
+
+# $0285DB minor_store_spr_x_star: SpawnSparkles takes a 16-bit x now.
+patch_file("src/funcs.h", [
+    (
+        "void SpawnSparkles(uint8 r0, uint8 r2);\n",
+        "void SpawnSparkles(uint8 r0, uint16 r2);\n",
+    ),
+])
+
+patch_file("src/smw_00.c", [
+    # $00FB9E SetEndLevelHighBytes (goal tape power-up puff).
+    (
+        "  smoke_spr_spriteid[v4] = 1;\n"
+        "  smoke_spr_ypos_lo[v4] = spr_ypos_lo[j];\n"
+        "  smoke_spr_xpos_lo[v4] = spr_xpos_lo[j];\n"
+        "  smoke_spr_timer[v4] = 27;\n",
+        "  smoke_spr_spriteid[v4] = 1;\n"
+        "  smoke_spr_ypos_lo[v4] = spr_ypos_lo[j];\n"
+        "  smoke_spr_xpos_lo[v4] = spr_xpos_lo[j];\n"
+        "  smoke_spr_ypos_hi[v4] = spr_ypos_hi[j];\n"
+        "  smoke_spr_xpos_hi[v4] = spr_xpos_hi[j];\n"
+        "  smoke_spr_timer[v4] = 27;\n",
+    ),
+    # $00FD7E midway/yoshi-coin glitter: hi bytes, layer-2 branch 16-bit.
+    (
+        "    smoke_spr_spriteid[v0] = 5;\n"
+        "    smoke_spr_xpos_lo[v0] = blocks_xpos & 0xF0;\n"
+        "    smoke_spr_ypos_lo[v0] = blocks_ypos & 0xF0;\n"
+        "    if ((uint8)misc_current_layer_being_processed) {\n"
+        "      smoke_spr_xpos_lo[v0] = (blocks_xpos - misc_second_level_layer_xpos) & 0xF0;\n"
+        "      smoke_spr_ypos_lo[v0] = (blocks_ypos - misc_second_level_layer_ypos) & 0xF0;\n"
+        "    }\n",
+        "    smoke_spr_spriteid[v0] = 5;\n"
+        "    smoke_spr_xpos_lo[v0] = blocks_xpos & 0xF0;\n"
+        "    smoke_spr_ypos_lo[v0] = blocks_ypos & 0xF0;\n"
+        "    smoke_spr_xpos_hi[v0] = HIBYTE(blocks_xpos);\n"
+        "    smoke_spr_ypos_hi[v0] = HIBYTE(blocks_ypos);\n"
+        "    if ((uint8)misc_current_layer_being_processed) {\n"
+        "      uint16 gx = blocks_xpos - misc_second_level_layer_xpos;\n"
+        "      uint16 gy = blocks_ypos - misc_second_level_layer_ypos;\n"
+        "      smoke_spr_xpos_lo[v0] = gx & 0xF0;\n"
+        "      smoke_spr_ypos_lo[v0] = gy & 0xF0;\n"
+        "      smoke_spr_xpos_hi[v0] = gx >> 8;\n"
+        "      smoke_spr_ypos_hi[v0] = gy >> 8;\n"
+        "    }\n",
+    ),
+    # $00FE8E player turn-around smoke: 16-bit player position + disp.
+    (
+        "void SpawnPlayerTurnAroundSmoke_00FE72(uint8 j) {  // 00fe72\n"
+        "  smoke_spr_spriteid[j] = 3;\n"
+        "  smoke_spr_xpos_lo[j] = player_xpos + 4;\n"
+        "  smoke_spr_ypos_lo[j] = player_ypos + 26 + (player_riding_yoshi_flag ? 16 : 0);\n"
+        "  smoke_spr_timer[j] = 19;\n"
+        "}\n",
+        "void SpawnPlayerTurnAroundSmoke_00FE72(uint8 j) {  // 00fe72\n"
+        "  uint16 sx = player_xpos + 4;\n"
+        "  uint16 sy = player_ypos + 26 + (player_riding_yoshi_flag ? 16 : 0);\n"
+        "  smoke_spr_spriteid[j] = 3;\n"
+        "  smoke_spr_xpos_lo[j] = sx;\n"
+        "  smoke_spr_ypos_lo[j] = sy;\n"
+        "  smoke_spr_xpos_hi[j] = sx >> 8;\n"
+        "  smoke_spr_ypos_hi[j] = sy >> 8;\n"
+        "  smoke_spr_timer[j] = 19;\n"
+        "}\n",
+    ),
+])
+
+patch_file("src/smw_01.c", [
+    # $018078 generic sprite smoke: FixHighX/Y's pseudo-subtraction is just
+    # a sign-extended 16-bit add (motors pass a negative r0).
+    (
+        "    smoke_spr_spriteid[j] = 3;\n"
+        "    smoke_spr_xpos_lo[j] = r0 + spr_xpos_lo[k];\n"
+        "    smoke_spr_ypos_lo[j] = r1 + spr_ypos_lo[k];\n"
+        "    smoke_spr_timer[j] = 19;\n",
+        "    smoke_spr_spriteid[j] = 3;\n"
+        "    uint16 sx = GetSprXPos(k) + (int8)r0;\n"
+        "    uint16 sy = GetSprYPos(k) + (int8)r1;\n"
+        "    smoke_spr_xpos_lo[j] = sx;\n"
+        "    smoke_spr_ypos_lo[j] = sy;\n"
+        "    smoke_spr_xpos_hi[j] = sx >> 8;\n"
+        "    smoke_spr_ypos_hi[j] = sy >> 8;\n"
+        "    smoke_spr_timer[j] = 19;\n",
+    ),
+    # $01AB8D sprite-hit contact effect.
+    (
+        "    smoke_spr_spriteid[j] = 2;\n"
+        "    smoke_spr_xpos_lo[j] = spr_xpos_lo[k];\n"
+        "    smoke_spr_ypos_lo[j] = spr_ypos_lo[k];\n"
+        "    smoke_spr_timer[j] = 8;\n",
+        "    smoke_spr_spriteid[j] = 2;\n"
+        "    smoke_spr_xpos_lo[j] = spr_xpos_lo[k];\n"
+        "    smoke_spr_ypos_lo[j] = spr_ypos_lo[k];\n"
+        "    smoke_spr_xpos_hi[j] = spr_xpos_hi[k];\n"
+        "    smoke_spr_ypos_hi[j] = spr_ypos_hi[k];\n"
+        "    smoke_spr_timer[j] = 8;\n",
+    ),
+    # $01ABC5 contact effect at the player's position.
+    (
+        "    smoke_spr_spriteid[j] = 2;\n"
+        "    smoke_spr_xpos_lo[j] = player_xpos;\n"
+        "    smoke_spr_ypos_lo[j] = player_ypos + (player_riding_yoshi_flag ? 30 : 20);\n"
+        "    smoke_spr_timer[j] = 8;\n",
+        "    smoke_spr_spriteid[j] = 2;\n"
+        "    uint16 sy = player_ypos + (player_riding_yoshi_flag ? 30 : 20);\n"
+        "    smoke_spr_xpos_lo[j] = player_xpos;\n"
+        "    smoke_spr_ypos_lo[j] = sy;\n"
+        "    smoke_spr_xpos_hi[j] = HIBYTE(player_xpos);\n"
+        "    smoke_spr_ypos_hi[j] = sy >> 8;\n"
+        "    smoke_spr_timer[j] = 8;\n",
+    ),
+    # $01BDAD magikoopa smoke.
+    (
+        "  smoke_spr_spriteid[v1] = 1;\n"
+        "  smoke_spr_xpos_lo[v1] = spr_xpos_lo[k];\n"
+        "  smoke_spr_ypos_lo[v1] = spr_ypos_lo[k];\n"
+        "  smoke_spr_timer[v1] = 27;\n",
+        "  smoke_spr_spriteid[v1] = 1;\n"
+        "  smoke_spr_xpos_lo[v1] = spr_xpos_lo[k];\n"
+        "  smoke_spr_ypos_lo[v1] = spr_ypos_lo[k];\n"
+        "  smoke_spr_xpos_hi[v1] = spr_xpos_hi[k];\n"
+        "  smoke_spr_ypos_hi[v1] = spr_ypos_hi[k];\n"
+        "  smoke_spr_timer[v1] = 27;\n",
+    ),
+    # $01C505 power-up collect glitter.
+    (
+        "  smoke_spr_spriteid[v1] = 5;\n"
+        "  smoke_spr_xpos_lo[v1] = spr_xpos_lo[k];\n"
+        "  smoke_spr_ypos_lo[v1] = spr_ypos_lo[k];\n"
+        "  smoke_spr_timer[v1] = 16;\n",
+        "  smoke_spr_spriteid[v1] = 5;\n"
+        "  smoke_spr_xpos_lo[v1] = spr_xpos_lo[k];\n"
+        "  smoke_spr_ypos_lo[v1] = spr_ypos_lo[k];\n"
+        "  smoke_spr_xpos_hi[v1] = spr_xpos_hi[k];\n"
+        "  smoke_spr_ypos_hi[v1] = spr_ypos_hi[k];\n"
+        "  smoke_spr_timer[v1] = 16;\n",
+    ),
+    # $01C5E6 feather freeze (mario becomes smoke).
+    (
+        "    smoke_spr_spriteid[v0] = -127;\n"
+        "    smoke_spr_timer[v0] = 27;\n"
+        "    smoke_spr_ypos_lo[v0] = player_ypos + 8;\n"
+        "    smoke_spr_xpos_lo[v0] = player_xpos;\n",
+        "    smoke_spr_spriteid[v0] = -127;\n"
+        "    smoke_spr_timer[v0] = 27;\n"
+        "    uint16 sy = player_ypos + 8;\n"
+        "    smoke_spr_ypos_lo[v0] = sy;\n"
+        "    smoke_spr_xpos_lo[v0] = player_xpos;\n"
+        "    smoke_spr_ypos_hi[v0] = sy >> 8;\n"
+        "    smoke_spr_xpos_hi[v0] = HIBYTE(player_xpos);\n",
+    ),
+    # $01D026 Morton/Roy/Ludwig death smoke.
+    (
+        "      smoke_spr_spriteid[0] = 1;\n"
+        "      smoke_spr_xpos_lo[0] = spr_xpos_lo[k] - 8;\n"
+        "      smoke_spr_ypos_lo[0] = spr_ypos_lo[k] + 8;\n"
+        "      smoke_spr_timer[0] = 27;\n",
+        "      uint16 sx = GetSprXPos(k) - 8;\n"
+        "      uint16 sy = GetSprYPos(k) + 8;\n"
+        "      smoke_spr_spriteid[0] = 1;\n"
+        "      smoke_spr_xpos_lo[0] = sx;\n"
+        "      smoke_spr_ypos_lo[0] = sy;\n"
+        "      smoke_spr_xpos_hi[0] = sx >> 8;\n"
+        "      smoke_spr_ypos_hi[0] = sy >> 8;\n"
+        "      smoke_spr_timer[0] = 27;\n",
+    ),
+    # $01B170 sparkle spawn window (deferred from iteration 9): skip the
+    # 256px window in widescreen (the ASM BRAs over it) and pass 16-bit x.
+    (
+        "    int8 v3 = (GetRand() & 0xF) - 4;\n"
+        "    uint16 x = GetSprXPos(k) + v3;\n"
+        "    uint8 r2 = x;\n"
+        "    if ((uint16)(x - mirror_current_layer1_xpos) < 256) {\n"
+        "      uint8 v5 = (misc_random_byte2 & 0xF) - 2;  // not signed?\n"
+        "      uint16 r0w = GetSprYPos(k) + v5;\n"
+        "      SpawnSparkles(r0w, r2);\n"
+        "    }\n",
+        "    int8 v3 = (GetRand() & 0xF) - 4;\n"
+        "    uint16 x = GetSprXPos(k) + v3;\n"
+        "    if (g_widescreen_extra || (uint16)(x - mirror_current_layer1_xpos) < 256) {\n"
+        "      uint8 v5 = (misc_random_byte2 & 0xF) - 2;  // not signed?\n"
+        "      uint16 r0w = GetSprYPos(k) + v5;\n"
+        "      SpawnSparkles(r0w, x);\n"
+        "    }\n",
+    ),
+])
+
+patch_file("src/smw_02.c", [
+    # $028A61 reznor bridge / sumo bro smoke.
+    (
+        "  smoke_spr_spriteid[v0] = 1;\n"
+        "  smoke_spr_ypos_lo[v0] = blocks_ypos;\n"
+        "  smoke_spr_xpos_lo[v0] = blocks_xpos;\n"
+        "  smoke_spr_timer[v0] = 27;\n",
+        "  smoke_spr_spriteid[v0] = 1;\n"
+        "  smoke_spr_ypos_lo[v0] = blocks_ypos;\n"
+        "  smoke_spr_xpos_lo[v0] = blocks_xpos;\n"
+        "  smoke_spr_ypos_hi[v0] = HIBYTE(blocks_ypos);\n"
+        "  smoke_spr_xpos_hi[v0] = HIBYTE(blocks_xpos);\n"
+        "  smoke_spr_timer[v0] = 27;\n",
+    ),
+    # $029AEA spinning-coin glitter: 16-bit from the block_coin hi tables;
+    # the layer-2 subtraction keeps the C port's lo-byte math exactly.
+    (
+        "  smoke_spr_spriteid[v1] = 5;\n"
+        "  uint8 t = block_coin_spr_layer_index[k];\n"
+        "  uint8 v2 = block_coin_spr_xpos_lo[k];\n"
+        "  if (t & 1)\n"
+        "    v2 -= misc_second_level_layer_xpos + 1;\n"
+        "  smoke_spr_xpos_lo[v1] = v2;\n"
+        "  uint8 v3 = block_coin_spr_ypos_lo[k];\n"
+        "  if (t & 1)\n"
+        "    v3 -= misc_second_level_layer_ypos + 1;\n"
+        "  smoke_spr_ypos_lo[v1] = v3;\n"
+        "  smoke_spr_timer[v1] = 16;\n",
+        "  smoke_spr_spriteid[v1] = 5;\n"
+        "  uint8 t = block_coin_spr_layer_index[k];\n"
+        "  uint16 sx = PAIR16(block_coin_spr_xpos_hi[k], block_coin_spr_xpos_lo[k]);\n"
+        "  uint16 sy = PAIR16(block_coin_spr_ypos_hi[k], block_coin_spr_ypos_lo[k]);\n"
+        "  if (t & 1) {\n"
+        "    sx -= misc_second_level_layer_xpos + 1;\n"
+        "    sy -= misc_second_level_layer_ypos + 1;\n"
+        "  }\n"
+        "  smoke_spr_xpos_lo[v1] = sx;\n"
+        "  smoke_spr_ypos_lo[v1] = sy;\n"
+        "  smoke_spr_xpos_hi[v1] = sx >> 8;\n"
+        "  smoke_spr_ypos_hi[v1] = sy >> 8;\n"
+        "  smoke_spr_timer[v1] = 16;\n",
+    ),
+    # $02A438 pink-berry cloud coin glitter.
+    (
+        "        smoke_spr_spriteid[v1] = 5;\n"
+        "        smoke_spr_xpos_lo[v1] = ext_spr_xpos_lo[k];\n"
+        "        smoke_spr_ypos_lo[v1] = ext_spr_ypos_lo[k];\n"
+        "        smoke_spr_timer[v1] = 10;\n",
+        "        smoke_spr_spriteid[v1] = 5;\n"
+        "        smoke_spr_xpos_lo[v1] = ext_spr_xpos_lo[k];\n"
+        "        smoke_spr_ypos_lo[v1] = ext_spr_ypos_lo[k];\n"
+        "        smoke_spr_xpos_hi[v1] = ext_spr_xpos_hi[k];\n"
+        "        smoke_spr_ypos_hi[v1] = ext_spr_ypos_hi[k];\n"
+        "        smoke_spr_timer[v1] = 10;\n",
+    ),
+    # $02B513 bulletbill-shooter smoke: 16-bit shooter x + signed disp
+    # (0xF4 = -12; the ASM's DEX/TXA sign trick).
+    (
+        "  smoke_spr_spriteid[v1] = 1;\n"
+        "  smoke_spr_ypos_lo[v1] = shooter_spr_ypos_lo[k];\n"
+        "  smoke_spr_timer[v1] = 27;\n"
+        "  smoke_spr_xpos_lo[v1] =\n"
+        "      kShooterSpr01_BulletBillShooter_ShooterSmokeDispX[HIBYTE(player_xpos) >= ((uint8)player_xpos < shooter_spr_xpos_lo[k]) + shooter_spr_xpos_hi[k]] +\n"
+        "      shooter_spr_xpos_lo[k];\n",
+        "  smoke_spr_spriteid[v1] = 1;\n"
+        "  smoke_spr_ypos_lo[v1] = shooter_spr_ypos_lo[k];\n"
+        "  smoke_spr_ypos_hi[v1] = shooter_spr_ypos_hi[k];\n"
+        "  smoke_spr_timer[v1] = 27;\n"
+        "  uint16 sx = PAIR16(shooter_spr_xpos_hi[k], shooter_spr_xpos_lo[k]) +\n"
+        "      (int8)kShooterSpr01_BulletBillShooter_ShooterSmokeDispX[HIBYTE(player_xpos) >= ((uint8)player_xpos < shooter_spr_xpos_lo[k]) + shooter_spr_xpos_hi[k]];\n"
+        "  smoke_spr_xpos_lo[v1] = sx;\n"
+        "  smoke_spr_xpos_hi[v1] = sx >> 8;\n",
+    ),
+    # $02B969 torpedo ted trail: the ASM rewrite drops the on-screen spawn
+    # gate entirely (the draw-side check_x culls now).
+    (
+        "  uint16 t = t1 - mirror_current_layer1_xpos;\n"
+        "  if (t < 256) {\n"
+        "    smoke_spr_spriteid[j] = 1;\n"
+        "    smoke_spr_xpos_lo[j] = t1;\n"
+        "    smoke_spr_ypos_lo[j] = spr_ypos_lo[k];\n"
+        "    smoke_spr_timer[j] = 15;\n"
+        "  }\n",
+        "  uint16 t = t1 - mirror_current_layer1_xpos;\n"
+        "  if (g_widescreen_extra || t < 256) {\n"
+        "    smoke_spr_spriteid[j] = 1;\n"
+        "    smoke_spr_xpos_lo[j] = t1;\n"
+        "    smoke_spr_ypos_lo[j] = spr_ypos_lo[k];\n"
+        "    smoke_spr_xpos_hi[j] = t1 >> 8;\n"
+        "    smoke_spr_ypos_hi[j] = spr_ypos_hi[k];\n"
+        "    smoke_spr_timer[j] = 15;\n"
+        "  }\n",
+    ),
+    # $0285B6 minor_load_spr_x_star: star-power sparkles, 16-bit x with the
+    # sign-extended random offset.
+    (
+        "  uint8 r0 = player_ypos + r1 + (misc_random_byte1 & v0);\n"
+        "  uint8 r2 = player_xpos + (misc_random_byte2 & 0xF) - 2;\n"
+        "  SpawnSparkles(r0, r2);\n",
+        "  uint8 r0 = player_ypos + r1 + (misc_random_byte1 & v0);\n"
+        "  uint16 r2 = player_xpos + (int8)((misc_random_byte2 & 0xF) - 2);\n"
+        "  SpawnSparkles(r0, r2);\n",
+    ),
+    # $0285DB minor_store_spr_x_star: store the sparkle's x hi byte.
+    (
+        "void SpawnSparkles(uint8 r0, uint8 r2) {  // 0285ba\n",
+        "void SpawnSparkles(uint8 r0, uint16 r2) {  // 0285ba\n",
+    ),
+    (
+        "  mextspr_spriteid[v0] = 5;\n"
+        "  mextspr_yspeed[v0] = 0;\n"
+        "  mextspr_ypos_lo[v0] = r0;\n"
+        "  mextspr_xpos_lo[v0] = r2;\n"
+        "  mextspr_timer[v0] = 23;\n",
+        "  mextspr_spriteid[v0] = 5;\n"
+        "  mextspr_yspeed[v0] = 0;\n"
+        "  mextspr_ypos_lo[v0] = r0;\n"
+        "  mextspr_xpos_lo[v0] = r2;\n"
+        "  if (g_widescreen_extra)\n"
+        "    mextspr_xpos_hi[v0] = r2 >> 8;\n"
+        "  mextspr_timer[v0] = 23;\n",
+    ),
+    # $0296C0 draw rewrite, puff: 16-bit check_x/check_y; y-offscreen no
+    # longer erases (the smoke lives until its timer runs out), x never
+    # culls — the OAM MSB (CMP #$0100 carry) places/hides the tile.
+    (
+        "void SmokeSpr01_PuffOfSmoke(uint8 k) {  // 0296e3\n"
+        "  OamEnt *v2;\n"
+        "  OamEnt *oam;\n"
+        "\n"
+        "  if (!smoke_spr_timer[k])\n"
+        "    goto LABEL_10;\n",
+        "static void WideSmokeSpr01_PuffOfSmoke(uint8 k) {\n"
+        "  if (!smoke_spr_timer[k]) {\n"
+        "    EraseSmokeSprite(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  if ((smoke_spr_spriteid[k] & 0x80) != 0 || !flag_sprites_locked)\n"
+        "    --smoke_spr_timer[k];\n"
+        "  uint16 sy = PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) - mirror_current_layer1_ypos;\n"
+        "  if (sy >= 0xE0)\n"
+        "    return;\n"
+        "  uint16 sx = PAIR16(smoke_spr_xpos_hi[k], smoke_spr_xpos_lo[k]) - mirror_current_layer1_xpos;\n"
+        "  uint8 msb = sx >= 0x100;\n"
+        "  if (spr_spriteid[7] == 0xA9 || (misc_nmito_use_flag & 0x40) == 0) {\n"
+        "    uint8 v3 = kSmokeSpriteOAMIndexes_One[k];\n"
+        "    OamEnt *oam = get_OamEnt(oam_buf, v3);\n"
+        "    oam->xpos = sx;\n"
+        "    oam->ypos = sy;\n"
+        "    oam->flags = sprites_tile_priority;\n"
+        "    oam->charnum = kSmokeSpr01_PuffOfSmoke_Tiles[smoke_spr_timer[k] >> 2];\n"
+        "    sprites_oamtile_size_buffer[v3 >> 2] = 2 | msb;\n"
+        "  } else {\n"
+        "    uint8 v1 = kSmokeSpriteOAMIndexes_Two[k];\n"
+        "    OamEnt *v2 = get_OamEnt(oam_buf, v1);\n"
+        "    v2[64].xpos = sx;\n"
+        "    v2[64].ypos = sy;\n"
+        "    v2[64].flags = sprites_tile_priority;\n"
+        "    v2[64].charnum = kSmokeSpr01_PuffOfSmoke_Tiles[smoke_spr_timer[k] >> 2];\n"
+        "    sprites_oamtile_size_buffer[(v1 >> 2) + 64] = 2 | msb;\n"
+        "  }\n"
+        "}\n"
+        "\n"
+        "void SmokeSpr01_PuffOfSmoke(uint8 k) {  // 0296e3\n"
+        "  OamEnt *v2;\n"
+        "  OamEnt *oam;\n"
+        "\n"
+        "  if (g_widescreen_extra) {\n"
+        "    WideSmokeSpr01_PuffOfSmoke(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  if (!smoke_spr_timer[k])\n"
+        "    goto LABEL_10;\n",
+    ),
+    # $0296C0 draw rewrite, contact effect: per-tile MSB (left column vs
+    # the +8 column), y gate 0xE0, no erase on offscreen.
+    (
+        "void SmokeSpr02_ContactEffect(uint8 k) {  // 029797\n"
+        "  if (!smoke_spr_timer[k])\n"
+        "    goto LABEL_2;\n",
+        "static void WideSmokeSpr02_ContactEffect(uint8 k) {\n"
+        "  if (!smoke_spr_timer[k]) {\n"
+        "    EraseSmokeSprite(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  if (!flag_sprites_locked)\n"
+        "    --smoke_spr_timer[k];\n"
+        "  uint16 sy = PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) - mirror_current_layer1_ypos;\n"
+        "  if (sy >= 0xE0)\n"
+        "    return;\n"
+        "  uint16 sx = PAIR16(smoke_spr_xpos_hi[k], smoke_spr_xpos_lo[k]) - mirror_current_layer1_xpos;\n"
+        "  uint8 msb_l = sx >= 0x100, msb_r = (uint16)(sx + 8) >= 0x100;\n"
+        "  OamEnt *oam;\n"
+        "  uint8 base;\n"
+        "  if ((misc_nmito_use_flag & 0x40) != 0 && misc_nmito_use_flag != 0xC1) {\n"
+        "    oam = get_OamEnt(oam_buf, 0x90) + 64;\n"
+        "    base = 100;\n"
+        "  } else {\n"
+        "    oam = get_OamEnt(oam_buf, 0xF0);\n"
+        "    base = 60;\n"
+        "  }\n"
+        "  oam[0].xpos = sx;\n"
+        "  oam[2].xpos = sx;\n"
+        "  oam[1].xpos = sx + 8;\n"
+        "  oam[3].xpos = sx + 8;\n"
+        "  oam[0].ypos = sy;\n"
+        "  oam[1].ypos = sy;\n"
+        "  oam[2].ypos = sy + 8;\n"
+        "  oam[3].ypos = sy + 8;\n"
+        "  int8 flags = sprites_tile_priority | (32 * smoke_spr_timer[k]) & 0x40;\n"
+        "  oam[0].flags = flags;\n"
+        "  oam[1].flags = flags;\n"
+        "  flags ^= 0xC0;\n"
+        "  oam[2].flags = flags;\n"
+        "  oam[3].flags = flags;\n"
+        "  if ((smoke_spr_timer[k] & 2) != 0) {\n"
+        "    oam[0].charnum = 125;\n"
+        "    oam[3].charnum = 125;\n"
+        "    oam[1].charnum = 124;\n"
+        "    oam[2].charnum = 124;\n"
+        "  } else {\n"
+        "    oam[0].charnum = 124;\n"
+        "    oam[3].charnum = 124;\n"
+        "    oam[1].charnum = 125;\n"
+        "    oam[2].charnum = 125;\n"
+        "  }\n"
+        "  sprites_oamtile_size_buffer[base] = msb_l;\n"
+        "  sprites_oamtile_size_buffer[base + 1] = msb_r;\n"
+        "  sprites_oamtile_size_buffer[base + 2] = msb_l;\n"
+        "  sprites_oamtile_size_buffer[base + 3] = msb_r;\n"
+        "}\n"
+        "\n"
+        "void SmokeSpr02_ContactEffect(uint8 k) {  // 029797\n"
+        "  if (g_widescreen_extra) {\n"
+        "    WideSmokeSpr02_ContactEffect(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  if (!smoke_spr_timer[k])\n"
+        "    goto LABEL_2;\n",
+    ),
+    # $0296C0 draw rewrite, skid: 16-bit rise (borrow into the hi byte),
+    # same check_x/check_y treatment; single tile.
+    (
+        "void SmokeSpr03_TurnAroundSmoke(uint8 k) {  // 029927\n"
+        "  uint8 v1 = smoke_spr_timer[k];\n"
+        "  if (v1) {\n",
+        "static void WideSmokeSpr03_TurnAroundSmoke(uint8 k) {\n"
+        "  uint8 v1 = smoke_spr_timer[k];\n"
+        "  if (!v1) {\n"
+        "    if ((misc_nmito_use_flag & 0x40) != 0 && !flag_reznor_room_oamindex_timer)\n"
+        "      get_OamEnt(oam_buf, kSmokeSpriteOAMIndexes_Two[k])[64].ypos = -16;\n"
+        "    EraseSmokeSprite(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  if (!flag_sprites_locked) {\n"
+        "    --smoke_spr_timer[k];\n"
+        "    if ((v1 & 7) == 0) {\n"
+        "      uint16 y16 = PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) - 1;\n"
+        "      smoke_spr_ypos_lo[k] = y16;\n"
+        "      smoke_spr_ypos_hi[k] = y16 >> 8;\n"
+        "    }\n"
+        "  }\n"
+        "  uint16 sy = PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) - mirror_current_layer1_ypos;\n"
+        "  if (sy >= 0xE0)\n"
+        "    return;\n"
+        "  uint16 sx = PAIR16(smoke_spr_xpos_hi[k], smoke_spr_xpos_lo[k]) - mirror_current_layer1_xpos;\n"
+        "  uint8 msb = sx >= 0x100;\n"
+        "  uint8 v2;\n"
+        "  OamEnt *o;\n"
+        "  uint8 sb;\n"
+        "  if (spr_spriteid[7] == 0xA9 || flag_reznor_room_oamindex_timer || (misc_nmito_use_flag & 0x80) == 0) {\n"
+        "    v2 = kSmokeSpriteOAMIndexes_One[k];\n"
+        "    o = get_OamEnt(oam_buf, v2);\n"
+        "    sb = v2 >> 2;\n"
+        "  } else if (misc_nmito_use_flag != 0xC1 && (misc_nmito_use_flag & 0x40) != 0) {\n"
+        "    v2 = kSmokeSpriteOAMIndexes_Two[k];\n"
+        "    o = get_OamEnt(oam_buf, v2) + 64;\n"
+        "    sb = (v2 >> 2) + 64;\n"
+        "  } else {\n"
+        "    v2 = kSmokeSpriteOAMIndexes_Two[k];\n"
+        "    o = get_OamEnt(oam_buf, v2);\n"
+        "    sb = v2 >> 2;\n"
+        "  }\n"
+        "  o->xpos = sx;\n"
+        "  o->ypos = sy;\n"
+        "  o->flags = sprites_tile_priority;\n"
+        "  o->charnum = kSmokeSpr03_TurnAroundSmoke_Tiles[smoke_spr_timer[k] >> 2];\n"
+        "  sprites_oamtile_size_buffer[sb] = msb;\n"
+        "}\n"
+        "\n"
+        "void SmokeSpr03_TurnAroundSmoke(uint8 k) {  // 029927\n"
+        "  if (g_widescreen_extra) {\n"
+        "    WideSmokeSpr03_TurnAroundSmoke(k);\n"
+        "    return;\n"
+        "  }\n"
+        "  uint8 v1 = smoke_spr_timer[k];\n"
+        "  if (v1) {\n",
+    ),
+    # $0296C0 draw rewrite, glitter: the ASM adds check_x_wide + check_y
+    # spawn gates and carries the smoke hi bytes (+offset carry) into the
+    # sparkle. Also fixes an iter-9 hole: the sparkle draw reads
+    # mextspr_xpos_hi but this spawn path only wrote the lo byte.
+    (
+        "      if ((v1 & 3) == 0) {\n"
+        "        uint8 v2 = 11;\n"
+        "        while (mextspr_spriteid[v2]) {\n",
+        "      if ((v1 & 3) == 0) {\n"
+        "        if (g_widescreen_extra) {\n"
+        "          uint16 gx = PAIR16(smoke_spr_xpos_hi[k], smoke_spr_xpos_lo[k]) - mirror_current_layer1_xpos;\n"
+        "          uint16 gy = PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) - mirror_current_layer1_ypos;\n"
+        "          if ((int16)gx < -(int16)g_widescreen_extra ||\n"
+        "              (int16)gx >= 0x100 + (int16)g_widescreen_extra || gy >= 0xE0)\n"
+        "            return;\n"
+        "        }\n"
+        "        uint8 v2 = 11;\n"
+        "        while (mextspr_spriteid[v2]) {\n",
+    ),
+    (
+        "        mextspr_spriteid[v2] = 2;\n"
+        "        uint8 r1 = smoke_spr_ypos_lo[k];\n"
+        "        uint8 r0 = smoke_spr_xpos_lo[k];\n"
+        "        uint8 v3 = (smoke_spr_timer[k] >> 2) & 3;\n"
+        "        mextspr_xpos_lo[v2] = r0 + kSmokeSpr05_Glitter_DATA_0298C2[v3];\n"
+        "        mextspr_ypos_lo[v2] = r1 + kSmokeSpr05_Glitter_DATA_0298C6[v3];\n"
+        "        mextspr_timer[v2] = 23;\n",
+        "        mextspr_spriteid[v2] = 2;\n"
+        "        uint8 r1 = smoke_spr_ypos_lo[k];\n"
+        "        uint8 r0 = smoke_spr_xpos_lo[k];\n"
+        "        uint8 v3 = (smoke_spr_timer[k] >> 2) & 3;\n"
+        "        mextspr_xpos_lo[v2] = r0 + kSmokeSpr05_Glitter_DATA_0298C2[v3];\n"
+        "        mextspr_ypos_lo[v2] = r1 + kSmokeSpr05_Glitter_DATA_0298C6[v3];\n"
+        "        if (g_widescreen_extra) {\n"
+        "          mextspr_xpos_hi[v2] = (uint8)((PAIR16(smoke_spr_xpos_hi[k], smoke_spr_xpos_lo[k]) +\n"
+        "                                         kSmokeSpr05_Glitter_DATA_0298C2[v3]) >> 8);\n"
+        "          mextspr_ypos_hi[v2] = (uint8)((PAIR16(smoke_spr_ypos_hi[k], smoke_spr_ypos_lo[k]) +\n"
+        "                                         (int8)kSmokeSpr05_Glitter_DATA_0298C6[v3]) >> 8);\n"
+        "        }\n"
+        "        mextspr_timer[v2] = 23;\n",
+    ),
+])
+
+patch_file("src/smw_03.c", [
+    # $038A2E blue koopa skid smoke (inlined copy of the generic routine).
+    (
+        "        smoke_spr_spriteid[v1] = 3;\n"
+        "        smoke_spr_xpos_lo[v1] = r0 + spr_xpos_lo[k];\n"
+        "        smoke_spr_ypos_lo[v1] = r1 + spr_ypos_lo[k];\n"
+        "        smoke_spr_timer[v1] = 19;\n",
+        "        smoke_spr_spriteid[v1] = 3;\n"
+        "        uint16 sx = GetSprXPos(k) + (int8)r0;\n"
+        "        uint16 sy = GetSprYPos(k) + (int8)r1;\n"
+        "        smoke_spr_xpos_lo[v1] = sx;\n"
+        "        smoke_spr_ypos_lo[v1] = sy;\n"
+        "        smoke_spr_xpos_hi[v1] = sx >> 8;\n"
+        "        smoke_spr_ypos_hi[v1] = sy >> 8;\n"
+        "        smoke_spr_timer[v1] = 19;\n",
+    ),
+    # $03D76C reznor bridge smoke: skip the on-screen check in widescreen.
+    (
+        "void Spr0A9_Reznor_03D76C() {  // 03d76c\n"
+        "  if ((uint16)(blocks_xpos - mirror_current_layer1_xpos) < 0x100)\n"
+        "    SpawnSmokePuff();\n"
+        "}\n",
+        "void Spr0A9_Reznor_03D76C() {  // 03d76c\n"
+        "  if (g_widescreen_extra || (uint16)(blocks_xpos - mirror_current_layer1_xpos) < 0x100)\n"
+        "    SpawnSmokePuff();\n"
+        "}\n",
+    ),
+])
+
+print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/05.c patched OK")
