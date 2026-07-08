@@ -2473,4 +2473,56 @@ patch_file("src/smw_03.c", [
     ),
 ])
 
+# --- step 3, iteration 16: bosses (room-independent hooks) ----------------------
+# level_bosses.asm, the parts that don't depend on wide-snes' LM-edited
+# rooms. Ported: Ludwig/Morton/Roy act trigger ($01CE36), Bowser safe
+# distance ($03AB94), bowling-ball outside-fall ($03B193). Deferred to the
+# rooms/base-BPS package: Iggy/Larry lava-stream extension ($03C0CD — its
+# 12 extra tiles overwrite the first 12 of the 20 reserved OAM slots and
+# only compose sanely against their arena layout), Lemmy/Wendy 8th pipe
+# ($03CC38.. — spawn points must match the room's pipe graphics), Bowser
+# C1 interaction fill ($009A17 — arena map16 mutation, unverifiable until
+# a script reaches the fight). SA-1-only blocks (maxtile arena, Ludwig
+# room) don't apply; iggy_hair.asm is a vanilla cosmetic fix (skip, same
+# policy as goal_fix).
+
+patch_file("src/smw_01.c", [
+    # $01CE36: the koopa-kid intro (pillars) triggers when the camera
+    # reaches the equivalent view position. Note: at extra >= 0x37 the
+    # camera-inset minimum already exceeds the threshold, so in 16:9 the
+    # fight starts on entry - correct, since the arena is fully in view.
+    (
+        "  } else if ((uint8)mirror_current_layer1_xpos >= 0x7E) {\n",
+        "  } else if ((uint8)mirror_current_layer1_xpos >= (uint8)(0x7E - g_widescreen_extra)) {\n",
+    ),
+])
+
+patch_file("src/smw_03.c", [
+    # $03AB94 Bowser safe distance: while hopping (phase 3), steer back
+    # toward the vanilla 256px band instead of chasing the player into an
+    # extension (screen-x + 15 outside [0x30, 0xD0) forces the direction).
+    (
+        "    spr_xspeed[k] = kSpr0A0_ActivateBowserBattle_DATA_03AB62[CheckPlayerPositionRelativeToSprite_Bank23_X(k)];\n",
+        "    uint8 bdir = CheckPlayerPositionRelativeToSprite_Bank23_X(k);\n"
+        "    if (g_widescreen_extra) {\n"
+        "      int16 bsx = (int16)(GetSprXPos(k) + 15 - mirror_current_layer1_xpos);\n"
+        "      if (bsx < 0x30)\n"
+        "        bdir = 0;\n"
+        "      else if (bsx >= 0xD0)\n"
+        "        bdir = 1;\n"
+        "    }\n"
+        "    spr_xspeed[k] = kSpr0A0_ActivateBowserBattle_DATA_03AB62[bdir];\n",
+    ),
+    # $03B193 bowling ball: outside the vanilla window [-12, 0xFC) the
+    # floor bounce is suppressed, so balls rolling into an extension fall
+    # away instead of bouncing along forever.
+    (
+        "    if ((spr_yspeed[k] & 0x80) == 0 && (spr_ypos_hi[k] & 0x80) == 0 && spr_ypos_lo[k] >= 0xB0) {\n",
+        "    if ((spr_yspeed[k] & 0x80) == 0 && (spr_ypos_hi[k] & 0x80) == 0 && spr_ypos_lo[k] >= 0xB0 &&\n"
+        "        (!g_widescreen_extra ||\n"
+        "         ((int16)(GetSprXPos(k) - mirror_current_layer1_xpos) >= -12 &&\n"
+        "          (int16)(GetSprXPos(k) - mirror_current_layer1_xpos) < 0xFC))) {\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
