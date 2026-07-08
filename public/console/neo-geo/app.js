@@ -294,7 +294,7 @@ async function boot() {
     saveState,
     loadState,
     peek,
-    poke,
+    poke, loadRomFile, loadSupportFiles,
   };
   renderLibrary();
   setStatus('WASM ready. Add a ROM zip to start.');

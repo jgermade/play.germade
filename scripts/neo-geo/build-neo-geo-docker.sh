@@ -43,6 +43,13 @@ cp "$WORK_DIR/driver-index.js" "$TARGET_DIR/"
 cp "$WORK_DIR/index.html" "$TARGET_DIR/"
 cp "$WORK_DIR/styles.css" "$TARGET_DIR/"
 
+# Replace the original index.html with our custom one
+cp "$ROOT_DIR/scripts/neo-geo/index.html" "$TARGET_DIR/index.html"
+
+# Patch app.js to export our needed functions
+sed -i.bak -e 's/poke,/poke, loadRomFile, loadSupportFiles,/g' "$TARGET_DIR/app.js"
+rm -f "$TARGET_DIR/app.js.bak"
+
 echo "Generating ROMs manifest..."
 python3 "$ROOT_DIR/scripts/jgenesis/generate-roms-manifest.py" "$ROOT_DIR/public/roms"
 
