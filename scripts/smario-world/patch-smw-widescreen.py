@@ -2361,4 +2361,116 @@ patch_file("src/smw_02.c", [
     ),
 ])
 
+# --- step 3, iteration 15: proximity_wrap_fix -----------------------------------
+# proximity_wrap_fix.asm (GreenHammerBro/JackTheSpades/RussianMan, bundled
+# by wide-snes). Vanilla proximity checks truncate the player-sprite
+# distance to 8 bits, so they wrap every 256px: a thwomp (etc.) a screen
+# away reacts as if adjacent — invisible in 4:3, but in widescreen the
+# misbehaving sprite can be *visible* in a side extension. The C port's
+# direction helpers already compute full-width differences; the wrap lives
+# in each caller's (uint8) cast, so the port is a gated cast-widening
+# helper applied at the 15 band checks below. 4:3 keeps the vanilla wrap
+# (and its bugs) bit-exact. Skipped: the swooper facing flip (upstream's
+# "doesn't face player correctly" EOR) — a vanilla facing quirk with no
+# widescreen interaction.
+
+patch_file("src/smw_rtl.h", [
+    (
+        "static inline uint16 WideExtendBound(uint16 v) {\n"
+        "  return v >= 0x8000 ? v - g_widescreen_extra : v + g_widescreen_extra;\n"
+        "}\n",
+        "static inline uint16 WideExtendBound(uint16 v) {\n"
+        "  return v >= 0x8000 ? v - g_widescreen_extra : v + g_widescreen_extra;\n"
+        "}\n"
+        "// proximity_wrap_fix: vanilla band checks truncate the player-sprite\n"
+        "// distance to 8 bits (wraps every 256px); widescreen compares 16-bit.\n"
+        "static inline uint16 WideProximity(uint16 d) {\n"
+        "  return g_widescreen_extra ? d : (uint8)d;\n"
+        "}\n",
+    ),
+])
+
+patch_file("src/smw_01.c", [
+    # $01AED7/$01AEE5 thwomp face + fall ranges.
+    (
+        "    if ((uint8)(xx + 64) < 0x80)\n",
+        "    if (WideProximity(xx + 64) < 0x80)\n",
+    ),
+    (
+        "    if ((uint8)(xx + 36) < 0x50) {\n",
+        "    if (WideProximity(xx + 36) < 0x50) {\n",
+    ),
+    # $01F76E yoshi egg hatch range.
+    (
+        "      if ((uint8)(player_current_xpos - GetSprXPos(k) + 32) < 0x40) {\n",
+        "      if (WideProximity(player_current_xpos - GetSprXPos(k) + 32) < 0x40) {\n",
+    ),
+    # $01E2E0 ledge/ground dwelling moles.
+    (
+        "  if ((uint8)(player_current_xpos - GetSprXPos(k) + 96) < 0xC0 && !spr_xoffscreen_flag[k]) {\n",
+        "  if (WideProximity(player_current_xpos - GetSprXPos(k) + 96) < 0xC0 && !spr_xoffscreen_flag[k]) {\n",
+    ),
+    # $018ED0 classic/upside-down piranha plant.
+    (
+        "(uint8)(player_current_xpos - GetSprXPos(k) + 0x1b) >= 0x37)) {\n",
+        "WideProximity(player_current_xpos - GetSprXPos(k) + 0x1b) >= 0x37)) {\n",
+    ),
+])
+
+patch_file("src/smw_02.c", [
+    # $02C360 whistlin' chuck.
+    (
+        "    if ((uint8)(player_xpos - GetSprXPos(k) + 48) < 0x60)\n",
+        "    if (WideProximity(player_xpos - GetSprXPos(k) + 48) < 0x60)\n",
+    ),
+    # $02C602 splittin'/bouncin' chuck.
+    (
+        "  if ((uint8)(player_xpos - GetSprXPos(k) + 80) >= 0xA0) {\n",
+        "  if (WideProximity(player_xpos - GetSprXPos(k) + 80) >= 0xA0) {\n",
+    ),
+    # $02C64A/$02C6BA chargin' chuck vertical ranges.
+    (
+        "    if ((uint8)(player_ypos - GetSprYPos(k) + 40) < 0x50) {\n",
+        "    if (WideProximity(player_ypos - GetSprYPos(k) + 40) < 0x50) {\n",
+    ),
+    (
+        "  if ((uint8)(player_ypos - GetSprYPos(k) + 48) < 0x60 && CheckPlayerPositionRelativeToSprite_Bank23_X(k) == spr_table157c[k]) {\n",
+        "  if (WideProximity(player_ypos - GetSprYPos(k) + 48) < 0x60 && CheckPlayerPositionRelativeToSprite_Bank23_X(k) == spr_table157c[k]) {\n",
+    ),
+    # $02C05C/$02C067 rip van fish wake ranges.
+    (
+        "          if ((uint8)(player_xpos - GetSprXPos(k) + 48) >= 0x60)\n",
+        "          if (WideProximity(player_xpos - GetSprXPos(k) + 48) >= 0x60)\n",
+    ),
+    (
+        "          if ((uint8)(player_ypos - GetSprYPos(k) + 48) >= 0x60)\n",
+        "          if (WideProximity(player_ypos - GetSprYPos(k) + 48) >= 0x60)\n",
+    ),
+    # $02E143 jumping piranha plant (and fire variant).
+    (
+        "        if ((uint8)(player_xpos - GetSprXPos(k) + 27) >= 0x37) {\n",
+        "        if (WideProximity(player_xpos - GetSprXPos(k) + 27) >= 0x37) {\n",
+    ),
+    # $02E44D exploding block.
+    (
+        "    if ((uint8)(player_xpos - GetSprXPos(k) + 96) < 0xC0 && !spr_xoffscreen_flag[k])\n",
+        "    if (WideProximity(player_xpos - GetSprXPos(k) + 96) < 0xC0 && !spr_xoffscreen_flag[k])\n",
+    ),
+])
+
+patch_file("src/smw_03.c", [
+    # $0388E9 swooper bat wake range.
+    (
+        "    if ((uint8)(player_xpos - GetSprXPos(k) + 80) < 0xA0) {\n",
+        "    if (WideProximity(player_xpos - GetSprXPos(k) + 80) < 0xA0) {\n",
+    ),
+    # $03924E falling spike (the C port's vanilla uses $94 next-frame x
+    # where upstream's rewrite picked $D1; we keep the C's vanilla source
+    # and only widen the truncation).
+    (
+        "  if ((uint8)(player_xpos - GetSprXPos(k) + 64) < 0x80) {\n",
+        "  if (WideProximity(player_xpos - GetSprXPos(k) + 64) < 0x80) {\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
