@@ -2628,4 +2628,77 @@ patch_file("src/smw_rtl.c", [
     ),
 ])
 
+# --- step 3, iteration 19: pillarbox 1-screen rooms (side-exit review) -------
+# level_side_exits.asm widens the side-exit trigger window by !extra_columns,
+# but every vanilla level with flag_side_exits (sprite 8C: Yoshi's House $104,
+# Top Secret Area $003) is a 1-screen room where the camera is pinned to 0 and
+# there is no collision data past the room edge — moving the trigger would walk
+# Mario over void (wide-snes' base BPS widens those rooms' floors; we have no
+# room data). Instead, move the visible edge to the trigger: 1-screen
+# horizontal rooms render pillarboxed vanilla 4:3 (their vanilla view is the
+# whole room), and the player screen-bounds/kill logic uses a room-aware extra
+# (0 there). The vanilla trigger then fires exactly at the visible edge.
+# Also retires the wrapped-copy artifact class in 1-screen rooms (intro C5
+# corner glitch) and lets 1-screen boss arenas compose vanilla between bars.
+
+patch_file("src/smw_rtl.h", [
+    (
+        "static inline uint16 WideProximity(uint16 d) {\n"
+        "  return g_widescreen_extra ? d : (uint8)d;\n"
+        "}\n",
+        "static inline uint16 WideProximity(uint16 d) {\n"
+        "  return g_widescreen_extra ? d : (uint8)d;\n"
+        "}\n"
+        "// Widescreen extra for the current room: horizontal 1-screen rooms have\n"
+        "// no camera slack (camera pinned to 0) and render pillarboxed vanilla\n"
+        "// 4:3, so player screen-edge logic must use 0 there. Defined in\n"
+        "// smw_rtl.c (needs variables.h).\n"
+        "uint16 WidescreenLevelExtra(void);\n",
+    ),
+])
+
+patch_file("src/smw_rtl.c", [
+    (
+        "void SmwDrawPpuFrame(void) {\n"
+        "  SimpleHdma hdma_chans[3];\n"
+        "\n"
+        "  g_ppu->extraLeftCur = g_ppu->extraRightCur =\n"
+        "      (misc_game_mode >= 0x10 && misc_game_mode <= 0x18) ? g_ppu->extraLeftRight : 0;\n",
+        "uint16 WidescreenLevelExtra(void) {\n"
+        "  if (!(misc_level_layout_flags & 1) && camera_last_screen_horiz == 1)\n"
+        "    return 0;\n"
+        "  return g_widescreen_extra;\n"
+        "}\n"
+        "\n"
+        "void SmwDrawPpuFrame(void) {\n"
+        "  SimpleHdma hdma_chans[3];\n"
+        "\n"
+        "  g_ppu->extraLeftCur = g_ppu->extraRightCur =\n"
+        "      (misc_game_mode >= 0x10 && misc_game_mode <= 0x18 && WidescreenLevelExtra())\n"
+        "          ? g_ppu->extraLeftRight : 0;\n",
+    ),
+])
+
+# $00E9A1 kill window + $00E9B5/$00E9C2 walk bounds (iterations 2/18) become
+# room-aware; at WidescreenLevelExtra() == 0 every expression is the vanilla
+# arithmetic, so 1-screen rooms and all of 4:3 are bit-exact vanilla.
+patch_file("src/smw_00.c", [
+    (
+        "  } else if ((uint16)(player_on_screen_pos_x + g_widescreen_extra) < 0xF0 + 2 * g_widescreen_extra) {\n"
+        "    if ((player_blocked_flags & 3) != 0)\n"
+        "      goto LABEL_3;\n"
+        "    if ((int16)(misc_layer1_pos[0].x + 232 + g_widescreen_extra - player_xpos) > 0)\n"
+        "      HandlePlayerLevelColl_00E9C8(1, (int16)(player_xpos + g_widescreen_extra - 8 - misc_layer1_pos[0].x) < 0);\n"
+        "    else\n"
+        "      HandlePlayerLevelColl_00E9C8(0, (int16)(misc_layer1_pos[0].x + 232 + g_widescreen_extra - player_xpos) < 0);\n",
+        "  } else if ((uint16)(player_on_screen_pos_x + WidescreenLevelExtra()) < 0xF0 + 2 * WidescreenLevelExtra()) {\n"
+        "    if ((player_blocked_flags & 3) != 0)\n"
+        "      goto LABEL_3;\n"
+        "    if ((int16)(misc_layer1_pos[0].x + 232 + WidescreenLevelExtra() - player_xpos) > 0)\n"
+        "      HandlePlayerLevelColl_00E9C8(1, (int16)(player_xpos + WidescreenLevelExtra() - 8 - misc_layer1_pos[0].x) < 0);\n"
+        "    else\n"
+        "      HandlePlayerLevelColl_00E9C8(0, (int16)(misc_layer1_pos[0].x + 232 + WidescreenLevelExtra() - player_xpos) < 0);\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_rtl.c, smw_00/01/02/03/04/05.c patched OK")
