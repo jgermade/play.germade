@@ -2525,4 +2525,40 @@ patch_file("src/smw_03.c", [
     ),
 ])
 
+# --- step 3, iteration 17: dry bones (deferred since iteration 5) ---------------
+# level_sprites.asm $01E465/$01E46C/$01E4AE. The crumbled-pile draw (shared
+# dry bones / bony beetle path in Spr031_BonyBeetle, 01e42b) draws tile 1
+# via GenericGFXRtDraw1Tile16x16 (wide MSB correct at that instant), then
+# retiles it, builds tile 2 manually, nudges BOTH tiles' 8-bit xpos for
+# the reassembly shake, and only runs FinishOAMWrite over tile 2 (plus the
+# same phantom third tile vanilla always touched). The shake nudge can
+# roll tile 1's xpos over 0xFF with a stale MSB. wide-snes' fix is "make
+# finish OAM redo the calculations"; the C equivalent is to start
+# FinishOAMWrite at the original index with one extra tile, so tile 1 is
+# re-derived after every modification. The phantom tile gets the identical
+# treatment vanilla gave it, and 4:3 keeps the vanilla call.
+
+patch_file("src/smw_01.c", [
+    (
+        "  uint8 v5 = spr_decrementing_table1540[k];\n"
+        "  if (v5 && v5 < 0x40) {\n"
+        "    oam[64].xpos += (v5 & 2) != 0;\n"
+        "    oam[65].xpos += (v5 & 2) != 0;\n"
+        "  }\n"
+        "  FinishOAMWrite(k, 2, 1);\n",
+        "  uint8 v5 = spr_decrementing_table1540[k];\n"
+        "  if (v5 && v5 < 0x40) {\n"
+        "    oam[64].xpos += (v5 & 2) != 0;\n"
+        "    oam[65].xpos += (v5 & 2) != 0;\n"
+        "  }\n"
+        "  if (g_widescreen_extra) {\n"
+        "    spr_oamindex[k] = v3;\n"
+        "    FinishOAMWrite(k, 2, 2);\n"
+        "    spr_oamindex[k] = v3 + 4;\n"
+        "  } else {\n"
+        "    FinishOAMWrite(k, 2, 1);\n"
+        "  }\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
