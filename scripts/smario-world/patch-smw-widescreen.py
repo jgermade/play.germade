@@ -2651,8 +2651,12 @@ patch_file("src/smw_rtl.h", [
         "}\n"
         "// Widescreen extra for the current room: horizontal 1-screen rooms have\n"
         "// no camera slack (camera pinned to 0) and render pillarboxed vanilla\n"
-        "// 4:3, so player screen-edge logic must use 0 there. Defined in\n"
-        "// smw_rtl.c (needs variables.h).\n"
+        "// 4:3, so player screen-edge logic must use 0 there. Latched once per\n"
+        "// room load in BeginLoadingLevelData ($5B/$5E are only valid between a\n"
+        "// header load and the next room change; reading them live makes the\n"
+        "// pillarbox flicker on level transitions). A future save-state UI must\n"
+        "// refresh the latch on load.\n"
+        "extern uint16 g_widescreen_level_extra;\n"
         "uint16 WidescreenLevelExtra(void);\n",
     ),
 ])
@@ -2664,10 +2668,9 @@ patch_file("src/smw_rtl.c", [
         "\n"
         "  g_ppu->extraLeftCur = g_ppu->extraRightCur =\n"
         "      (misc_game_mode >= 0x10 && misc_game_mode <= 0x18) ? g_ppu->extraLeftRight : 0;\n",
+        "uint16 g_widescreen_level_extra;\n"
         "uint16 WidescreenLevelExtra(void) {\n"
-        "  if (!(misc_level_layout_flags & 1) && camera_last_screen_horiz == 1)\n"
-        "    return 0;\n"
-        "  return g_widescreen_extra;\n"
+        "  return g_widescreen_level_extra;\n"
         "}\n"
         "\n"
         "void SmwDrawPpuFrame(void) {\n"
@@ -2676,6 +2679,105 @@ patch_file("src/smw_rtl.c", [
         "  g_ppu->extraLeftCur = g_ppu->extraRightCur =\n"
         "      (misc_game_mode >= 0x10 && misc_game_mode <= 0x18 && WidescreenLevelExtra())\n"
         "          ? g_ppu->extraLeftRight : 0;\n",
+    ),
+])
+
+# Latch the room shape right after the header parse (the only site every room
+# load goes through). When the room is a horizontal 1-screen (latch 0 in a
+# wide build), also reset the camera mirrors to the vanilla 0: the iteration-2
+# init_scroll port set them to 'extra' before the level number was resolved,
+# and NO-SCROLL rooms (header scroll setting 3, e.g. the bonus game) never run
+# the camera clamp that pins scrolling 1-screen rooms back to 0 — leaving the
+# pillarboxed window at level x [extra, 256+extra), everything off-center.
+# Runs before InitializeMap16Pointers/tilemap render/sprite parse consume the
+# camera. Scrolling rooms and 4:3 take no write (values already equal).
+patch_file("src/smw_05.c", [
+    (
+        "  LOBYTE(misc_current_layer_being_processed) = 0;\n"
+        "  LoadLevelHeader();\n"
+        "  InitializeMap16Pointers();\n",
+        "  LOBYTE(misc_current_layer_being_processed) = 0;\n"
+        "  LoadLevelHeader();\n"
+        "  g_widescreen_level_extra = (!(misc_level_layout_flags & 1) && camera_last_screen_horiz == 1)\n"
+        "      ? 0 : g_widescreen_extra;\n"
+        "  if (g_widescreen_level_extra != g_widescreen_extra) {\n"
+        "    mirror_current_layer1_xpos = g_widescreen_level_extra;\n"
+        "    mirror_current_layer2_xpos = g_widescreen_level_extra;\n"
+        "  }\n"
+        "  InitializeMap16Pointers();\n",
+    ),
+])
+
+# Mosaic in the extended region: the three x-side mosaic block computations
+# index mosaicModulo[sx] with sx starting at -extraLeftCur in widescreen — an
+# out-of-bounds read (the table starts at x=0) whose garbage makes the first
+# "block" span most of the wide line: level fade-in/out shows full-width
+# color stripes with only the right edge resolved. Compute the block phase
+# arithmetically instead: identical to the table value for sx >= 0 (vanilla
+# bit-exact), grid-aligned mathematical modulo for negative sx. The y-side
+# lookups (always in [0, 224]) keep the table.
+
+patch_file("src/snes/ppu.c", [
+    # PpuDrawBackground_4bpp_mosaic (disambiguated from the 2bpp copy by the
+    # loop body's "int i" vs "uint i").
+    (
+        "    int mosaic_size = PPU_mosaicSize(ppu);\n"
+        "    int w = mosaic_size - (sx - ppu->mosaicModulo[sx]);\n"
+        "    do {\n"
+        "      w = IntMin(w, dstz_end - dstz);\n"
+        "      uint32 tile = *tp;\n"
+        "      int ta = (tile & 0x8000) ? tileadr1 : tileadr0;\n"
+        "      PpuZbufType z = (tile & 0x2000) ? zhi : zlo;\n"
+        "      uint32 bits = READ_BITS(ta, tile & 0x3ff);\n"
+        "      if (tile & 0x4000) bits >>= x, GET_PIXEL(); else bits <<= x, GET_PIXEL_HFLIP();\n"
+        "      if (pixel) {\n"
+        "        pixel += (tile & 0x1c00) >> kPaletteShift;\n"
+        "        int i = 0;\n",
+        "    int mosaic_size = PPU_mosaicSize(ppu);\n"
+        "    int w = mosaic_size - (((sx % mosaic_size) + mosaic_size) % mosaic_size);\n"
+        "    do {\n"
+        "      w = IntMin(w, dstz_end - dstz);\n"
+        "      uint32 tile = *tp;\n"
+        "      int ta = (tile & 0x8000) ? tileadr1 : tileadr0;\n"
+        "      PpuZbufType z = (tile & 0x2000) ? zhi : zlo;\n"
+        "      uint32 bits = READ_BITS(ta, tile & 0x3ff);\n"
+        "      if (tile & 0x4000) bits >>= x, GET_PIXEL(); else bits <<= x, GET_PIXEL_HFLIP();\n"
+        "      if (pixel) {\n"
+        "        pixel += (tile & 0x1c00) >> kPaletteShift;\n"
+        "        int i = 0;\n",
+    ),
+    # PpuDrawBackground_2bpp_mosaic.
+    (
+        "    int mosaic_size = PPU_mosaicSize(ppu);\n"
+        "    int w = mosaic_size - (sx - ppu->mosaicModulo[sx]);\n"
+        "    do {\n"
+        "      w = IntMin(w, dstz_end - dstz);\n"
+        "      uint32 tile = *tp;\n"
+        "      int ta = (tile & 0x8000) ? tileadr1 : tileadr0;\n"
+        "      PpuZbufType z = (tile & 0x2000) ? zhi : zlo;\n"
+        "      uint32 bits = READ_BITS(ta, tile & 0x3ff);\n"
+        "      if (tile & 0x4000) bits >>= x, GET_PIXEL(); else bits <<= x, GET_PIXEL_HFLIP();\n"
+        "      if (pixel) {\n"
+        "        pixel += (tile & 0x1c00) >> kPaletteShift;\n"
+        "        uint i = 0;\n",
+        "    int mosaic_size = PPU_mosaicSize(ppu);\n"
+        "    int w = mosaic_size - (((sx % mosaic_size) + mosaic_size) % mosaic_size);\n"
+        "    do {\n"
+        "      w = IntMin(w, dstz_end - dstz);\n"
+        "      uint32 tile = *tp;\n"
+        "      int ta = (tile & 0x8000) ? tileadr1 : tileadr0;\n"
+        "      PpuZbufType z = (tile & 0x2000) ? zhi : zlo;\n"
+        "      uint32 bits = READ_BITS(ta, tile & 0x3ff);\n"
+        "      if (tile & 0x4000) bits >>= x, GET_PIXEL(); else bits <<= x, GET_PIXEL_HFLIP();\n"
+        "      if (pixel) {\n"
+        "        pixel += (tile & 0x1c00) >> kPaletteShift;\n"
+        "        uint i = 0;\n",
+    ),
+    # PpuDrawBackground_mode7, mosaic branch.
+    (
+        "      int w = PPU_mosaicSize(ppu) - (x - ppu->mosaicModulo[x]);\n",
+        "      int msize = PPU_mosaicSize(ppu);\n"
+        "      int w = msize - (((x % msize) + msize) % msize);\n",
     ),
 ])
 
