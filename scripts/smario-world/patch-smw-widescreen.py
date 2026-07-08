@@ -2242,4 +2242,123 @@ patch_file("src/smw_02.c", [
     ),
 ])
 
+# --- step 3, iteration 14: misc fixes (feather freeze, spinning coins, yoshi) --
+# feather_fix.asm + level_sprite_spinning.asm + level_yoshi.asm.
+# Skipped, with reasons: goal_fix.asm and feather_score_fix.asm are vanilla
+# QoL bugfixes wide-snes bundles (no widescreen interaction; porting them
+# would break the 4:3-bit-exact policy); luigi.asm is a content addition
+# needing binary GFX we don't ship; facing_fix.asm exists to support the
+# screen-1 entrance placement and goes with the deferred entrances package.
+
+patch_file("src/smw_01.c", [
+    # $01C5AE feather freeze (Romi's fix, bundled by wide-snes): vanilla
+    # only runs the cape-transform state change when both on-screen hi
+    # bytes are 0 — but the caller locks sprites unconditionally, so
+    # catching a feather while "offscreen" hangs the game. In widescreen
+    # the side extensions make HIBYTE(x) = 0xFF legitimately reachable, so
+    # the hang would be a normal gameplay event. 4:3 keeps the vanilla
+    # check (and its obscure autoscroll freeze) bit-exact.
+    (
+        "  if (!(HIBYTE(player_on_screen_pos_x) | HIBYTE(player_on_screen_pos_y))) {\n",
+        "  if (g_widescreen_extra || !(HIBYTE(player_on_screen_pos_x) | HIBYTE(player_on_screen_pos_y))) {\n",
+    ),
+    # $01F418 yoshi tongue: 16-bit base x (yoshi x + sign-extended tip
+    # displacement - camera), and no tip-offscreen abort in widescreen.
+    (
+        "  r13 = kSpr035_Yoshi_DATA_01F60A[v1];\n"
+        "  int t = (uint8)(spr_xpos_lo[k] - mirror_current_layer1_xpos) + r13;\n"
+        "  uint8 r0 = t;\n"
+        "  if (spr_table157c[k] ? !(t & 0x100) : (t & 0x100))\n"
+        "    return r13;\n",
+        "  r13 = kSpr035_Yoshi_DATA_01F60A[v1];\n"
+        "  int t = (uint8)(spr_xpos_lo[k] - mirror_current_layer1_xpos) + r13;\n"
+        "  uint8 r0 = t;\n"
+        "  int16 wsx = 0;\n"
+        "  if (g_widescreen_extra)\n"
+        "    wsx = (int16)(GetSprXPos(k) - mirror_current_layer1_xpos) + (int8)r13;\n"
+        "  else if (spr_table157c[k] ? !(t & 0x100) : (t & 0x100))\n"
+        "    return r13;\n",
+    ),
+    # $01F464/$01F474 per-tile: 9-bit x via the OAM MSB instead of the
+    # vanilla stop-at-the-edge break (wide-snes' rewrite has no break; its
+    # own comment flags the >512px wrap as a known ultrawide corner).
+    (
+        "    OamEnt *oam = get_OamEnt(oam_buf, v3);\n"
+        "    oam->xpos = r0;\n"
+        "    uint16 t = r5 + r0;\n"
+        "    r0 = t;\n"
+        "    if (sign8(r5) ? (t & 0x100) == 0 : (t & 0x100) != 0)\n"
+        "      break;\n",
+        "    OamEnt *oam = get_OamEnt(oam_buf, v3);\n"
+        "    oam->xpos = r0;\n"
+        "    uint16 t = r5 + r0;\n"
+        "    r0 = t;\n"
+        "    uint8 wmsb = 0;\n"
+        "    if (g_widescreen_extra) {\n"
+        "      wmsb = (wsx >> 8) & 1;\n"
+        "      wsx += (int8)r5;\n"
+        "    } else if (sign8(r5) ? (t & 0x100) == 0 : (t & 0x100) != 0)\n"
+        "      break;\n",
+    ),
+    (
+        "    sprites_oamtile_size_buffer[v3 >> 2] = 0;\n",
+        "    sprites_oamtile_size_buffer[v3 >> 2] = wmsb;\n",
+    ),
+    # $01F065/$01F079/$01F09B yoshi throat (the swallow animation tile):
+    # MSB = bit 8 of the 16-bit screen x + signed displacement (the lo-byte
+    # xpos write is the same value in both modes and stays vanilla).
+    (
+        "      sprites_oamtile_size_buffer[64] = 0;\n",
+        "      sprites_oamtile_size_buffer[64] =\n"
+        "          g_widescreen_extra\n"
+        "              ? (uint8)(((int16)(GetSprXPos(k) - mirror_current_layer1_xpos) +\n"
+        "                         (int8)kSpr035_Yoshi_YoshiThroatXDisp[r2]) >> 8) & 1\n"
+        "              : 0;\n",
+    ),
+])
+
+patch_file("src/smw_02.c", [
+    # $029A18 spinning coins: 16-bit screen x with wide despawn bounds
+    # [-extra, 0x100+extra) (vanilla culls at 8 bits with no hi check, so
+    # coins wrap into view every 256px). The layer-index camera trick
+    # (v2 = 4*layer) picks layer 1 or 2 exactly like the ASM's $001B,y.
+    (
+        "  if ((uint8)(block_coin_spr_xpos_lo[k] - r3) >= 0xF8) {\n"
+        "LABEL_9:\n"
+        "    block_coin_spr_slotid[k] = 0;\n"
+        "    return;\n"
+        "  }\n",
+        "  int16 wsx = 0;\n"
+        "  if (g_widescreen_extra)\n"
+        "    wsx = (int16)(PAIR16(block_coin_spr_xpos_hi[k], block_coin_spr_xpos_lo[k]) -\n"
+        "                  PAIR16(*((uint8 *)&mirror_current_layer1_xpos + v2 + 1), r3));\n"
+        "  if (g_widescreen_extra ? (wsx < -(int16)g_widescreen_extra || wsx >= 0x100 + (int16)g_widescreen_extra)\n"
+        "                         : (uint8)(block_coin_spr_xpos_lo[k] - r3) >= 0xF8) {\n"
+        "LABEL_9:\n"
+        "    block_coin_spr_slotid[k] = 0;\n"
+        "    return;\n"
+        "  }\n",
+    ),
+    # $029A5C: the coin tile's OAM MSB.
+    (
+        "  oam->charnum = -24;\n"
+        "  oam->flags = sprites_tile_priority | 4;\n"
+        "  sprites_oamtile_size_buffer[v3 >> 2] = 2;\n",
+        "  oam->charnum = -24;\n"
+        "  oam->flags = sprites_tile_priority | 4;\n"
+        "  sprites_oamtile_size_buffer[v3 >> 2] = 2 | (g_widescreen_extra ? (wsx >> 8) & 1 : 0);\n",
+    ),
+    # $029A7A/$029A9E: the two rolling-animation tiles sit at x+4; their
+    # MSB carries the +4 overflow like the ASM's ADC #$00.
+    (
+        "    v5 >>= 2;\n"
+        "    sprites_oamtile_size_buffer[v5] = 0;\n"
+        "    sprites_oamtile_size_buffer[v5 + 1] = 0;\n",
+        "    v5 >>= 2;\n"
+        "    uint8 wmsb = g_widescreen_extra ? (uint8)((wsx + 4) >> 8) & 1 : 0;\n"
+        "    sprites_oamtile_size_buffer[v5] = wmsb;\n"
+        "    sprites_oamtile_size_buffer[v5 + 1] = wmsb;\n",
+    ),
+])
+
 print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
