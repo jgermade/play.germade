@@ -39,6 +39,16 @@ export const gamesData: GameEntry[] = [
     urlPath: "/console/megadrive/index.html",
   },
   {
+    slug: "neo-geo",
+    title: "Neo-Geo (Arcade)",
+    emoji: "🕹️",
+    description:
+      "Neo-Geo Arcade emulator (FBNeo, WASM). Plays .zip ROMs.",
+    status: "ready",
+    category: "Consolas Retro",
+    urlPath: "/console/neo-geo/index.html",
+  },
+  {
     slug: "sonic-1",
     title: "Sonic The Hedgehog",
     emoji: "🌀",

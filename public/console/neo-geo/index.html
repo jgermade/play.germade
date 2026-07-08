@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FBNeo WASM Port</title>
+  <link rel="stylesheet" href="./styles.css?v=layout-2">
+</head>
+<body>
+  <main class="app" aria-label="FBNeo WebAssembly emulator">
+    <section class="emulator-shell" aria-label="FBNeo WebAssembly emulator">
+      <aside class="library-sidebar" aria-label="Loaded ROM library">
+        <div class="sidebar-header">
+          <div>
+            <p class="eyebrow">FBNeo WASM</p>
+            <h1>Library</h1>
+          </div>
+          <div id="support-count" class="support-count">0 support</div>
+        </div>
+
+        <div class="sidebar-actions">
+          <button id="add-rom" type="button">Add ROM</button>
+          <button id="add-bios" type="button">Add Support ZIP</button>
+        </div>
+
+        <section class="file-section" aria-label="Current game ROM">
+          <div class="section-label">Game ROM</div>
+          <div id="rom-list" class="file-list"></div>
+        </section>
+
+        <section class="file-section" aria-label="Support and BIOS ZIPs">
+          <div class="section-label">Support ZIPs</div>
+          <div id="support-list" class="file-list"></div>
+        </section>
+      </aside>
+
+      <section class="play-area" aria-label="Emulator stage">
+        <div class="hud-row hud-row-top" aria-label="Game controls">
+          <div class="hud-spacer" aria-hidden="true"></div>
+          <div id="game-title" class="game-title">FBNeo WASM</div>
+          <div class="hud-actions hud-actions-right">
+            <button id="run-toggle" type="button">Run</button>
+            <button id="fullscreen" type="button">Fullscreen</button>
+          </div>
+        </div>
+
+        <section class="cabinet" aria-label="Emulator">
+          <div class="screen-frame">
+            <canvas id="screen" width="320" height="240" aria-label="Game screen"></canvas>
+          </div>
+        </section>
+
+        <div class="dev-dock" aria-label="Development tools">
+          <details class="dev-panel">
+            <summary>Dev Tools</summary>
+            <div class="tool-grid" aria-label="Emulator tools">
+              <button id="step-frame" type="button">Step Frame</button>
+              <button id="p1-coin" type="button">P1 Coin</button>
+              <button id="p1-start" type="button">P1 Start</button>
+              <button id="p2-coin" type="button">P2 Coin</button>
+              <button id="p2-start" type="button">P2 Start</button>
+              <button id="dip-test" type="button">Test DIP</button>
+              <button id="service" type="button">Service</button>
+              <button id="soft-reset" type="button">Reset</button>
+              <button id="save-state" type="button">Save State</button>
+              <button id="load-state" type="button">Load State</button>
+              <button id="download-state" type="button">Download State</button>
+              <button id="upload-state" type="button">Upload State</button>
+            </div>
+            <div class="memory-tools" aria-label="Memory tools">
+              <label>
+                Address
+                <input id="mem-address" inputmode="text" autocomplete="off" placeholder="0x83e8">
+              </label>
+              <label>
+                Length
+                <input id="mem-length" inputmode="numeric" autocomplete="off" value="1">
+              </label>
+              <button id="peek" type="button">Peek</button>
+              <label>
+                Value
+                <input id="mem-value" inputmode="text" autocomplete="off" placeholder="0xff">
+              </label>
+              <button id="poke" type="button">Poke</button>
+            </div>
+            <pre id="log" class="log" aria-live="polite"></pre>
+          </details>
+        </div>
+      </section>
+
+      <p id="status" class="status">Loading WebAssembly module...</p>
+    </section>
+  </main>
+
+  <input id="rom-input" type="file" accept=".zip" hidden>
+  <input id="bios-input" type="file" accept=".zip" multiple hidden>
+  <input id="state-input" type="file" accept=".state,.bin,.sav" hidden>
+
+  <script type="module" src="./app.js?v=sidebar-1"></script>
+</body>
+</html>

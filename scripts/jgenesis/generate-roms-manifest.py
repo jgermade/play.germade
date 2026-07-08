@@ -41,6 +41,7 @@ CONSOLE_EXTENSIONS = {
     "gg": {".gg"},                                 # Game Gear
     "32x": {".32x"},                               # Sega 32X
     "segacd": {".chd"},                            # Sega CD
+    "neo-geo": {".zip"},                           # Neo-Geo Arcade
 }
 
 # Fallback: if a console directory is not in CONSOLE_EXTENSIONS, scan for
