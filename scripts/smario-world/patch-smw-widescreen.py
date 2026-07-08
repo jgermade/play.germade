@@ -2561,4 +2561,71 @@ patch_file("src/smw_01.c", [
     ),
 ])
 
-print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_00/01/02/03/04/05.c patched OK")
+# --- step 3, iteration 18: player walk-to-edge + pillarbox non-level modes -----
+# main.asm $00E9B5/$00E9C2: the player screen-bounds routine (00e98c) blocks
+# Mario at [camera+8, camera+0xE8]; iteration 2 widened only the $00E9A1
+# kill-range in the same routine, so with the camera inset Mario hit an
+# invisible wall ~extra px before the visible edge whenever scrolling ends.
+# wide-snes widens both immediates: right 0xE8+extra, left 8-extra, restoring
+# the vanilla 24px/8px margins to the *visible* edges. The ASM computes each
+# bound once; the decompiler duplicated the right-bound expression into the
+# if and the else argument, so one anchor covers the whole if/else.
+
+patch_file("src/smw_00.c", [
+    (
+        "    if ((int16)(misc_layer1_pos[0].x + 232 - player_xpos) > 0)\n"
+        "      HandlePlayerLevelColl_00E9C8(1, (int16)(player_xpos - 8 - misc_layer1_pos[0].x) < 0);\n"
+        "    else\n"
+        "      HandlePlayerLevelColl_00E9C8(0, (int16)(misc_layer1_pos[0].x + 232 - player_xpos) < 0);\n",
+        "    if ((int16)(misc_layer1_pos[0].x + 232 + g_widescreen_extra - player_xpos) > 0)\n"
+        "      HandlePlayerLevelColl_00E9C8(1, (int16)(player_xpos + g_widescreen_extra - 8 - misc_layer1_pos[0].x) < 0);\n"
+        "    else\n"
+        "      HandlePlayerLevelColl_00E9C8(0, (int16)(misc_layer1_pos[0].x + 232 + g_widescreen_extra - player_xpos) < 0);\n",
+    ),
+])
+
+# Pillarbox (the backlog's "pillarbox decision"): title/overworld/credits keep
+# vanilla 4:3 composition between black side bars; only the level band of game
+# modes renders wide. Two parts, both zelda3-style:
+#
+# ppu.c: smw's LakeSnes copy predates zelda3's per-frame side-space support --
+# PpuDrawWholeLine offsets the row by (extraLeftRight - extraLeftCur) and the
+# window edges honor extraLeftCur/extraRightCur, but nothing clears the row
+# margins outside the rendered extent (invisible until now because we always
+# rendered the full extent). Port the trailing margin memsets from zelda3's
+# PpuDrawWholeLine. Forced-blank lines already clear the full wide row.
+
+patch_file("src/snes/ppu.c", [
+    (
+        "  } while (cw_clip_math >>= 1, ++windex < cwin.nr);\n",
+        "  } while (cw_clip_math >>= 1, ++windex < cwin.nr);\n"
+        "\n"
+        "  if (ppu->extraLeftRight - ppu->extraLeftCur != 0)\n"
+        "    memset(dst_org, 0, sizeof(uint32) * (ppu->extraLeftRight - ppu->extraLeftCur));\n"
+        "  if (ppu->extraLeftRight - ppu->extraRightCur != 0)\n"
+        "    memset(dst_org + (256 + ppu->extraLeftRight * 2 - (ppu->extraLeftRight - ppu->extraRightCur)), 0,\n"
+        "           sizeof(uint32) * (ppu->extraLeftRight - ppu->extraRightCur));\n",
+    ),
+])
+
+# smw_rtl.c: clamp the drawing PPU's current side space each frame from the
+# game mode. main.c's step-9a refresh keeps writing extraLeftRight/Cur before
+# draw_ppu_frame(), so this runs last. The wide band 0x10-0x18 = level load
+# (0x10-0x13, black/message screens), in-level (0x14), level fade-out + death
+# message (0x15-0x18); every transition in or out of the band passes through
+# black (fade/mosaic), so the bars open and close invisibly. In 4:3
+# extraLeftRight is 0 and this is a no-op.
+
+patch_file("src/smw_rtl.c", [
+    (
+        "void SmwDrawPpuFrame(void) {\n"
+        "  SimpleHdma hdma_chans[3];\n",
+        "void SmwDrawPpuFrame(void) {\n"
+        "  SimpleHdma hdma_chans[3];\n"
+        "\n"
+        "  g_ppu->extraLeftCur = g_ppu->extraRightCur =\n"
+        "      (misc_game_mode >= 0x10 && misc_game_mode <= 0x18) ? g_ppu->extraLeftRight : 0;\n",
+    ),
+])
+
+print("patch-smw-widescreen: ppu.h, ppu.c, config.c, main.c, smw_rtl.h, funcs.h, variables.h, smw_rtl.c, smw_00/01/02/03/04/05.c patched OK")
