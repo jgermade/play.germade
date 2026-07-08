@@ -1,0 +1,15 @@
+{
+  "name": "jgenesis-web",
+  "type": "module",
+  "version": "0.13.1",
+  "files": [
+    "jgenesis_web_bg.wasm",
+    "jgenesis_web.js",
+    "jgenesis_web.d.ts"
+  ],
+  "main": "jgenesis_web.js",
+  "types": "jgenesis_web.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

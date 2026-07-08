@@ -1,0 +1,31 @@
+# Emscripten Makefile for snesrev/smw, copied into the work dir by
+# build-smw-docker.sh. The desktop OpenGL renderer (opengl.c, glsl_shader.c,
+# third_party/gl_core) is excluded: the web build always uses the SDL
+# renderer path (see patch-smw-emscripten.py).
+CC := emcc
+
+PORTS := -s USE_SDL=2
+CFLAGS := -O2 -fno-strict-aliasing -DSYSTEM_VOLUME_MIXER_AVAILABLE=0 -I. $(PORTS)
+LDFLAGS := -O2 $(PORTS) \
+	-s TOTAL_MEMORY=134217728 \
+	-s STACK_SIZE=5242880 \
+	-s EXPORTED_RUNTIME_METHODS=FS,addRunDependency,removeRunDependency \
+	-lidbfs.js \
+	--preload-file smw_assets.dat \
+	--preload-file smw.ini
+
+SRCS := $(filter-out src/opengl.c src/glsl_shader.c,$(wildcard smb1/*.c smbll/*.c src/*.c src/snes/*.c))
+OBJS := $(SRCS:%.c=%.o)
+
+all: wasm/index.js
+
+wasm/index.js: $(OBJS)
+	mkdir -p wasm
+	$(CC) $(OBJS) $(LDFLAGS) -o $@
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+clean:
+	rm -f $(OBJS)
+	rm -rf wasm

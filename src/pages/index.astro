@@ -393,7 +393,7 @@ gamesData.forEach(game => {
 
       // Check OPFS status for a game
       async function checkOPFS(slug) {
-        if (slug !== "celeste") return false;
+        if (slug !== "celeste") return true; // Pre-packaged games like sonic-1
         try {
           const root = await navigator.storage.getDirectory();
           await root.getFileHandle(".ContentExists", { create: false });
@@ -511,7 +511,7 @@ gamesData.forEach(game => {
             playBtn.className = "action-item action-play";
             playBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Play`;
             playBtn.onclick = () =>
-              (window.location.href = `/game/${game.slug}/index.html`);
+              (window.location.href = game.urlPath || `/game/${game.slug}/index.html`);
             uiActions.appendChild(playBtn);
 
             // CLEAR OPFS BUTTON

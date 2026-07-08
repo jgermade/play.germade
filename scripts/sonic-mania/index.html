@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>Sonic Mania</title>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      overflow: hidden;
+    }
+
+    .canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0px none;
+      background-color: black;
+    }
+
+    .canvas-container .emscripten {
+      aspect-ratio: 424/240;
+      display: block;
+      margin: auto;
+      width: 100%;
+      max-height: 100%;
+      outline: none;
+    }
+  </style>
+  <script>
+    if (!window.location.search.includes('rAF=60fps')) return
+
+    window.requestAnimationFrame = ((originalRequestAnimationFrame) => {
+      const targetFPS = 60;
+      const frameDuration = 1000 / targetFPS;
+      let lastFrameTime = performance.now();
+
+      return (function (callback) {
+        const now = performance.now();
+        const delay = Math.max(0, frameDuration - (now - lastFrameTime));
+
+        return setTimeout(() => {
+          lastFrameTime = performance.now();
+          callback(lastFrameTime);
+        }, delay);
+      }).bind(window)
+
+    })(window.requestAnimationFrame.bind(window))
+  </script>
+</head>
+
+<body>
+  <div class="canvas-container">
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  </div>
+
+  <script type='text/javascript'>
+    var Module = {
+      canvas: (function () {
+        var canvas = document.getElementById('canvas');
+        // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+        // application robust, you may want to override this behavior before shipping!
+        canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+        return canvas;
+      })(),
+      print: (function () {
+        return function (text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.log(text);
+        };
+      })(),
+      printErr: function (text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+      },
+      setStatus: function (text) {
+        if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+        if (text === Module.setStatus.last.text) return;
+        var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        var now = Date.now();
+        if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+        if (m) {
+          text = m[1];
+        } else {
+          if (!text) return;
+        }
+        console.log("Status: " + text);
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+      }
+    };
+    Module.setStatus('Downloading...');
+    window.onerror = function (event) {
+      Module.setStatus('Exception thrown, see JavaScript console');
+      Module.setStatus = function (text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+      };
+    };
+
+    // RSDKv5's default P1 keyboard bindings (arrows + A/S/D, Q/W/E, Enter,
+    // Tab) for the shared gamepad→keyboard translator — same approach that
+    // made pads work in Sonic 1/2; the SDL2 gamepad proxy alone wasn't
+    // enough to deliver pad input to the engine.
+    window.__gamepadKeyMap = 'rsdkv5';
+  </script>
+  <!-- Audio autoplay unlock + gamepad→keyboard translator + SDL2 gamepad
+       proxy. Loaded synchronously (no defer/async) so its AudioContext and
+       navigator.getGamepads hooks are installed before the engine runs. -->
+  <script src="/shared/game-input.js"></script>
+  <script>
+    // Unlike Sonic 1/2 (RSDKv4's own native Dev Menu, bridged to the web via
+    // WebDevMenu.cpp), RSDKv5/Mania has no such bridge yet, so — same as
+    // Sonic 3 — fall back to the shared script's Escape-triggered mini-menu.
+    window.__launcherReturnViaEscMenu = true;
+  </script>
+  <script src="/shared/launcher-overlay.js" defer></script>
+  <script async type="text/javascript" src="RSDKv5U.js"></script>
+</body>
+
+</html>
