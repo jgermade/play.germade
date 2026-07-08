@@ -2781,6 +2781,74 @@ patch_file("src/snes/ppu.c", [
     ),
 ])
 
+# Wide bonus game (iteration 20, "ensanchar el suelo"): the bonus room
+# (level $x00, the only room ever loaded with flag_active_bonus_game) is a
+# 1-screen room whose border-stripe filler tiles horizontally, so it can be
+# widened at runtime without LM room data: render it wide (latch override),
+# synthesize screen 1 of the map16 from the room's first two columns (art +
+# collision), and wrap the player's block-collision x below 0 onto that
+# screen — matching the PPU's mod-512 buffer wrap, so both visible
+# extensions are real walkable floor. Everything gated on g_widescreen_extra
+# and flag_active_bonus_game; 4:3 and every other room are untouched.
+
+patch_file("src/smw_05.c", [
+    (
+        "    ptr_layer1_data = ptr_layer2_data + 5;\n"
+        "    blocks_screen_to_place_current_object = 0;\n"
+        "  }\n"
+        "  LOBYTE(misc_current_layer_being_processed) = 0;\n"
+        "}\n",
+        "    ptr_layer1_data = ptr_layer2_data + 5;\n"
+        "    blocks_screen_to_place_current_object = 0;\n"
+        "  }\n"
+        "  LOBYTE(misc_current_layer_being_processed) = 0;\n"
+        "  if (g_widescreen_extra && flag_active_bonus_game) {\n"
+        "    g_widescreen_level_extra = g_widescreen_extra;\n"
+        "    // The room (camera_y = 192, rows 12-26 visible) is a framed box:\n"
+        "    // stripe bands at rows 12/26 (map16 $153), box frame rows 13/25\n"
+        "    // ($154/$15D - row 25 is the floor), diamond layer 2 through the\n"
+        "    // blank interior. Continue the bands and the floor across screen 1\n"
+        "    // (col 4 = a mid-band source column), blank the rest so the\n"
+        "    // diamond wall shows; screen 1's own hidden content (an unused\n"
+        "    // pipe structure) is overwritten. The left extension shows the\n"
+        "    // same columns through the PPU's mod-512 buffer wrap.\n"
+        "    for (uint16 i = 0; i < 0x1b0; i++) {\n"
+        "      uint16 row = i >> 4;\n"
+        "      uint8 lo = 0x25, hi = 0;\n"
+        "      if (row == 12 || row >= 25) {\n"
+        "        lo = blocks_map16_table_lo[(i & 0x1f0) | 4];\n"
+        "        hi = blocks_map16_table_hi[(i & 0x1f0) | 4];\n"
+        "      }\n"
+        "      blocks_map16_table_lo[0x1b0 + i] = lo;\n"
+        "      blocks_map16_table_hi[0x1b0 + i] = hi;\n"
+        "    }\n"
+        "  }\n"
+        "}\n",
+    ),
+])
+
+patch_file("src/smw_00.c", [
+    (
+        "    } else {\n"
+        "      if (blocks_ypos >= level_height || HIBYTE(blocks_xpos) >= misc_screens_in_lvl)\n"
+        "        goto default_return;\n"
+        "      r0w = GetLevelLayoutPtr_Horizontal(HIBYTE(blocks_xpos)) + (blocks_ypos & 0xF0 | ((uint8)blocks_xpos >> 4) | HIBYTE(blocks_ypos) << 8);\n"
+        "    }\n",
+        "    } else {\n"
+        "      uint16 bx = blocks_xpos;\n"
+        "      uint8 screens = misc_screens_in_lvl;\n"
+        "      if (g_widescreen_extra && flag_active_bonus_game) {\n"
+        "        screens = 2;\n"
+        "        if ((int16)bx < 0)\n"
+        "          bx += 0x200;\n"
+        "      }\n"
+        "      if (blocks_ypos >= level_height || HIBYTE(bx) >= screens)\n"
+        "        goto default_return;\n"
+        "      r0w = GetLevelLayoutPtr_Horizontal(HIBYTE(bx)) + (blocks_ypos & 0xF0 | ((uint8)bx >> 4) | HIBYTE(blocks_ypos) << 8);\n"
+        "    }\n",
+    ),
+])
+
 # $00E9A1 kill window + $00E9B5/$00E9C2 walk bounds (iterations 2/18) become
 # room-aware; at WidescreenLevelExtra() == 0 every expression is the vanilla
 # arithmetic, so 1-screen rooms and all of 4:3 are bit-exact vanilla.
