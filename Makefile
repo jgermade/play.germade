@@ -32,6 +32,9 @@ build.smw:
 build.jgenesis:
 	./scripts/jgenesis/build-jgenesis-docker.sh
 
+build.blastem:
+	./scripts/blastem/build-blastem-docker.sh
+
 build.neo-geo:
 	./scripts/neo-geo/build-neo-geo-docker.sh
 
@@ -47,6 +50,7 @@ build:
 	$(MAKE) build.sonic-cd
 	$(MAKE) build.smw
 	$(MAKE) build.jgenesis
+	$(MAKE) build.blastem
 	$(MAKE) build.neo-geo
 	$(MAKE) build.ui
 

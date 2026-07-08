@@ -219,6 +219,16 @@
             <div id="jgenesis-config-close"
                 style="position: absolute; top: 10px; right: 10px; cursor: pointer; color: #66fcf1; font-size: 1.5rem;">
                 &times;</div>
+            
+            <fieldset style="margin-bottom: 20px; border-color: #66fcf1; padding: 10px;">
+                <legend style="color: #66fcf1; font-weight: bold;">Emulator Engine</legend>
+                <select id="engine-selector" style="width: 100%; padding: 8px; background: #111; color: white; border: 1px solid #45a29e; border-radius: 4px; font-size: 1rem; cursor: pointer;">
+                    <option value="jgenesis" selected>JGenesis (Cycle-accurate)</option>
+                    <option value="blastem">BlastEm (High performance)</option>
+                </select>
+                <div style="font-size: 0.8rem; color: #8b8e98; margin-top: 5px;">Selecting a different engine will reload the page.</div>
+            </fieldset>
+
             <div id="common-config">
                 <fieldset>
                     <legend>Image filtering</legend>
@@ -794,6 +804,19 @@
         closeSettingsBtn.addEventListener('click', () => {
             settingsVisible = false;
             configPanel.style.display = 'none';
+        });
+
+        // Engine selector logic
+        const engineSelector = document.getElementById('engine-selector');
+        const currentEngine = localStorage.getItem('preferredGenesisCore') || 'jgenesis';
+        engineSelector.value = currentEngine;
+
+        engineSelector.addEventListener('change', (e) => {
+            const newEngine = e.target.value;
+            localStorage.setItem('preferredGenesisCore', newEngine);
+            if (newEngine !== 'jgenesis') {
+                window.location.href = `/console/${newEngine}/`;
+            }
         });
 
         // Load ROM list on startup

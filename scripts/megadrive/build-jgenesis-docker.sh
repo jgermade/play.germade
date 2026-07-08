@@ -14,7 +14,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/jgenesis-build"
 SCRIPTS_DIR="$ROOT_DIR/scripts/jgenesis"
-TARGET_DIR="$ROOT_DIR/public/console/megadrive"
+TARGET_DIR="$ROOT_DIR/public/console/jgenesis"
 ROMS_DIR="$ROOT_DIR/public/roms"
 DOCKERFILE="$SCRIPTS_DIR/docker/jgenesis-builder.Dockerfile"
 IMAGE_TAG="jgenesis-builder:latest"
