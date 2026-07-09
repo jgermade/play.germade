@@ -702,7 +702,10 @@
             // BlastEm Setup
             const container = document.getElementById('jgenesis-wasm');
             const canvas = document.createElement('canvas');
-            canvas.id = 'blastem-canvas';
+            // Emscripten's SDL2 port locates the canvas via document.querySelector('#canvas'),
+            // so the id must be exactly "canvas" or SDL reports a 0x0 window and BlastEm
+            // aborts in nk_font_atlas_add (font size = window height / 24 = 0).
+            canvas.id = 'canvas';
             canvas.width = 640;
             canvas.height = 480;
             canvas.style.width = '640px';
@@ -806,11 +809,15 @@
                     // Feed ROM bytes directly to the emulator (patched method)
                     channel.request_open_rom_bytes(romBytes, rom.filename);
                 } else {
-                    // BlastEm File System write
-                    try { window.Module.FS.mkdir('/roms'); } catch(e) {}
+                    // BlastEm: write the ROM into the Emscripten FS, then hand it to the
+                    // file chooser callback. FS itself isn't exported on Module, but the
+                    // FS_* helpers are (EXPORTED_RUNTIME_METHODS), so use those.
+                    const M = window.Module;
+                    M.FS_createPath('/', 'roms', true, true);
                     const path = '/roms/' + rom.filename;
-                    window.Module.FS.writeFile(path, romBytes);
-                    window.Module.ccall('handle_chooser_result', 'void', ['number', 'string'], [1, path]);
+                    try { M.FS_unlink(path); } catch(e) {} // overwrite if already loaded
+                    M.FS_createDataFile('/roms', rom.filename, romBytes, true, true, true);
+                    M.ccall('handle_chooser_result', 'void', ['number', 'string'], [1, path]);
                     document.getElementById('jgenesis').classList.remove('hidden');
                 }
 
