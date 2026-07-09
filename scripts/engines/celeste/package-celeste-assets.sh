@@ -4,7 +4,7 @@ set -euo pipefail
 # This script packages a local Celeste Steam installation into a zip file
 # that can be hosted on the server and loaded automatically by the browser.
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TARGET_TAR="$ROOT_DIR/public/assets/celeste/celeste-assets.tar.gz"
 
 DEFAULT_DIR=""

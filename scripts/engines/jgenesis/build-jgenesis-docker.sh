@@ -11,7 +11,7 @@ set -euo pipefail
 #   4. Copies pkg/, js/, and our custom index.html to public/console/megadrive/
 #   5. Generates per-console roms.<console>.json manifests from public/roms/
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/jgenesis-build"
 SCRIPTS_DIR="$ROOT_DIR/scripts/jgenesis"
 TARGET_DIR="$ROOT_DIR/public/console/jgenesis"

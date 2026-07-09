@@ -9,34 +9,34 @@ install:; npm install
 node_modules: install
 
 build.celeste:
-	./scripts/celeste/build-celeste-docker.sh
+	./scripts/engines/celeste/build-celeste-docker.sh
 
 build.sonic-1:
-	./scripts/sonic/build-sonic-docker.sh 1
+	./scripts/engines/rsdkv4/build-rsdkv4-docker.sh sonic-1
 
 build.sonic-2:
-	./scripts/sonic/build-sonic-docker.sh 2
+	./scripts/engines/rsdkv4/build-rsdkv4-docker.sh sonic-2
 
 build.sonic-3:
-	./scripts/sonic3/build-sonic3-web.sh
+	./scripts/games/sonic-3/build-sonic3-web.sh
 
 build.sonic-mania:
-	./scripts/sonic-mania/build-sonic-mania-docker.sh
+	./scripts/engines/rsdkv5/build-rsdkv5-docker.sh
 
 build.sonic-cd:
-	./scripts/sonic-cd/build-sonic-cd-docker.sh
+	./scripts/engines/rsdkv3/build-rsdkv3-docker.sh
 
 build.smw:
-	./scripts/smario-world/build-smw-docker.sh
+	./scripts/engines/smw/build-smw-docker.sh
 
 build.jgenesis:
-	./scripts/jgenesis/build-jgenesis-docker.sh
+	./scripts/engines/jgenesis/build-jgenesis-docker.sh
 
 build.blastem:
-	./scripts/blastem/build-blastem-docker.sh
+	./scripts/engines/blastem/build-blastem-docker.sh
 
 build.neo-geo:
-	./scripts/neo-geo/build-neo-geo-docker.sh
+	./scripts/engines/fbneo/build-fbneo-docker.sh
 
 build.ui: node_modules
 	npm run build

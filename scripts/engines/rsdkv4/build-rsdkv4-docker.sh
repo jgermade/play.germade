@@ -3,22 +3,24 @@ set -euo pipefail
 
 # Builds Sonic 1 or Sonic 2 WASM inside Docker.
 # Usage:
-#   scripts/sonic/build-sonic-docker.sh [1|2]
-#   Default: 1
+#   scripts/engines/rsdkv4/build-rsdkv4-docker.sh [sonic-1|sonic-2]
+#   Default: sonic-1
 
-SONIC_NUM="${1:-1}"
+GAME_SLUG="${1:-sonic-1}"
 
-if [[ "$SONIC_NUM" != "1" && "$SONIC_NUM" != "2" ]]; then
-    echo "Error: argument must be 1 or 2 (got: $SONIC_NUM)"
+if [[ "$GAME_SLUG" != "sonic-1" && "$GAME_SLUG" != "sonic-2" ]]; then
+    echo "Error: argument must be sonic-1 or sonic-2 (got: $GAME_SLUG)"
     exit 1
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SONIC_NUM="${GAME_SLUG#sonic-}"
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/sonic${SONIC_NUM}-wasm-build"
-ASSETS_DIR="$ROOT_DIR/game-assets/sonic-${SONIC_NUM}"
-TARGET_DIR="$ROOT_DIR/public/game/sonic-${SONIC_NUM}"
-SETTINGS_FILE="$ROOT_DIR/scripts/sonic/settings-sonic-${SONIC_NUM}.ini"
-SCRIPTS_DIR="$ROOT_DIR/scripts/sonic"
+ASSETS_DIR="$ROOT_DIR/game-assets/${GAME_SLUG}"
+TARGET_DIR="$ROOT_DIR/public/game/${GAME_SLUG}"
+SETTINGS_FILE="$ROOT_DIR/scripts/games/${GAME_SLUG}/settings-sonic-${SONIC_NUM}.ini"
+SCRIPTS_DIR="$ROOT_DIR/scripts/games/${GAME_SLUG}"
 
 echo "Setting up workspace (Sonic ${SONIC_NUM})..."
 rm -rf "$WORK_DIR"

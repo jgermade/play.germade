@@ -2,12 +2,7 @@
 <html lang="en">
 
 <head>
-    <script>
-        if ((localStorage.getItem('preferredGenesisCore') || 'jgenesis') === 'blastem') {
-            window.location.replace('blastem.html');
-        }
-    </script>
-    <title>SEGA Megadrive — jgenesis</title>
+    <title>SEGA Megadrive — jgenesis/blastem</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <style>
@@ -68,6 +63,14 @@
             align-items: center;
             width: 100vw;
             height: 100vh;
+        }
+
+        #jgenesis.hidden {
+            visibility: hidden !important;
+            position: absolute !important;
+            top: -10000px !important;
+            left: -10000px !important;
+            display: flex !important; /* Force flex so it retains its dimensions */
         }
 
         #jgenesis-config {
@@ -234,9 +237,10 @@
                 <div style="font-size: 0.8rem; color: #8b8e98; margin-top: 5px;">Selecting a different engine will reload the page.</div>
             </fieldset>
 
-            <div id="common-config">
-                <fieldset>
-                    <legend>Image filtering</legend>
+            <div id="jgenesis-only-settings">
+                <div id="common-config">
+                    <fieldset>
+                        <legend>Image filtering</legend>
                     <input type="radio" id="image-filter-nearest" name="image-filter" value="Nearest">
                     <label for="image-filter-nearest">Nearest neighbor</label>
                     <input type="radio" id="image-filter-linear" name="image-filter" value="Linear" checked>
@@ -399,7 +403,9 @@
                 </div>
             </div>
             <div style="margin-top:10px;">
-                <input type="button" id="restore-defaults" value="Restore default config">
+                </div>
+                <div>Press F8 to toggle fullscreen</div>
+            </div>
             </div>
             <div id="supported-files-info" style="margin-top:10px;">
                 <p>Supported platforms in this interface:</p>
@@ -435,17 +441,59 @@
     <script src="/shared/launcher-overlay.js" defer></script>
 
     <script type="module">
-        import init, {
-            EmulatorChannel,
-            WebConfigRef,
-            build_commit_hash,
-            run_emulator,
-        } from "/console/shared/jgenesis/jgenesis_web.js";
+        const currentEngine = localStorage.getItem('preferredGenesisCore') || 'jgenesis';
 
-        await init();
+        // Engine selector logic
+        const engineSelector = document.getElementById('engine-selector');
+        if (engineSelector) {
+            engineSelector.value = currentEngine;
+            engineSelector.addEventListener('change', (e) => {
+                localStorage.setItem('preferredGenesisCore', e.target.value);
+                window.location.reload();
+            });
+        }
 
-        let config = new WebConfigRef();
-        let channel = new EmulatorChannel();
+        if (currentEngine !== 'jgenesis') {
+            const jgOnly = document.getElementById('jgenesis-only-settings');
+            if (jgOnly) jgOnly.style.display = 'none';
+        }
+
+        const CONSOLE = window.JGENESIS_CONSOLE || "megadrive";
+        let romListItems = [];
+        let selectedRomIdx = -1;
+        let channel = null; // JGenesis channel
+        let config = null;  // JGenesis config
+        
+        async function loadRomList() {
+            try {
+                const res = await fetch(`/roms/roms.${CONSOLE}.json`);
+                if (!res.ok) {
+                    console.warn(`roms.${CONSOLE}.json not found — ROM list will be empty`);
+                    return;
+                }
+                romListItems = await res.json();
+                
+                // Show gallery if no ROM is selected
+                if (selectedRomIdx === -1) {
+                    const loadingText = document.getElementById('loading-text');
+                    if (loadingText) loadingText.style.display = 'none';
+                    const gallery = document.getElementById('game-gallery');
+                    if (gallery) gallery.style.display = 'flex';
+                }
+                
+                renderRomList();
+            } catch (e) {
+                console.warn('Failed to load ROM list:', e);
+            }
+        }
+
+        if (currentEngine === 'jgenesis') {
+            const module = await import("/console/shared/jgenesis/jgenesis_web.js");
+            const { default: init, EmulatorChannel, WebConfigRef, build_commit_hash, run_emulator } = module;
+            await init();
+
+            config = new WebConfigRef();
+            channel = new EmulatorChannel();
 
         function setChecked(elem, value) {
             elem.checked = value;
@@ -638,6 +686,7 @@
         });
 
         (() => {
+            if (typeof build_commit_hash === 'undefined') return;
             let buildCommitHash = build_commit_hash();
             let commitLinkSpan = document.getElementById("build-commit-link");
             if (buildCommitHash) {
@@ -649,41 +698,36 @@
                 commitLinkSpan.innerText = "<unknown>";
             }
         })();
+        } else {
+            // BlastEm Setup
+            const container = document.getElementById('jgenesis-wasm');
+            const canvas = document.createElement('canvas');
+            canvas.id = 'blastem-canvas';
+            canvas.width = 640;
+            canvas.height = 480;
+            canvas.style.width = '640px';
+            canvas.style.height = '480px';
+            canvas.oncontextmenu = (e) => e.preventDefault();
+            container.appendChild(canvas);
 
-        // === ROM list UI ===
-        // Fetches the per-console manifest (roms.<console>.json) and
-        // builds a selectable list. When a ROM is selected, fetches the
-        // ROM bytes and feeds them to the emulator via the patched
-        // request_open_rom_bytes() method (bypasses rfd).
-        //
-        // CONSOLE identifies which console's ROMs to list. Future
-        // per-console pages (snes, nes, etc.) can override this before
-        // this module runs, e.g. via a <script> tag in the page head:
-        //   window.JGENESIS_CONSOLE = "snes";
-        const CONSOLE = window.JGENESIS_CONSOLE || "megadrive";
-        let romListItems = [];
-        let selectedRomIdx = -1;
-
-        async function loadRomList() {
-            try {
-                const res = await fetch(`/roms/roms.${CONSOLE}.json`);
-                if (!res.ok) {
-                    console.warn(`roms.${CONSOLE}.json not found — ROM list will be empty`);
-                    return;
+            window.Module = {
+                canvas: canvas,
+                print: function(text) { console.log(text); },
+                printErr: function(text) { console.error(text); },
+                onRuntimeInitialized: function() {
+                    console.log("BlastEm initialized!");
+                    const loadingText = document.getElementById('loading-text');
+                    if (loadingText) loadingText.style.display = 'none';
+                    if (selectedRomIdx === -1) {
+                        const gallery = document.getElementById('game-gallery');
+                        if (gallery) gallery.style.display = 'flex';
+                    }
                 }
-                romListItems = await res.json();
-                
-                // Show gallery if no ROM is selected
-                if (selectedRomIdx === -1) {
-                    document.getElementById('loading-text').style.display = 'none';
-                    const gallery = document.getElementById('game-gallery');
-                    if (gallery) gallery.style.display = 'flex';
-                }
-                
-                renderRomList();
-            } catch (e) {
-                console.warn('Failed to load ROM list:', e);
-            }
+            };
+            const script = document.createElement('script');
+            script.src = "/console/shared/blastem/blastem.js";
+            script.async = true;
+            document.head.appendChild(script);
         }
 
         function renderRomList() {
@@ -733,19 +777,21 @@
             // Mark all items as loading
             document.querySelectorAll('.rom-item').forEach(el => el.classList.add('loading'));
 
-            // Force NTSC for USA games, PAL for Europe
-            if (rom.filename.includes('USA') || rom.title.includes('USA')) {
-                config.set_genesis_aspect_ratio('Ntsc');
-                const r = document.getElementById('gen-aspect-ntsc');
-                if (r) r.checked = true;
-            } else if (rom.filename.includes('Europe') || rom.title.includes('Europe')) {
-                config.set_genesis_aspect_ratio('Pal');
-                const r = document.getElementById('gen-aspect-pal');
-                if (r) r.checked = true;
-            } else {
-                config.set_genesis_aspect_ratio('Auto');
-                const r = document.getElementById('gen-aspect-auto');
-                if (r) r.checked = true;
+            // Force NTSC for USA games, PAL for Europe (JGenesis only)
+            if (currentEngine === 'jgenesis') {
+                if (rom.filename.includes('USA') || rom.title.includes('USA')) {
+                    config.set_genesis_aspect_ratio('Ntsc');
+                    const r = document.getElementById('gen-aspect-ntsc');
+                    if (r) r.checked = true;
+                } else if (rom.filename.includes('Europe') || rom.title.includes('Europe')) {
+                    config.set_genesis_aspect_ratio('Pal');
+                    const r = document.getElementById('gen-aspect-pal');
+                    if (r) r.checked = true;
+                } else {
+                    config.set_genesis_aspect_ratio('Auto');
+                    const r = document.getElementById('gen-aspect-auto');
+                    if (r) r.checked = true;
+                }
             }
 
             try {
@@ -755,8 +801,18 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const arrayBuffer = await res.arrayBuffer();
                 const romBytes = new Uint8Array(arrayBuffer);
-                // Feed ROM bytes directly to the emulator (patched method)
-                channel.request_open_rom_bytes(romBytes, rom.filename);
+                
+                if (currentEngine === 'jgenesis') {
+                    // Feed ROM bytes directly to the emulator (patched method)
+                    channel.request_open_rom_bytes(romBytes, rom.filename);
+                } else {
+                    // BlastEm File System write
+                    try { window.Module.FS.mkdir('/roms'); } catch(e) {}
+                    const path = '/roms/' + rom.filename;
+                    window.Module.FS.writeFile(path, romBytes);
+                    window.Module.ccall('handle_chooser_result', 'void', ['number', 'string'], [1, path]);
+                    document.getElementById('jgenesis').classList.remove('hidden');
+                }
 
                 // Close ESC menu if open
                 if (window.isDevMenuOpen && window.isDevMenuOpen()) {
@@ -811,23 +867,14 @@
             configPanel.style.display = 'none';
         });
 
-        // Engine selector logic
-        const engineSelector = document.getElementById('engine-selector');
-        const currentEngine = localStorage.getItem('preferredGenesisCore') || 'jgenesis';
-        engineSelector.value = currentEngine;
 
-        engineSelector.addEventListener('change', (e) => {
-            const newEngine = e.target.value;
-            localStorage.setItem('preferredGenesisCore', newEngine);
-            if (newEngine !== 'jgenesis') {
-                window.location.href = `/console/${newEngine}/`;
-            }
-        });
 
         // Load ROM list on startup
         loadRomList();
 
-        await run_emulator(config.clone(), channel.clone());
+        if (currentEngine === 'jgenesis') {
+            await run_emulator(config.clone(), channel.clone());
+        }
     </script>
 </body>
 

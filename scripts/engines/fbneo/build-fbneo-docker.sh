@@ -4,7 +4,7 @@ set -euo pipefail
 # Builds FBNeo WASM (standalone) inside Docker and deploys to public/console/neo-geo/
 # Uses OkCyb0rg/fbneo-wasm-port
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/fbneo-wasm-build"
 TARGET_DIR="$ROOT_DIR/public/console/neo-geo"
 ROMS_DIR="$ROOT_DIR/public/roms/neo-geo"
@@ -44,7 +44,7 @@ cp "$WORK_DIR/index.html" "$TARGET_DIR/"
 cp "$WORK_DIR/styles.css" "$TARGET_DIR/"
 
 # Replace the original index.html with our custom one
-cp "$ROOT_DIR/scripts/neo-geo/index.html" "$TARGET_DIR/index.html"
+cp "$ROOT_DIR/scripts/consoles/neo-geo/index.html" "$TARGET_DIR/index.html"
 
 # Patch app.js to export our needed functions
 sed -i.bak -e 's/poke,/poke, loadRomFile, loadSupportFiles,/g' "$TARGET_DIR/app.js"

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/sonic-cd-wasm-build"
 ASSETS_DIR="$ROOT_DIR/game-assets/sonic-cd"
 TARGET_DIR="$ROOT_DIR/public/game/sonic-cd"
-SETTINGS_FILE="$ROOT_DIR/scripts/sonic-cd/settings-sonic-cd.ini"
-SCRIPTS_DIR="$ROOT_DIR/scripts/sonic-cd"
+SETTINGS_FILE="$ROOT_DIR/scripts/games/sonic-cd/settings-sonic-cd.ini"
+SCRIPTS_DIR="$ROOT_DIR/scripts/games/sonic-cd"
 
 echo "Setting up workspace (Sonic CD)..."
 rm -rf "$WORK_DIR"

@@ -8,7 +8,7 @@ set -euo pipefail
 #   CELESTE_WASM_DIR=/absolute/path/to/local/celeste-wasm clone
 #   CELESTE_WASM_BRANCH=threads-v2
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 BRANCH="${CELESTE_WASM_BRANCH:-threads-v2}"
 CLONE_DIR="${CELESTE_WASM_DIR:-$ROOT_DIR/.cache/celeste-wasm}"
 TARGET_DIR="$ROOT_DIR/public/game/celeste"
@@ -97,6 +97,6 @@ mkdir -p "$TARGET_DIR"
 rsync -a --delete --exclude 'assets*.zip' "$CLONE_DIR/frontend/dist/" "$TARGET_DIR/"
 
 echo "Running Gamepad SAB Proxy patcher..."
-node "$ROOT_DIR/scripts/celeste/patch-gamepad-proxy.mjs"
+node "$ROOT_DIR/scripts/games/celeste/patch-gamepad-proxy.mjs"
 
 echo "Celeste build synced to: $TARGET_DIR"

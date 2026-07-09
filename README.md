@@ -59,3 +59,4 @@ A WebAssembly (WASM) games collection and launcher.
 - Super Mario World widescreen — remaining work: side-exit trigger positions, real-wide title/overworld/credits (rooms/base-BPS package), deferred-verification debt (castle/ghost/water/boss scenes) (Pending, see `SESSIONS/2026-07-08_13h00.smw-widescreen-remaining.session.md`).
 - Super Mario World: cover image for the launcher card + optional web save-state UI (Pending).
 - Add FBNeo as Arcade/Neo-Geo emulator (Completed) ✅ (see `SESSIONS/2026-07-08_21h52.fbneo-integration.session.md`).
+- Add JGenesis and BlastEm as Sega Megadrive/SNES emulator cores (Completed) ✅ (see `SESSIONS/2026-07-09_00h16.blastem-integration.session.md`).

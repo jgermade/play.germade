@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TARGET_TAR="$ROOT_DIR/public/assets/celeste/celeste-assets.tar.gz"
 PATCHED_TAR="$ROOT_DIR/public/assets/celeste/celeste-assets.patched.tar.gz"
 

@@ -8,7 +8,7 @@ set -euo pipefail
 #   CELESTE_WASM_BRANCH=threads-v2
 #   CELESTE_DOCKER_IMAGE=play-germade/celeste-builder:latest
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 BRANCH="${CELESTE_WASM_BRANCH:-threads-v2}"
 IMAGE_NAME="${CELESTE_DOCKER_IMAGE:-play-germade/celeste-builder:latest}"
 
@@ -23,7 +23,7 @@ need_cmd docker
 
 echo "Building Docker image: $IMAGE_NAME"
 docker build \
-  -f "$ROOT_DIR/scripts/celeste/docker/celeste-builder.Dockerfile" \
+  -f "$ROOT_DIR/scripts/games/celeste/docker/celeste-builder.Dockerfile" \
   -t "$IMAGE_NAME" \
   "$ROOT_DIR"
 
@@ -33,6 +33,6 @@ docker run --rm \
   -e CELESTE_WASM_BRANCH="$BRANCH" \
   -e CELESTE_WASM_DIR="/workspace/.cache/celeste-wasm" \
   "$IMAGE_NAME" \
-  "cd /workspace && ./scripts/celeste/build-celeste.sh"
+  "cd /workspace && ./scripts/games/celeste/build-celeste.sh"
 
 echo "Docker build completed. Output is in game/celeste/build"

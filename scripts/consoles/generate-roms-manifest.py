@@ -2,9 +2,9 @@
 """Scans a ROMs root directory for per-console subdirectories and generates
 a roms.<console>.json manifest for each console.
 
-Usage: generate-roms-manifest.py <roms-root>
+Usage: generate-roms-manifest.py [console] [--roms-root <roms-root>]
 
-The <roms-root> directory (e.g. public/roms) is expected to contain one
+The <roms-root> directory (default: public/roms) is expected to contain one
 subdirectory per console, named after the console slug:
 
     public/roms/
@@ -12,6 +12,9 @@ subdirectory per console, named after the console slug:
       snes/        <- .sfc, .smc ROMs
       nes/         <- .nes ROMs
       ...
+
+If [console] is provided, only that console's subdirectory is scanned.
+Otherwise, all console subdirectories are scanned.
 
 For each console subdirectory that contains at least one ROM file, this
 script writes a manifest at <roms-root>/roms.<console>.json (e.g.
@@ -96,20 +99,28 @@ def scan_console(console_dir: Path, console: str) -> list[dict] | None:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <roms-root>")
-        sys.exit(1)
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate ROMs manifest JSON.")
+    parser.add_argument("console", nargs="?", help="Specific console to scan (e.g., megadrive). If omitted, scans all consoles.")
+    parser.add_argument("--roms-root", default="public/roms", help="Root directory containing ROMs (default: public/roms)")
+    args = parser.parse_args()
 
-    roms_root = Path(sys.argv[1])
+    roms_root = Path(args.roms_root)
     if not roms_root.is_dir():
         print(f"Error: {roms_root} is not a directory")
         sys.exit(1)
 
-    # Discover console subdirectories. We consider any immediate
-    # subdirectory of <roms-root> as a potential console directory.
-    console_dirs = sorted(
-        entry for entry in roms_root.iterdir() if entry.is_dir()
-    )
+    # Discover console subdirectories
+    if args.console:
+        target_dir = roms_root / args.console
+        if not target_dir.is_dir():
+            print(f"Error: Console directory {target_dir} not found")
+            sys.exit(1)
+        console_dirs = [target_dir]
+    else:
+        console_dirs = sorted(
+            entry for entry in roms_root.iterdir() if entry.is_dir()
+        )
 
     if not console_dirs:
         print(f"No console subdirectories found in {roms_root}")

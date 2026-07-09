@@ -10,11 +10,11 @@ set -euo pipefail
 # ROM the engine runs in pure-C mode (RM_MINE), skipping the upstream
 # per-frame SNES-emulator verification entirely.
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/smw-wasm-build"
 ASSETS_DIR="$ROOT_DIR/game-assets/smario-world"
 TARGET_DIR="$ROOT_DIR/public/game/smario-world"
-SCRIPTS_DIR="$ROOT_DIR/scripts/smario-world"
+SCRIPTS_DIR="$ROOT_DIR/scripts/games/smario-world"
 
 ROM_FILE="$ASSETS_DIR/smario-world-USA.sfc"
 ROM_SHA1_EXPECTED="6b47bb75d16514b6a476aa0c73a683a2a4c18765" # SMW (USA), unheadered

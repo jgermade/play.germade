@@ -13,11 +13,11 @@ set -euo pipefail
 #
 # Usage: scripts/sonic-mania/build-sonic-mania-docker.sh
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/sonic-mania-wasm-build"
 ASSETS_DIR="$ROOT_DIR/game-assets/sonic-mania"
 TARGET_DIR="$ROOT_DIR/public/game/sonic-mania"
-SCRIPTS_DIR="$ROOT_DIR/scripts/sonic-mania"
+SCRIPTS_DIR="$ROOT_DIR/scripts/games/sonic-mania"
 
 # Pinned for reproducibility (checked as of writing this script).
 SONIC_MANIA_COMMIT="9dc699428420d752af9767bdb13f585ee0881bc0"
