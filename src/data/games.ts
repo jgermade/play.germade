@@ -36,7 +36,27 @@ export const gamesData: GameEntry[] = [
       "Sega Megadrive / Genesis emulator (jgenesis, Rust/WASM + WebGPU). Plays .md and .gen ROMs.",
     status: "ready",
     category: "Consolas Retro",
-    urlPath: "/console/megadrive/index.html",
+    urlPath: "/console/megadrive/",
+  },
+  {
+    slug: "snes",
+    title: "Super Nintendo",
+    emoji: "🍄",
+    description:
+      "Super Nintendo emulator (jgenesis, Rust/WASM + WebGPU). Plays .sfc and .smc ROMs.",
+    status: "ready",
+    category: "Consolas Retro",
+    urlPath: "/console/snes/",
+  },
+  {
+    slug: "neo-geo",
+    title: "Neo-Geo (Arcade)",
+    emoji: "🕹️",
+    description:
+      "Neo-Geo Arcade emulator (FBNeo, WASM). Plays .zip ROMs.",
+    status: "ready",
+    category: "Consolas Retro",
+    urlPath: "/console/neo-geo/index.html",
   },
   {
     slug: "sonic-1",

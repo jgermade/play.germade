@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>Neo-Geo Arcade (FBNeo)</title>
+  <link rel="stylesheet" href="./styles.css?v=layout-2">
+  <style>
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: black !important;
+        color: white !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
+    }
+
+    /* Hide original UI elements */
+    .library-sidebar, .dev-dock, .hud-row {
+        display: none !important;
+    }
+
+    .app {
+        height: 100vh !important;
+        width: 100vw !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+    }
+
+    .emulator-shell {
+        display: block !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        border: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+
+    .play-area {
+        display: block !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+
+    .cabinet {
+        display: block !important;
+        border: none !important;
+        border-radius: 0 !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        background: black !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+        box-shadow: none !important;
+    }
+
+    .screen-frame {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border: none !important;
+        border-radius: 0 !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        background: black !important;
+        aspect-ratio: auto !important;
+    }
+
+    canvas#screen {
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: contain !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        outline: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #status {
+        display: none !important;
+    }
+
+    /* Game Gallery */
+    #game-gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        justify-content: center;
+        align-items: center;
+        width: 100vw;
+        height: 100vh;
+        overflow-y: auto;
+        background: #0b0c10;
+        padding: 50px;
+        box-sizing: border-box;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 50;
+    }
+
+    .cover-item {
+        width: 200px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .cover-item:hover {
+        transform: translateY(-5px) scale(1.02);
+    }
+
+    .cover-item img {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        object-fit: cover;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        border: 2px solid transparent;
+        transition: border-color 0.2s;
+    }
+
+    .cover-item:hover img {
+        border-color: #66fcf1;
+        box-shadow: 0 8px 20px rgba(102, 252, 241, 0.3);
+    }
+
+    .cover-item .title {
+        margin-top: 12px;
+        color: white;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+    }
+
+    /* ESC Menu ROM item */
+    .rom-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: background 0.15s;
+        font-size: 0.95rem;
+        border-radius: 6px;
+        color: white;
+    }
+
+    .rom-item:hover {
+        background: rgba(102, 252, 241, 0.15);
+    }
+
+    .rom-item.selected {
+        background: rgba(102, 252, 241, 0.25);
+        color: #66fcf1;
+        font-weight: bold;
+    }
+
+    .rom-item.loading {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-gallery" style="display: none;"></div>
+
+  <main class="app" aria-label="FBNeo WebAssembly emulator">
+    <section class="emulator-shell" aria-label="FBNeo WebAssembly emulator">
+      <!-- Hidden original UI -->
+      <aside class="library-sidebar" aria-label="Loaded ROM library">
+        <div class="sidebar-header"><div id="support-count">0 support</div></div>
+        <div class="sidebar-actions">
+          <button id="add-rom" type="button">Add ROM</button>
+          <button id="add-bios" type="button">Add Support ZIP</button>
+        </div>
+        <div id="rom-list"></div>
+        <div id="support-list"></div>
+      </aside>
+
+      <section class="play-area" aria-label="Emulator stage">
+        <div class="hud-row hud-row-top" aria-label="Game controls">
+          <div id="game-title">FBNeo WASM</div>
+          <button id="run-toggle" type="button">Run</button>
+          <button id="fullscreen" type="button">Fullscreen</button>
+        </div>
+
+        <section class="cabinet" aria-label="Emulator">
+          <div class="screen-frame">
+            <canvas id="screen" width="320" height="240" aria-label="Game screen"></canvas>
+          </div>
+        </section>
+
+        <!-- Hidden dev tools -->
+        <div class="dev-dock">
+          <button id="step-frame">Step Frame</button>
+          <button id="p1-coin">P1 Coin</button>
+          <button id="p1-start">P1 Start</button>
+          <button id="p2-coin">P2 Coin</button>
+          <button id="p2-start">P2 Start</button>
+          <button id="dip-test">Test DIP</button>
+          <button id="service">Service</button>
+          <button id="soft-reset">Reset</button>
+          <button id="save-state">Save State</button>
+          <button id="load-state">Load State</button>
+          <button id="download-state">Download State</button>
+          <button id="upload-state">Upload State</button>
+          <input id="mem-address"><input id="mem-length"><button id="peek">Peek</button>
+          <input id="mem-value"><button id="poke">Poke</button>
+          <pre id="log"></pre>
+        </div>
+      </section>
+
+      <p id="status" class="status">Loading WebAssembly module...</p>
+    </section>
+  </main>
+
+  <!-- Dummy inputs required by app.js -->
+  <input id="rom-input" type="file" accept=".zip" hidden>
+  <input id="bios-input" type="file" accept=".zip" multiple hidden>
+  <input id="state-input" type="file" accept=".state,.bin,.sav" hidden>
+
+  <!-- Launcher overlay: Escape mini-menu mode -->
+  <script>
+      window.__launcherReturnViaEscMenu = true;
+  </script>
+  <script src="/shared/launcher-overlay.js" defer></script>
+
+  <!-- Core FBNeo app logic -->
+  <script type="module" src="./app.js?v=sidebar-1"></script>
+
+  <!-- Custom Germade Logic -->
+  <script type="module">
+      const CONSOLE = "neo-geo";
+      let romListItems = [];
+      let selectedRomIdx = -1;
+
+      async function waitForFBNeo() {
+          while (!window.fbneoWasm || !window.fbneoWasm.loadRomFile) {
+              await new Promise(r => setTimeout(r, 100));
+          }
+      }
+
+      async function loadRomList() {
+          try {
+              const res = await fetch(`/roms/roms.${CONSOLE}.json`);
+              if (!res.ok) {
+                  console.warn(`roms.${CONSOLE}.json not found — ROM list will be empty`);
+                  return;
+              }
+              romListItems = await res.json();
+              
+              if (selectedRomIdx === -1) {
+                  const gallery = document.getElementById('game-gallery');
+                  if (gallery) gallery.style.display = 'flex';
+              }
+              
+              renderRomList();
+          } catch (e) {
+              console.warn('Failed to load ROM list:', e);
+          }
+      }
+
+      function renderRomList() {
+          const gallery = document.getElementById('game-gallery');
+          const escContainer = document.getElementById('rom-list-items');
+          
+          if (gallery) gallery.innerHTML = '';
+          if (escContainer) escContainer.innerHTML = '';
+
+          romListItems.forEach((rom, idx) => {
+              if (escContainer) {
+                  const item = document.createElement('div');
+                  item.className = 'rom-item' + (idx === selectedRomIdx ? ' selected' : '');
+                  item.textContent = rom.title;
+                  item.tabIndex = 0;
+                  item.addEventListener('click', () => selectRom(idx));
+                  escContainer.appendChild(item);
+              }
+
+              if (gallery) {
+                  const coverItem = document.createElement('div');
+                  coverItem.className = 'cover-item';
+                  
+                  const placeholderSvg = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='266' fill='%231f2833'%3E%3Crect width='100%25' height='100%25'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='16' fill='%23c5c6c7' text-anchor='middle' dy='.3em'%3ENo Cover%3C/text%3E%3C/svg%3E";
+                  const coverUrl = rom.cover ? rom.cover : placeholderSvg;
+
+                  coverItem.innerHTML = `
+                      <img src="${coverUrl}" alt="${rom.title}" data-fallback="${placeholderSvg}" onerror="this.src=this.dataset.fallback; this.onerror=null;">
+                      <div class="title">${rom.title}</div>
+                  `;
+                  coverItem.addEventListener('click', () => {
+                      gallery.style.display = 'none';
+                      selectRom(idx);
+                  });
+                  gallery.appendChild(coverItem);
+              }
+          });
+      }
+
+      async function fetchAsFile(url, filename) {
+          const cacheBuster = `?v=${new Date().getTime()}`;
+          const res = await fetch(url + cacheBuster);
+          if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+          const blob = await res.blob();
+          blob.name = filename;
+          return blob;
+      }
+
+      async function selectRom(idx) {
+          if (idx < 0 || idx >= romListItems.length) return;
+          const rom = romListItems[idx];
+          selectedRomIdx = idx;
+          renderRomList();
+
+          document.querySelectorAll('.rom-item').forEach(el => el.classList.add('loading'));
+          document.getElementById('status').textContent = `Downloading ${rom.title}...`;
+
+          try {
+              await waitForFBNeo();
+              
+              if (!window.neoGeoBiosLoaded) {
+                  document.getElementById('status').textContent = `Downloading neogeo BIOS...`;
+                  try {
+                      const biosFile = await fetchAsFile('/roms/neo-geo/BIOS/neogeo.zip', 'neogeo.zip');
+                      await window.fbneoWasm.loadSupportFiles([biosFile]);
+                      window.neoGeoBiosLoaded = true;
+                  } catch (e) {
+                      console.warn('Failed to load BIOS/neogeo.zip. Some games may not start.', e);
+                  }
+              }
+
+              document.getElementById('status').textContent = `Starting ${rom.title}...`;
+              const romFile = await fetchAsFile(rom.url, rom.filename);
+              await window.fbneoWasm.loadRomFile(romFile);
+
+              if (window.isDevMenuOpen && window.isDevMenuOpen()) {
+                  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+              }
+              
+              setTimeout(() => {
+                  document.getElementById('status').style.display = 'none';
+              }, 3000);
+
+          } catch (e) {
+              alert('Failed to load ROM: ' + e.message);
+          } finally {
+              document.querySelectorAll('.rom-item').forEach(el => el.classList.remove('loading'));
+          }
+      }
+
+      const observer = new MutationObserver(() => {
+          const escPanel = document.getElementById('launcher-esc-menu-panel');
+          if (escPanel && !document.getElementById('esc-rom-list')) {
+              const romContainer = document.createElement('div');
+              romContainer.id = 'esc-rom-list';
+              romContainer.style.marginTop = '20px';
+              romContainer.style.borderTop = '1px solid #1f2833';
+              romContainer.style.paddingTop = '15px';
+              romContainer.innerHTML = '<div style="color:#66fcf1;font-weight:bold;font-size:1.1rem;margin-bottom:10px;">Select ROM</div><div id="rom-list-items" style="max-height:40vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>';
+              escPanel.appendChild(romContainer);
+              renderRomList();
+          }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      loadRomList();
+  </script>
+</body>
+</html>

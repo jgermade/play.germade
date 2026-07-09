@@ -510,8 +510,9 @@ gamesData.forEach(game => {
             const playBtn = document.createElement("div");
             playBtn.className = "action-item action-play";
             playBtn.innerHTML = `<span class="btn-circle">${inputMode === 'gamepad' ? 'A' : 'Enter'}</span> Play`;
-            playBtn.onclick = () =>
-              (window.location.href = game.urlPath || `/game/${game.slug}/index.html`);
+            playBtn.onclick = () => {
+              window.location.href = game.urlPath || `/game/${game.slug}/index.html`;
+            };
             uiActions.appendChild(playBtn);
 
             // CLEAR OPFS BUTTON
