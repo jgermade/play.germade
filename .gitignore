@@ -9,6 +9,11 @@ dist/
 # Local build/cache artifacts
 .cache/
 /.tmp
+
+# Engine subprojects are independent, individually git-init'd repos
+# (github.com/wasm-gaming/<engine>). Cloned here for local dev; never committed
+# to this repo. The app consumes their CI-built WASM via GitHub Releases.
+engines/
 public/game/celeste/*
 public/game/sonic-1/*
 public/game/sonic-2/*
