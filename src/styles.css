@@ -200,7 +200,7 @@ kbd {
   opacity: 0.35; transition: opacity 240ms var(--ease);
 }
 
-.card.is-soon .card-art, .card.is-soon .card-cover { filter: grayscale(0.4) brightness(0.72); }
+.card.is-soon .card-art, .card.is-soon .card-cover { filter: grayscale(0.3) brightness(0.86); }
 .card.is-soon .poster { filter: saturate(0.5) brightness(0.8); }
 
 .card.is-focused, .card.is-open {
