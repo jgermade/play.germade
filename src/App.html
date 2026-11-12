@@ -1,17 +1,24 @@
-<script :setup="{ rows, library, shell, refresh, install, uninstall, onAction, setPaused, Hero, InstallDialog, Notice, RomDrawer }">
+<script :setup="{ rows, library, shell, refresh, install, uninstall, onAction, setPaused, Hero, InstallDialog, Notice, RomDrawer, roms, romLibrary }">
   let focus = { row: 0, col: 0 }
   let dialog = null        // { type: 'install' | 'notice', game }
-  let playing = null       // slug of the game in the player iframe
+  let playing = null       // URL of the player page in the iframe
   let drawer = null        // { slug, row, notch } — an emulator's ROM folder, open under its row
 
   $: current = rows[focus.row]?.games[focus.col] ?? null
 
   const isInstalled = (game) => !!library.installed[game.slug]
 
-  const play = (game) => {
+  const startPlayer = (url) => {
     dialog = null
-    playing = game.slug
+    playing = url
     setPaused(true)
+  }
+  const play = (game) => startPlayer(`/play/?game=${encodeURIComponent(game.slug)}`)
+
+  // A ROM from an emulator's library: the player resolves the core and reads the ROM.
+  const playRom = ({ detail }) => {
+    const q = new URLSearchParams({ system: detail.system, game: detail.gameId, rom: detail.sha1 })
+    startPlayer(`/play/?${q}`)
   }
 
   // An emulator opens like an iOS 6 folder: the drawer splits the grid under its row
@@ -59,10 +66,8 @@
       if (action === 'back') dialog = null
       return
     }
-    if (drawer && (action === 'back' || action === 'up' || action === 'down')) {
-      drawer = null
-      if (action === 'back') return
-    }
+    // An open folder takes the input (RomDrawer has its own grid); it says when to close.
+    if (drawer) return
     if (action === 'up') move(-1, 0)
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
@@ -117,7 +122,8 @@
         </li>
       </ul>
       <div :if="drawer && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
-        <RomDrawer :game="row.games.find(g => g.slug === drawer.slug)" />
+        <RomDrawer :game="row.games.find(g => g.slug === drawer.slug)" :roms :library="romLibrary" :onAction
+                   @play="playRom" @close="drawer = null" />
       </div>
     </div>
   </section>
@@ -134,5 +140,5 @@
   </div>
 </div>
 
-<iframe :if="playing" class="player" :src="`/play/?game=${playing}`" title="Juego"
+<iframe :if="playing" class="player" :src="playing" title="Juego"
         allow="fullscreen; gamepad; autoplay; keyboard-map" @load="$event.target.focus()"></iframe>

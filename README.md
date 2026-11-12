@@ -43,14 +43,23 @@ ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
   updates offered with a prompt (never mid-game). The service worker adds COOP/COEP to every
   navigation, so threaded engines get `crossOriginIsolated` on any static host; one reload on the
   very first visit.
+- **ROM libraries** (emulators) — ROMs belong to the system, saves to the engine:
+  `library/<system>/roms/<sha1>.<ext>` + `library/<system>/index.json` (games → versions, chosen
+  core). Import from the drawer (pick or drop, `.zip` opened in the browser), header-based
+  identification groups versions of one game (`src/data/systems/mega-drive.js`); the drawer opens
+  like an iOS 6 folder with a version badge per game; Enter plays the newest, Y/V lists versions.
+  Core: the game's choice → the console's → the catalog default. Saves in `<engine>/<gameId>/`.
 - **Legacy** — the first proof of concept (Astro, per-game pages, engine build scripts) lives in
   [legacy/](legacy/) for reference until each engine is migrated. It is not part of the build.
 
 ## Todos
 
 - [ ] Release `rsdkv4-wasm` 0.3.0 (pinned in `engines.json`; until then use `ENGINE_SRC_RSDKV4`).
-- [ ] Emulators: per-system ROM list organised by game (versions grouped, as in ROM Manager),
-      version picker, ROM-hacking patches (IPS/BPS/UPS) applied on the fly while loading.
+- [x] Emulators: per-system ROM library (Mega Drive), versions grouped by game, version picker,
+      core per console and per game.
+- [ ] ROM-hacking patches (IPS/BPS/UPS) applied on the fly while loading.
+- [ ] DAT matching (No-Intro) instead of the header heuristic, shared with ROM Manager.
+- [ ] Release `blastem-wasm` 0.2.0 (pinned in `engines.json`; until then `ENGINE_SRC_BLASTEM`).
 - [ ] Gamepad inside games (engines that only read the keyboard need a mapping).
 - [ ] Settings panel painted from each engine's `config()` / `options()` descriptors.
 - [ ] Migrate engines in priority order: rsdkv3 → rsdkv5 → fbneo → blastem → jgenesis → celeste.

@@ -112,9 +112,15 @@ export const GAMES = [
     category: 'emuladores',
     kind: 'emulator',
     title: 'Mega Drive',
-    description: 'Sega Mega Drive / Genesis con BlastEm o jgenesis.',
-    engine: 'blastem',
-    status: 'soon',
+    description: 'Sega Mega Drive / Genesis. Tu biblioteca de ROMs, agrupada por juego y versión.',
+    system: 'mega-drive',
+    engine: 'blastem', // default core; the console and each game can choose another
+    cores: [
+      { id: 'blastem', label: 'BlastEm' },
+      { id: 'jgenesis', label: 'jgenesis', available: false },
+    ],
+    accept: ['.bin', '.gen', '.md', '.smd', '.zip'],
+    status: 'ready',
     accent: '#1f2937',
     glyph: '🦔',
   },

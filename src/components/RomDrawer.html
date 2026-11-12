@@ -1,34 +1,174 @@
-<script :setup="{ game, roms = [] }">
-  // The folder of iOS 6: it opens *inside* the grid, under the row of the card that
-  // owns it, with a notch pointing back at that card. One tile per game; versions of
-  // the same game (regions, revisions, hacks) are grouped behind it, like the badge
-  // on an iOS icon, and the chosen one is what gets loaded — with any ROM-hacking
-  // patch applied on the fly, never written over the original.
+<script :setup="{ game, roms, library, onAction }">
+  // The folder of iOS 6: it opens inside the grid, under the row of the card that owns
+  // it, with a notch pointing back at that card. One tile per game; the versions of
+  // that game (revisions, regions, homebrew builds) are grouped behind it — the red
+  // badge counts them — and Enter plays the newest. Y / V / ⋯ opens the list of
+  // versions, where one can be played or removed, and where the game can take a
+  // core of its own.
+  let focus = 0
+  let picker = null         // gameId whose versions are listed
+  let pickerFocus = 0
+  let busy = false
+  let message = null
+  let dragging = false
+
+  if (game.system && !roms[game.system]) await library.load(game.system)
+
+  $: entry = roms[game.system]
+  $: games = entry?.games ?? []
+  $: consoleCore = entry?.core ?? game.engine
+  $: pickerGame = picker ? games.find((g) => g.id === picker) : null
+
+  const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
+  const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
+  const initials = (title) => title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const hue = (id) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
+  const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 1048576 ? 2 : 1)} MB`
+  const versionLabel = (v) => v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
+
+  const play = (g, version) => {
+    if (!g) return
+    $emit('play', { system: game.system, gameId: g.id, sha1: (version ?? g.versions[0]).sha1 })
+  }
+
+  const addFiles = async (files) => {
+    if (!files?.length) return
+    busy = true
+    message = null
+    try {
+      const { added, duplicates, rejected } = await library.importFiles(game.system, [...files])
+      const parts = []
+      if (added.length) parts.push(`${added.length} ROM${added.length > 1 ? 's' : ''} añadida${added.length > 1 ? 's' : ''}`)
+      if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
+      if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
+      message = parts.join(' · ') || 'Nada que añadir'
+    } catch (e) {
+      message = e.message ?? String(e)
+    } finally {
+      busy = false
+    }
+  }
+
+  const pickFiles = () => $self('input[type=file]')?.click()
+  const onPicked = (event) => {
+    addFiles(event.target.files)
+    event.target.value = ''
+  }
+  const onDrop = (event) => {
+    dragging = false
+    addFiles(event.dataTransfer?.files)
+  }
+
+  const openPicker = (g) => {
+    if (!g) return
+    picker = g.id
+    pickerFocus = 0
+  }
+
+  const removeVersion = async (g, v) => {
+    await library.removeVersion(game.system, g.id, v.sha1)
+    if (!games.find((x) => x.id === g.id)) picker = null
+    focus = Math.min(focus, Math.max(0, games.length - 1))
+  }
+
+  const setConsoleCore = (event) => library.setCore(game.system, event.target.value)
+  const setGameCore = (g, event) => library.setCore(game.system, event.target.value || null, g.id)
+
+  // Grid columns, measured: tiles on the same row share an offsetTop.
+  const columns = () => {
+    const tiles = Array.from($$self('.rom-tile'))
+    if (!tiles.length) return 1
+    const top = tiles[0].offsetTop
+    return Math.max(1, tiles.filter((t) => t.offsetTop === top).length)
+  }
+
+  const off = onAction((action) => {
+    if (picker) {
+      const versions = pickerGame?.versions ?? []
+      if (action === 'back' || action === 'more') picker = null
+      else if (action === 'up') pickerFocus = Math.max(0, pickerFocus - 1)
+      else if (action === 'down') pickerFocus = Math.min(versions.length - 1, pickerFocus + 1)
+      else if (action === 'accept') play(pickerGame, versions[pickerFocus])
+      return
+    }
+    const count = games.length + 1 // the "add" tile closes the grid
+    const cols = columns()
+    if (action === 'back') $emit('close')
+    else if (action === 'left') focus = Math.max(0, focus - 1)
+    else if (action === 'right') focus = Math.min(count - 1, focus + 1)
+    else if (action === 'up') {
+      if (focus < cols) $emit('close')
+      else focus = focus - cols
+    }
+    else if (action === 'down') focus = Math.min(count - 1, focus + cols)
+    else if (action === 'more') openPicker(games[focus])
+    else if (action === 'accept') focus < games.length ? play(games[focus]) : pickFiles()
+  })
+  $destroyed(off)
 </script>
 
-<section class="drawer-panel" :style="`--accent: ${game.accent ?? '#334155'}`">
+<section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}`"
+         @dragover.prevent="dragging = true" @dragleave.self="dragging = false" @drop.prevent="onDrop">
   <header class="drawer-head">
     <h3>{{ game.title }}</h3>
-    <span class="drawer-meta">motor <code>{{ game.engine }}</code></span>
+    <span class="drawer-meta">{{ games.length }} juego{{ games.length === 1 ? '' : 's' }}</span>
+    <label class="core-select">
+      motor
+      <select :value="consoleCore" @change="setConsoleCore">
+        <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">
+          {{ core.label }}{{ core.available === false ? ' (próximamente)' : '' }}
+        </option>
+      </select>
+    </label>
+    <input type="file" multiple hidden :accept="(game.accept ?? []).join(',')" @change="onPicked" />
   </header>
 
-  <ul :if="roms.length" class="rom-grid">
-    <li :each="rom in roms" :key="rom.id" class="rom">
-      <span class="rom-art">{{ rom.glyph ?? '🎮' }}</span>
-      <span class="rom-title">{{ rom.title }}</span>
-      <span :if="rom.versions > 1" class="rom-badge">{{ rom.versions }}</span>
+  <ul class="rom-grid">
+    <li :each="g, i in games" :key="g.id" class="rom">
+      <button class="rom-tile" :class.is-focused="!picker && focus === i" :title="g.title"
+              @mouseenter="focus = i" @click="play(g)">
+        <span class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
+        <span :if="g.versions.length > 1" class="rom-badge">{{ g.versions.length }}</span>
+        <span class="rom-title">{{ g.title }}</span>
+        <span :if="g.core" class="rom-core">{{ coreLabel(g.core) }}</span>
+      </button>
+      <button class="rom-more" title="Versiones" @click="openPicker(g)">⋯</button>
+    </li>
+    <li class="rom">
+      <button class="rom-tile is-add" :class.is-focused="!picker && focus === games.length"
+              @mouseenter="focus = games.length" @click="pickFiles" :disabled="busy">
+        <span class="rom-art">{{ busy ? '…' : '+' }}</span>
+        <span class="rom-title">Añadir ROMs</span>
+      </button>
     </li>
   </ul>
 
-  <div :else class="drawer-empty">
-    <p><b>Aún no hay ROMs para {{ game.title }}.</b></p>
-    <p>
-      Aquí aparecerá tu biblioteca organizada por juego, como en ROM Manager. Cada juego,
-      una sola casilla: sus versiones (regiones, revisiones) agrupadas detrás, para elegir
-      cuál cargar, y los parches de ROM hacking aplicados al vuelo durante la carga.
-    </p>
-    <p :if="game.status !== 'ready'" class="drawer-soon">
-      El emulador (<code>{{ game.engine }}</code>) llegará cuando esté migrado al contrato común.
-    </p>
+  <p :if="message" class="drawer-message">{{ message }}</p>
+  <p :if="!games.length && !message" class="drawer-empty">
+    Suelta aquí tus ROMs de {{ game.title }} (también .zip) o pulsa <b>Añadir ROMs</b>. Se quedan en
+    tu navegador, agrupadas por juego; las versiones de un mismo juego van juntas.
+  </p>
+  <p :if="games.length" class="drawer-hint"><kbd>Enter</kbd> jugar · <kbd>Y</kbd>/<kbd>V</kbd> versiones · <kbd>Esc</kbd> cerrar</p>
+
+  <div :if="pickerGame" class="versions" role="dialog" :aria-label="`Versiones de ${pickerGame.title}`">
+    <header>
+      <h4>{{ pickerGame.title }}</h4>
+      <label class="core-select">
+        motor
+        <select :value="pickerGame.core ?? ''" @change="setGameCore(pickerGame, $event)">
+          <option value="">Como la consola ({{ coreLabel(consoleCore) }})</option>
+          <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">{{ core.label }}</option>
+        </select>
+      </label>
+      <button class="ghost" @click="picker = null">Cerrar</button>
+    </header>
+    <ol>
+      <li :each="v, j in pickerGame.versions" :key="v.sha1" :class.is-focused="pickerFocus === j" @mouseenter="pickerFocus = j">
+        <span class="v-name">{{ versionLabel(v) }}<small :if="j === 0"> · la más reciente</small></span>
+        <span class="v-meta">{{ v.serial ?? '' }} · {{ mb(v.size) }} · {{ v.sha1.slice(0, 8) }}</span>
+        <button class="primary" @click="play(pickerGame, v)">Jugar</button>
+        <button class="ghost" title="Quita la ROM; las partidas se conservan" @click="removeVersion(pickerGame, v)">Quitar</button>
+      </li>
+    </ol>
   </div>
 </section>

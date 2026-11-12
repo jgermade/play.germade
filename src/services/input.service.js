@@ -1,5 +1,5 @@
 // One input stream for the launcher UI: keyboard and gamepads both become
-// 'up' | 'down' | 'left' | 'right' | 'accept' | 'back'. Views subscribe with
+// 'up' | 'down' | 'left' | 'right' | 'accept' | 'back' | 'more' (Y / V: secondary menu). Views subscribe with
 // onAction(); while a game is running the launcher stops listening (`paused`), so
 // the game gets every key and button.
 
@@ -12,10 +12,13 @@ const KEYS = {
   ' ': 'accept',
   Escape: 'back',
   Backspace: 'back',
+  v: 'more',
+  V: 'more',
+  ContextMenu: 'more',
 };
 
 // Standard mapping: 0 = A/Cross, 1 = B/Circle, 12-15 = d-pad.
-const BUTTONS = { 0: 'accept', 1: 'back', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+const BUTTONS = { 0: 'accept', 1: 'back', 3: 'more', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
 const AXIS_THRESHOLD = 0.6;
 const REPEAT_DELAY = 380;
 const REPEAT_RATE = 120;

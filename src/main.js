@@ -10,6 +10,7 @@ import RomDrawer from './components/RomDrawer.html';
 import { rows } from './data/catalog.js';
 import { library, refresh, install, uninstall } from './services/library.service.js';
 import { onAction, setPaused } from './services/input.service.js';
+import * as romLibrary from './services/rom-library.service.js';
 
 // What the page shows about the app itself: a new version waiting, isolation.
 const shell = $reactive({ update: null, isolated: globalThis.crossOriginIsolated === true });
@@ -44,4 +45,6 @@ App.mount('#app', {
   InstallDialog,
   Notice,
   RomDrawer,
+  roms: romLibrary.roms,
+  romLibrary,
 });
