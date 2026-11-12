@@ -10,8 +10,8 @@
   <rect x="20" y="110" width="200" height="44" rx="14" fill="url(#front)"/>
   <rect x="20" y="58" width="200" height="78" rx="18" fill="url(#top)"/>
   <path d="M40 58.5h160" stroke="#fff" stroke-opacity=".14"/>
-  <rect x="34" y="66" width="128" height="40" rx="9" fill="url(#well)"/>
-  <rect x="44" y="78" width="108" height="16" rx="4" fill="#030304"/>
+  <rect x="30" y="64" width="136" height="44" rx="22" fill="url(#well)"/>
+  <rect x="42" y="77" width="112" height="18" rx="9" fill="#030304"/>
   <rect x="47" y="81" width="51" height="5" rx="1.5" fill="#34363c"/>
   <rect x="100" y="81" width="49" height="5" rx="1.5" fill="#34363c"/>
   <g stroke="#111215" stroke-width="2.4" stroke-linecap="round"><path d="M172 72h36M172 80h36M172 88h36M172 96h36"/></g>

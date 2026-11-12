@@ -1,40 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34363d"/><stop offset="1" stop-color="#1e1f24"/></linearGradient>
-    <radialGradient id="light" cx=".5" cy="-.05" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <linearGradient id="well" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121316"/><stop offset="1" stop-color="#25272c"/></linearGradient>
-    <linearGradient id="mouth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020203"/><stop offset="1" stop-color="#0e0f12"/></linearGradient>
-    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3c43"/><stop offset="1" stop-color="#26282d"/></linearGradient>
-    <linearGradient id="knob" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c6f78"/><stop offset="1" stop-color="#43464e"/></linearGradient>
+    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36373d"/><stop offset="1" stop-color="#232428"/></linearGradient>
+    <radialGradient id="light" cx=".5" cy="-.1" r="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b4c53"/><stop offset=".45" stop-color="#2f3035"/><stop offset="1" stop-color="#1b1c20"/></linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4a55"/><stop offset="1" stop-color="#3a3a43"/></linearGradient>
+    <linearGradient id="mouth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0c0e"/><stop offset="1" stop-color="#1d1e22"/></linearGradient>
+    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34353b"/><stop offset="1" stop-color="#26272c"/></linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26272c"/><stop offset="1" stop-color="#2c2d32"/></linearGradient>
+    <radialGradient id="reset" cx=".42" cy=".32" r=".75"><stop offset="0" stop-color="#b3a9bd"/><stop offset=".6" stop-color="#7a6f85"/><stop offset="1" stop-color="#463e50"/></radialGradient>
     <radialGradient id="led" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff5a4e"/><stop offset="1" stop-color="#ff5a4e" stop-opacity="0"/></radialGradient>
     <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="3"/></filter>
   </defs>
   <rect width="200" height="200" fill="url(#deck)"/>
-  <!-- the wide cartridge slot: bevelled well, two flaps, a deep mouth -->
-  <rect x="10" y="22" width="180" height="72" rx="14" fill="url(#well)"/>
-  <rect x="10" y="22" width="180" height="72" rx="14" fill="none" stroke="#fff" stroke-opacity=".12"/>
-  <rect x="11" y="94" width="178" height="1.5" rx=".75" fill="#fff" fill-opacity=".1"/>
-  <rect x="22" y="40" width="156" height="36" rx="8" fill="url(#mouth)"/>
-  <rect x="26" y="48" width="73" height="10" rx="2.5" fill="url(#flap)"/>
-  <rect x="101" y="48" width="73" height="10" rx="2.5" fill="url(#flap)"/>
-  <path d="M26 48.5h148" stroke="#fff" stroke-opacity=".18"/>
-  <rect x="26" y="62" width="148" height="6" rx="3" fill="#000" fill-opacity=".5"/>
-  <!-- the grooved lines beside the power switch -->
-  <g stroke="#111215" stroke-width="3.2" stroke-linecap="round">
-    <path d="M14 122h104M14 132h104M14 142h104M14 152h104M14 162h104M14 172h104M14 182h104"/>
-  </g>
-  <g stroke="#fff" stroke-opacity=".08" stroke-linecap="round">
-    <path d="M14 124.6h104M14 134.6h104M14 144.6h104M14 154.6h104M14 164.6h104M14 174.6h104M14 184.6h104"/>
-  </g>
-  <!-- power switch, reset and LED -->
-  <rect x="132" y="118" width="54" height="24" rx="12" fill="#0f1013"/>
-  <rect x="132" y="118" width="54" height="24" rx="12" fill="none" stroke="#fff" stroke-opacity=".08"/>
-  <rect x="160" y="121" width="23" height="18" rx="9" fill="url(#knob)"/>
-  <rect x="163" y="122" width="17" height="4" rx="2" fill="#fff" fill-opacity=".25"/>
-  <rect x="140" y="158" width="20" height="12" rx="4" fill="#0f1013"/>
-  <rect x="142" y="159" width="16" height="9" rx="3" fill="#2b2d33"/>
-  <circle cx="176" cy="164" r="10" fill="url(#led)" opacity=".7"/>
-  <circle cx="176" cy="164" r="2.6" fill="#ff5a4e"/>
+  <!-- the central panel running down from the slot -->
+  <rect x="50" y="96" width="100" height="120" fill="url(#panel)"/>
+  <g stroke="#000" stroke-opacity=".55"><path d="M50.5 96v110M149.5 96v110"/></g>
+  <g stroke="#fff" stroke-opacity=".07"><path d="M52 96v110M151 96v110"/></g>
+  <!-- the raised capsule around the slot: rounded ends, light from above -->
+  <rect x="6" y="40" width="188" height="68" rx="34" fill="#000" opacity=".45" filter="url(#blur)" transform="translate(0 5)"/>
+  <rect x="6" y="40" width="188" height="68" rx="34" fill="url(#ring)"/>
+  <rect x="6.5" y="40.5" width="187" height="67" rx="33.5" fill="none" stroke="#fff" stroke-opacity=".14"/>
+  <!-- cartridge door, lighter, across the top -->
+  <rect x="46" y="-8" width="108" height="64" rx="3" fill="url(#door)"/>
+  <path d="M46 55.5h108" stroke="#000" stroke-opacity=".5"/>
+  <g stroke="#000" stroke-opacity=".35"><path d="M46.5 -8v64M153.5 -8v64"/></g>
+  <!-- the slot: a stadium mouth with segmented flaps -->
+  <rect x="20" y="58" width="160" height="36" rx="18" fill="url(#mouth)"/>
+  <rect x="20" y="58" width="160" height="36" rx="18" fill="none" stroke="#000" stroke-opacity=".6"/>
+  <rect x="44" y="61" width="112" height="14" rx="1.5" fill="url(#flap)"/>
+  <rect x="44" y="77" width="112" height="14" rx="1.5" fill="url(#flap)"/>
+  <g stroke="#0c0c0e" stroke-width="1.2"><path d="M60 61v30M140 61v30M44 76h112"/></g>
+  <path d="M44 61.5h112" stroke="#fff" stroke-opacity=".12"/>
+  <!-- reset: a domed button in a round recess -->
+  <circle cx="26" cy="156" r="19" fill="#141518"/>
+  <circle cx="26" cy="156" r="19" fill="none" stroke="#fff" stroke-opacity=".08"/>
+  <circle cx="26" cy="156" r="13" fill="url(#reset)"/>
+  <ellipse cx="22.5" cy="151" rx="5" ry="3" fill="#fff" opacity=".35"/>
+  <path d="M0 192 L18 174 M34 172 L34 200" stroke="#000" stroke-opacity=".45"/>
+  <!-- power switch with its grooved lines -->
+  <g stroke="#141518" stroke-width="2.6" stroke-linecap="round"><path d="M162 132h30M162 140h30M162 148h30M162 156h30"/></g>
+  <g stroke="#fff" stroke-opacity=".07" stroke-linecap="round"><path d="M162 134h30M162 142h30M162 150h30M162 158h30"/></g>
+  <rect x="162" y="166" width="30" height="14" rx="7" fill="#121316"/>
+  <rect x="177" y="168" width="13" height="10" rx="5" fill="#5d606a"/>
+  <circle cx="170" cy="190" r="8" fill="url(#led)" opacity=".7"/>
+  <circle cx="170" cy="190" r="2.2" fill="#ff5a4e"/>
   <rect width="200" height="200" fill="url(#light)"/>
   <rect width="200" height="200" filter="url(#grain)"/>
 </svg>
