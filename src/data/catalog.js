@@ -107,6 +107,7 @@ export const GAMES = [
     status: 'soon',
     accent: '#b45309',
     art: '/art/systems/arcade.svg',
+    tileArt: '/art/systems/tiles/arcade.svg',
     kicker: 'Arcade · SNK',
   },
   {
@@ -125,6 +126,7 @@ export const GAMES = [
     status: 'ready',
     accent: '#9f1239',
     art: '/art/systems/mega-drive.svg',
+    tileArt: '/art/systems/tiles/mega-drive.svg',
     kicker: 'Sega · 16 bits',
   },
   {
@@ -137,6 +139,7 @@ export const GAMES = [
     status: 'soon',
     accent: '#4c1d95',
     art: '/art/systems/snes.svg',
+    tileArt: '/art/systems/tiles/snes.svg',
     kicker: 'Nintendo · 16 bits',
   },
   {
@@ -149,6 +152,7 @@ export const GAMES = [
     status: 'soon',
     accent: '#3730a3',
     art: '/art/systems/gba.svg',
+    tileArt: '/art/systems/tiles/gba.svg',
     kicker: 'Portátil · 32 bits',
   },
 ];

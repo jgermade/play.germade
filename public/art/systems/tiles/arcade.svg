@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d2f35"/><stop offset="1" stop-color="#16171a"/></linearGradient>
+    <radialGradient id="ball" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#ff8a7e"/><stop offset=".5" stop-color="#e2382d"/><stop offset="1" stop-color="#7c1812"/></radialGradient>
+    <radialGradient id="btn" cx=".42" cy=".36" r=".72"><stop offset="0" stop-color="#43454d"/><stop offset=".8" stop-color="#22232a"/><stop offset="1" stop-color="#18191d"/></radialGradient>
+    <radialGradient id="washer" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#0a0a0c"/><stop offset=".9" stop-color="#1c1d21"/><stop offset="1" stop-color="#2a2b30"/></radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="200" height="200" fill="url(#panel)"/>
+  <!-- lever from above: dust washer, shadow, ball -->
+  <circle cx="64" cy="70" r="46" fill="url(#washer)"/>
+  <ellipse cx="72" cy="80" rx="30" ry="26" fill="#000" opacity=".55" filter="url(#soft)"/>
+  <circle cx="64" cy="70" r="30" fill="url(#ball)"/>
+  <ellipse cx="54" cy="58" rx="10" ry="7" fill="#fff" opacity=".35"/>
+  <!-- four buttons in an arc -->
+  <g>
+    <circle cx="96" cy="150" r="20" fill="#0b0b0d"/><circle cx="96" cy="148" r="18" fill="url(#btn)"/>
+    <circle cx="138" cy="136" r="20" fill="#0b0b0d"/><circle cx="138" cy="134" r="18" fill="url(#btn)"/>
+    <circle cx="180" cy="136" r="20" fill="#0b0b0d"/><circle cx="180" cy="134" r="18" fill="url(#btn)"/>
+    <circle cx="222" cy="150" r="20" fill="#0b0b0d"/><circle cx="222" cy="148" r="18" fill="url(#btn)"/>
+  </g>
+  <g fill="#fff" fill-opacity=".09"><circle cx="91" cy="142" r="5"/><circle cx="133" cy="128" r="5"/><circle cx="175" cy="128" r="5"/></g>
+  <!-- start button and screws -->
+  <rect x="112" y="26" width="30" height="12" rx="6" fill="#111215"/>
+  <rect x="112" y="26" width="30" height="4" rx="2" fill="#fff" fill-opacity=".06"/>
+  <g fill="#0e0f11"><circle cx="14" cy="186" r="3"/><circle cx="186" cy="14" r="3"/></g>
+</svg>

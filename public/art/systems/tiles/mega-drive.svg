@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2e34"/><stop offset="1" stop-color="#17181c"/></linearGradient>
+    <radialGradient id="ring" cx=".5" cy="1.05" r=".85"><stop offset=".55" stop-color="#121316"/><stop offset=".78" stop-color="#2a2c32"/><stop offset=".8" stop-color="#3a3d44"/><stop offset=".83" stop-color="#1c1d21"/><stop offset="1" stop-color="#232429"/></radialGradient>
+    <radialGradient id="dish" cx=".5" cy="1" r=".7"><stop offset="0" stop-color="#0d0e10"/><stop offset="1" stop-color="#1d1e23"/></radialGradient>
+    <linearGradient id="slot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#030304"/><stop offset="1" stop-color="#101114"/></linearGradient>
+    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2c31"/><stop offset="1" stop-color="#1a1b1f"/></linearGradient>
+    <radialGradient id="led" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff5a4e"/><stop offset="1" stop-color="#ff5a4e" stop-opacity="0"/></radialGradient>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+  </defs>
+  <rect width="200" height="200" fill="url(#deck)"/>
+  <!-- vents -->
+  <g stroke="#0c0d0f" stroke-width="3" stroke-linecap="round"><path d="M18 28h38M18 38h38M18 48h38"/></g>
+  <g stroke="#fff" stroke-opacity=".05" stroke-linecap="round"><path d="M18 30.5h38M18 40.5h38M18 50.5h38"/></g>
+  <!-- the half ring -->
+  <circle cx="100" cy="196" r="128" fill="url(#ring)"/>
+  <circle cx="100" cy="196" r="128" fill="none" stroke="#fff" stroke-opacity=".1"/>
+  <circle cx="100" cy="196" r="104" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="2"/>
+  <circle cx="100" cy="196" r="102" fill="none" stroke="#fff" stroke-opacity=".06"/>
+  <g fill="none" stroke="#000" stroke-opacity=".35"><circle cx="100" cy="196" r="116"/><circle cx="100" cy="196" r="110"/></g>
+  <circle cx="100" cy="196" r="88" fill="url(#dish)"/>
+  <!-- engraved legend along the ring -->
+  <path id="arc" d="M30 168 A 112 112 0 0 1 170 168" fill="none"/>
+  <text font-family="Unbounded, Inter, sans-serif" font-size="8.5" font-weight="700" letter-spacing="4.2" fill="#000" fill-opacity=".55">
+    <textPath href="#arc" startOffset="50%" text-anchor="middle">16-BIT  ·  16-BIT  ·  16-BIT</textPath>
+  </text>
+  <text font-family="Unbounded, Inter, sans-serif" font-size="8.5" font-weight="700" letter-spacing="4.2" fill="#fff" fill-opacity=".08" transform="translate(0 .8)">
+    <textPath href="#arc" startOffset="50%" text-anchor="middle">16-BIT  ·  16-BIT  ·  16-BIT</textPath>
+  </text>
+  <!-- slot with spring flaps -->
+  <rect x="44" y="150" width="112" height="22" rx="5" fill="url(#slot)"/>
+  <rect x="48" y="153" width="50" height="8" rx="2" fill="url(#flap)"/>
+  <rect x="102" y="153" width="50" height="8" rx="2" fill="url(#flap)"/>
+  <path d="M48 153.5h104" stroke="#fff" stroke-opacity=".12"/>
+  <!-- power LED and slider -->
+  <circle cx="172" cy="40" r="10" fill="url(#led)" opacity=".7"/>
+  <circle cx="172" cy="40" r="2.6" fill="#ff5a4e"/>
+  <rect x="150" y="62" width="34" height="8" rx="4" fill="#0e0f11"/>
+  <rect x="156" y="62.5" width="10" height="7" rx="3.5" fill="#2e3036"/>
+  <rect width="200" height="200" filter="url(#grain)"/>
+</svg>

@@ -151,12 +151,13 @@
                   :class.is-open="drawer?.slug === game.slug"
                   :class.is-focused="focus.row === r && focus.col === c"
                   :class.is-soon="game.status !== 'ready'"
-                  :class.is-system="!game.cover && game.art"
-                  :class.is-poster="!game.cover && !game.art"
+                  :class.is-system="!game.cover && !game.tileArt && game.art"
+                  :class.is-poster="!game.cover && !game.tileArt && !game.art"
                   :style="`--accent: ${game.accent ?? '#334155'}`"
                   :aria-label="game.title"
                   @mouseenter="select(r, c)" @focus="select(r, c)" @click="open(game)">
             <img :if="game.cover" class="card-cover" :src="game.cover" alt="" loading="lazy" />
+            <img :elseif="game.tileArt" class="card-cover" :src="game.tileArt" alt="" loading="lazy" />
             <img :elseif="game.art" class="card-art" :src="game.art" alt="" loading="lazy" />
             <span :else class="poster">
               <span class="poster-mark">{{ initials(game.title) }}</span>
