@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9e8ee"/><stop offset=".6" stop-color="#c9c7d2"/><stop offset="1" stop-color="#9f9cab"/></linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f5fa"/><stop offset="1" stop-color="#d8d6e0"/></linearGradient>
+    <linearGradient id="slider" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8e7cc3"/><stop offset="1" stop-color="#5b4a91"/></linearGradient>
+    <linearGradient id="cart" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bdbac7"/><stop offset="1" stop-color="#8d8a99"/></linearGradient>
+    <linearGradient id="label" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#42a5f5"/><stop offset=".55" stop-color="#7e57c2"/><stop offset="1" stop-color="#ec407a"/></linearGradient>
+  </defs>
+  <!-- cartridge -->
+  <path d="M80 16h80l4 6v52H76V22z" fill="url(#cart)" stroke="#5b5868" stroke-width="1.5"/>
+  <rect x="86" y="26" width="68" height="36" rx="3" fill="url(#label)"/>
+  <rect x="86" y="54" width="68" height="8" fill="#fff" opacity=".85"/>
+  <g fill="#fff" opacity=".9"><rect x="94" y="44" width="5" height="10"/><rect x="99" y="40" width="5" height="14"/><rect x="128" y="34" width="12" height="4"/><rect x="132" y="30" width="4" height="4"/></g>
+  <path d="M90 22h60" stroke="#e4e2ea" stroke-width="2"/>
+  <!-- body -->
+  <path d="M16 92c0-10 8-18 18-18h172c10 0 18 8 18 18v56c0 10-8 18-18 18H34c-10 0-18-8-18-18z" fill="url(#body)" stroke="#6e6a7c" stroke-width="2"/>
+  <path d="M28 88c0-4 3-6 6-6h172c3 0 6 2 6 6v22H28z" fill="url(#top)"/>
+  <!-- slot -->
+  <rect x="72" y="74" width="96" height="18" rx="4" fill="#4b4858"/>
+  <rect x="78" y="78" width="84" height="8" rx="2" fill="#2b2933"/>
+  <!-- power / reset sliders -->
+  <rect x="34" y="94" width="26" height="12" rx="3" fill="url(#slider)"/>
+  <rect x="180" y="94" width="26" height="12" rx="3" fill="url(#slider)"/>
+  <!-- eject -->
+  <rect x="106" y="116" width="28" height="10" rx="3" fill="url(#slider)"/>
+  <!-- ridges and led -->
+  <g stroke="#a9a6b6" stroke-width="2" stroke-linecap="round"><path d="M30 132h70M140 132h70M30 140h70M140 140h70"/></g>
+  <circle cx="120" cy="148" r="3" fill="#ff5252"/>
+  <!-- controller buttons motif -->
+  <g transform="translate(198 154)">
+    <circle cx="0" cy="-8" r="5" fill="#1e88e5"/><circle cx="8" cy="0" r="5" fill="#e53935"/>
+    <circle cx="-8" cy="0" r="5" fill="#43a047"/><circle cx="0" cy="8" r="5" fill="#fdd835"/>
+  </g>
+</svg>

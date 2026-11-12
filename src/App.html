@@ -6,6 +6,26 @@
 
   $: current = rows[focus.row]?.games[focus.col] ?? null
 
+  // Ambient backdrop: the focused item's art, blurred, cross-faded. Two layers at most.
+  let backdrops = []
+  let backdropKey = null
+  $: {
+    const src = current?.banner ?? current?.cover ?? current?.art ?? null
+    backdropKey = src
+    if (src && !backdrops.some((b) => b.key === src)) {
+      backdrops = [...backdrops.slice(-1), { key: src, src, illustration: !current?.banner && !current?.cover }]
+    }
+  }
+
+  // A console shows the time.
+  const hhmm = () => new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  let clock = hhmm()
+  const clockTimer = setInterval(() => { clock = hhmm() }, 15000)
+  $destroyed(() => clearInterval(clockTimer))
+
+  const initials = (title) => title.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const romCount = (game) => roms[game.system]?.games?.length ?? 0
+
   const isInstalled = (game) => !!library.installed[game.slug]
 
   const startPlayer = (url) => {
@@ -32,8 +52,6 @@
       ? card.getBoundingClientRect().left - row.getBoundingClientRect().left + card.offsetWidth / 2
       : 120
     drawer = { slug: game.slug, row: focus.row, notch }
-    // Let it render and the hero shrink, then bring the whole folder into view.
-    setTimeout(() => $self('.drawer')?.scrollIntoView({ block: 'end', behavior: 'smooth' }), 260)
   }
 
   const open = (game) => {
@@ -86,39 +104,77 @@
   await $mounted()
 
   // Keep the focused card in view whenever the focus moves.
+  // The active row slides to the top of the rows area (console-style), and the
+  // focused tile into the middle of its row.
   $: focus, requestAnimationFrame(() => {
-    $self('.card.is-focused')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+    const row = $self('.row.is-active')
+    const rowsBox = row?.parentElement
+    if (row && rowsBox) rowsBox.scrollTo({ top: row.offsetTop, behavior: 'smooth' })
+    const card = $self('.card.is-focused')
+    const strip = card?.closest('.cards')
+    if (card && strip) {
+      const tile = card.parentElement
+      strip.scrollTo({ left: tile.offsetLeft - strip.clientWidth / 2 + tile.offsetWidth / 2, behavior: 'smooth' })
+    }
   })
 </script>
 
+<div class="backdrop" :style="`--accent: ${current?.accent ?? '#334155'}`" aria-hidden="true">
+  <img :each="layer in backdrops" :key="layer.key" class="backdrop-art" :class.is-current="layer.key === backdropKey"
+       :class.is-illustration="layer.illustration" :src="layer.src" alt="" />
+  <div class="backdrop-tint"></div>
+</div>
+
 <div class="launcher" :class.is-playing="playing" :class.has-drawer="drawer">
   <header class="topbar">
-    <span class="brand">play<b>.germade</b></span>
-    <span class="hint">
-      <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> navegar · <kbd>Enter</kbd> jugar · <kbd>Esc</kbd> atrás
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="9" />
+        <path d="M13 10.5v11l9-5.5z" />
+      </svg>
+      <span>play<b>.germade</b></span>
     </span>
+    <time class="clock">{{ clock }}</time>
   </header>
 
-  <Hero :game="current" :installed="current && isInstalled(current)" @open="open(current)"
+  <Hero :game="current" :installed="current && isInstalled(current)" :roms @open="open(current)"
         @uninstall="uninstall(current)" />
 
   <section class="rows">
-    <div class="row" :each="row, r in rows" :key="row.id" :class.is-dimmed="drawer && drawer.row !== r">
-      <h2 class="row-title">{{ row.title }} <small>{{ row.subtitle }}</small></h2>
+    <div class="row" :each="row, r in rows" :key="row.id"
+         :class.is-dimmed="drawer && drawer.row !== r" :class.is-active="focus.row === r">
+      <h2 class="row-title">{{ row.title }}<span class="row-count">{{ row.games.length }}</span></h2>
       <ul class="cards">
-        <li :each="game, c in row.games" :key="game.slug">
+        <li :each="game, c in row.games" :key="game.slug" class="tile"
+            :class.is-focused="focus.row === r && focus.col === c">
           <button class="card" :data-slug="game.slug"
                   :class.is-open="drawer?.slug === game.slug"
                   :class.is-focused="focus.row === r && focus.col === c"
                   :class.is-soon="game.status !== 'ready'"
+                  :class.is-system="!game.cover && game.art"
+                  :class.is-poster="!game.cover && !game.art"
                   :style="`--accent: ${game.accent ?? '#334155'}`"
+                  :aria-label="game.title"
                   @mouseenter="select(r, c)" @focus="select(r, c)" @click="open(game)">
-            <img :if="game.cover" :src="game.cover" :alt="game.title" loading="lazy" />
-            <span :else class="glyph">{{ game.glyph ?? '🎮' }}</span>
-            <span class="card-title">{{ game.title }}</span>
-            <span :if="game.status !== 'ready'" class="badge">Próximamente</span>
-            <span :elseif="game.kind === 'game' && isInstalled(game)" class="badge is-ok">Instalado</span>
+            <img :if="game.cover" class="card-cover" :src="game.cover" alt="" loading="lazy" />
+            <img :elseif="game.art" class="card-art" :src="game.art" alt="" loading="lazy" />
+            <span :else class="poster">
+              <span class="poster-mark">{{ initials(game.title) }}</span>
+              <span class="poster-title">{{ game.title }}</span>
+            </span>
+            <span class="card-shine"></span>
+            <span :if="game.status !== 'ready'" class="pill is-soon">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" fill="none"/></svg>
+            </span>
+            <span :elseif="game.kind === 'game' && isInstalled(game)" class="pill is-ok" title="Instalado">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.9 2.8 6-6.4" fill="none"/></svg>
+            </span>
+            <span :elseif="game.kind === 'emulator' && romCount(game)" class="pill is-count">{{ romCount(game) }}</span>
           </button>
+          <span class="tile-caption">
+            <span class="tile-title">{{ game.title }}</span>
+            <span class="tile-meta">{{ game.kicker ?? (game.year ? `${game.year}` : game.engine) }}</span>
+          </span>
         </li>
       </ul>
       <div :if="drawer && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
@@ -127,6 +183,13 @@
       </div>
     </div>
   </section>
+
+  <footer class="hintbar">
+    <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ !current ? '' : current.kind === 'emulator' ? 'Abrir' : current.status !== 'ready' ? 'Detalles' : isInstalled(current) ? 'Jugar' : 'Instalar' }}</span>
+    <span :if="drawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
+    <span class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> Atrás</span>
+    <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
+  </footer>
 
   <div :if="dialog" class="dialog-backdrop" @click.self="dialog = null">
     <InstallDialog :if="dialog.type === 'install'" :game="dialog.game" :install

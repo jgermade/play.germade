@@ -1,3 +1,5 @@
+import '@fontsource-variable/inter';
+import '@fontsource-variable/unbounded';
 import { registerSW } from 'virtual:pwa-register';
 import { $reactive } from 'jq79';
 

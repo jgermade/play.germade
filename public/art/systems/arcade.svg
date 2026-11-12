@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200">
+  <defs>
+    <linearGradient id="cab" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#121214"/><stop offset=".5" stop-color="#26262b"/><stop offset="1" stop-color="#0c0c0e"/></linearGradient>
+    <linearGradient id="marquee" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffb300"/><stop offset=".5" stop-color="#ffe082"/><stop offset="1" stop-color="#ff6f00"/></linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7043"/><stop offset=".5" stop-color="#ab47bc"/><stop offset="1" stop-color="#283593"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffcc80" stop-opacity=".55"/><stop offset="1" stop-color="#ffcc80" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="120" cy="30" rx="80" ry="22" fill="url(#glow)"/>
+  <!-- cabinet -->
+  <path d="M68 18h104l6 10v54l10 30v70H52v-70l10-30V28z" fill="url(#cab)" stroke="#000" stroke-width="2"/>
+  <!-- marquee -->
+  <rect x="70" y="22" width="100" height="20" rx="2" fill="url(#marquee)"/>
+  <g fill="#3e2723" opacity=".8"><rect x="84" y="28" width="10" height="8"/><rect x="98" y="28" width="10" height="8"/><rect x="112" y="28" width="16" height="8"/><rect x="132" y="28" width="10" height="8"/><rect x="146" y="28" width="10" height="8"/></g>
+  <!-- screen -->
+  <path d="M74 48h92v42H74z" fill="#050505"/>
+  <rect x="78" y="51" width="84" height="36" rx="3" fill="url(#screen)"/>
+  <g fill="#fff" opacity=".85"><rect x="88" y="74" width="6" height="6"/><rect x="132" y="60" width="5" height="5"/><rect x="146" y="70" width="4" height="4"/></g>
+  <path d="M78 81h84" stroke="#000" stroke-width="2" opacity=".35"/>
+  <!-- control panel -->
+  <path d="M58 112l8-20h108l8 20z" fill="#2e2e33" stroke="#000" stroke-width="1.5"/>
+  <rect x="88" y="98" width="3" height="10" fill="#9e9e9e"/><circle cx="89.5" cy="97" r="6" fill="#e53935"/><circle cx="87.5" cy="95" r="2" fill="#fff" opacity=".5"/>
+  <g><circle cx="122" cy="104" r="4.5" fill="#fdd835"/><circle cx="134" cy="100" r="4.5" fill="#43a047"/><circle cx="146" cy="104" r="4.5" fill="#1e88e5"/><circle cx="158" cy="100" r="4.5" fill="#e53935"/></g>
+  <!-- coin door -->
+  <rect x="100" y="132" width="40" height="34" rx="2" fill="#1b1b1e" stroke="#000"/>
+  <rect x="106" y="138" width="8" height="12" rx="1" fill="#ff6f00"/><rect x="126" y="138" width="8" height="12" rx="1" fill="#ff6f00"/>
+  <path d="M60 120h120" stroke="#ffb300" stroke-width="2" opacity=".6"/>
+</svg>

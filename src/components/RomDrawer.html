@@ -22,7 +22,8 @@
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
   const initials = (title) => title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-  const hue = (id) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
+  // Golden-angle spread: neighbouring ids still land on clearly different hues.
+  const hue = (id) => Math.round(([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) * 137.508) % 360)
   const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 1048576 ? 2 : 1)} MB`
   const versionLabel = (v) => v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
 

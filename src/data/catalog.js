@@ -4,6 +4,9 @@
 // `kind` decides what a card opens:
 //   'game'     — a modern retro game on a decompiled/ported engine: install its data
 //                once, then play. Storage is the engine's own `<engine>/<slug>/`.
+// Art: `cover` (a poster image), else `art` (a system illustration), else the card
+// draws a typographic poster from the title — never an emoji.
+//
 //   'emulator' — a system: opens its ROM list (one entry per game, versions grouped,
 //                optional ROM-hack patches applied while loading). See RECORD/.
 //
@@ -69,7 +72,6 @@ export const GAMES = [
     engine: 'rsdkv3',
     status: 'soon',
     accent: '#7c3aed',
-    glyph: '💿',
   },
   {
     slug: 'sonic-mania',
@@ -81,7 +83,6 @@ export const GAMES = [
     engine: 'rsdkv5',
     status: 'soon',
     accent: '#db2777',
-    glyph: '🌀',
   },
   {
     slug: 'celeste',
@@ -105,7 +106,8 @@ export const GAMES = [
     engine: 'fbneo',
     status: 'soon',
     accent: '#b45309',
-    glyph: '🕹️',
+    art: '/art/systems/arcade.svg',
+    kicker: 'Arcade · SNK',
   },
   {
     slug: 'mega-drive',
@@ -121,8 +123,9 @@ export const GAMES = [
     ],
     accept: ['.bin', '.gen', '.md', '.smd', '.zip'],
     status: 'ready',
-    accent: '#1f2937',
-    glyph: '🦔',
+    accent: '#9f1239',
+    art: '/art/systems/mega-drive.svg',
+    kicker: 'Sega · 16 bits',
   },
   {
     slug: 'snes',
@@ -133,7 +136,8 @@ export const GAMES = [
     engine: 'jgenesis',
     status: 'soon',
     accent: '#4c1d95',
-    glyph: '🍄',
+    art: '/art/systems/snes.svg',
+    kicker: 'Nintendo · 16 bits',
   },
   {
     slug: 'game-boy-advance',
@@ -144,7 +148,8 @@ export const GAMES = [
     engine: 'mgba',
     status: 'soon',
     accent: '#3730a3',
-    glyph: '🎮',
+    art: '/art/systems/gba.svg',
+    kicker: 'Portátil · 32 bits',
   },
 ];
 
