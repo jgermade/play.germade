@@ -1,0 +1,33 @@
+<script :setup="{ state, resume, restart, exit }">
+  let index = 0
+  $: items = state.status === 'running'
+    ? [['Continuar', resume], ['Reiniciar', restart], ['Volver al catálogo', exit]]
+    : [['Volver al catálogo', exit]]
+
+  // Only while the menu is open; the engine is paused then, so taking the arrows
+  // and Enter costs it nothing.
+  window.addEventListener('keydown', (event) => {
+    if (!state.menu) return
+    if (event.key === 'ArrowDown') index = (index + 1) % items.length
+    else if (event.key === 'ArrowUp') index = (index + items.length - 1) % items.length
+    else if (event.key === 'Enter') items[index]?.[1]()
+    else return
+    event.preventDefault()
+    event.stopPropagation()
+  }, true)
+</script>
+
+<div :if="state.status === 'loading'" class="splash">
+  <div class="spinner"></div>
+  <p>Cargando {{ state.title }}…</p>
+</div>
+
+<div :if="state.menu" class="menu-backdrop">
+  <div class="menu" role="dialog" aria-label="Pausa">
+    <h2>{{ state.title }}</h2>
+    <p :if="state.error" class="error">{{ state.error }}</p>
+    <button :each="item, i in items" :key="item[0]" :class.is-focused="i === index"
+            @mouseenter="index = i" @click="item[1]()">{{ item[0] }}</button>
+    <p class="menu-hint"><kbd>Esc</kbd> · <kbd>Select</kbd>+<kbd>Start</kbd></p>
+  </div>
+</div>

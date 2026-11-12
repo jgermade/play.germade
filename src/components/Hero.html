@@ -1,0 +1,27 @@
+<script :setup="{ game, installed }">
+  $: action = !game ? ''
+    : game.kind === 'emulator' ? 'Abrir biblioteca'
+    : game.status !== 'ready' ? 'Próximamente'
+    : installed ? 'Jugar' : 'Instalar'
+  $: disabled = game?.kind === 'game' && game.status !== 'ready'
+</script>
+
+<section class="hero" :if="game" :style="`--accent: ${game.accent ?? '#334155'}`">
+  <img :if="game.banner || game.cover" class="hero-art" :src="game.banner ?? game.cover" alt="" />
+  <div class="hero-shade"></div>
+  <div class="hero-body">
+    <p class="hero-kicker">
+      {{ game.kind === 'emulator' ? 'Emulador' : 'Retro moderno' }}
+      <span :if="game.year">· {{ game.year }}</span>
+      · motor <code>{{ game.engine }}</code>
+    </p>
+    <h1>{{ game.title }}</h1>
+    <p class="hero-desc">{{ game.description }}</p>
+    <div class="hero-actions">
+      <button class="primary" :disabled="disabled" @click="$emit('open')">{{ action }}</button>
+      <button :if="installed && game.kind === 'game'" class="ghost" @click="$emit('uninstall')">
+        Quitar datos (conserva partidas)
+      </button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,34 @@
+<script :setup="{ game, roms = [] }">
+  // The folder of iOS 6: it opens *inside* the grid, under the row of the card that
+  // owns it, with a notch pointing back at that card. One tile per game; versions of
+  // the same game (regions, revisions, hacks) are grouped behind it, like the badge
+  // on an iOS icon, and the chosen one is what gets loaded — with any ROM-hacking
+  // patch applied on the fly, never written over the original.
+</script>
+
+<section class="drawer-panel" :style="`--accent: ${game.accent ?? '#334155'}`">
+  <header class="drawer-head">
+    <h3>{{ game.title }}</h3>
+    <span class="drawer-meta">motor <code>{{ game.engine }}</code></span>
+  </header>
+
+  <ul :if="roms.length" class="rom-grid">
+    <li :each="rom in roms" :key="rom.id" class="rom">
+      <span class="rom-art">{{ rom.glyph ?? '🎮' }}</span>
+      <span class="rom-title">{{ rom.title }}</span>
+      <span :if="rom.versions > 1" class="rom-badge">{{ rom.versions }}</span>
+    </li>
+  </ul>
+
+  <div :else class="drawer-empty">
+    <p><b>Aún no hay ROMs para {{ game.title }}.</b></p>
+    <p>
+      Aquí aparecerá tu biblioteca organizada por juego, como en ROM Manager. Cada juego,
+      una sola casilla: sus versiones (regiones, revisiones) agrupadas detrás, para elegir
+      cuál cargar, y los parches de ROM hacking aplicados al vuelo durante la carga.
+    </p>
+    <p :if="game.status !== 'ready'" class="drawer-soon">
+      El emulador (<code>{{ game.engine }}</code>) llegará cuando esté migrado al contrato común.
+    </p>
+  </div>
+</section>

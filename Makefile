@@ -1,59 +1,35 @@
 SHELL := /bin/bash
+PORT ?= 4173
 
-PORT ?= 8080
-
-.PHONY: build.celeste build.sonic-1 build.sonic-2 build.sonic-3 build.sonic-mania build.sonic-cd build.smw build.jgenesis build ui up
+.PHONY: i install engines up build preview test clean
 
 i: install
-install:; npm install
-node_modules: install
+install: ## Install dependencies
+	npm install
 
-build.celeste:
-	./scripts/engines/celeste/build-celeste-docker.sh
+node_modules: package.json
+	npm install
+	@touch node_modules
 
-build.sonic-1:
-	./scripts/engines/rsdkv4/build-rsdkv4-docker.sh sonic-1
+engines: node_modules ## Fetch the pinned engines into public/engines/ (ENGINE_SRC_<ID>=dir for a local build)
+	npm run engines
 
-build.sonic-2:
-	./scripts/engines/rsdkv4/build-rsdkv4-docker.sh sonic-2
+up: node_modules ## Dev server with COOP/COEP (fetches engines first)
+	npm run dev -- --host
 
-build.sonic-3:
-	./scripts/games/sonic-3/build-sonic3-web.sh
-
-build.sonic-mania:
-	./scripts/engines/rsdkv5/build-rsdkv5-docker.sh
-
-build.sonic-cd:
-	./scripts/engines/rsdkv3/build-rsdkv3-docker.sh
-
-build.smw:
-	./scripts/engines/smw/build-smw-docker.sh
-
-build.jgenesis:
-	./scripts/engines/jgenesis/build-jgenesis-docker.sh
-
-build.blastem:
-	./scripts/engines/blastem/build-blastem-docker.sh
-
-build.neo-geo:
-	./scripts/engines/fbneo/build-fbneo-docker.sh
-
-build.ui: node_modules
+build: node_modules ## Production build → dist/ (PWA, service worker included)
 	npm run build
 
-build:
-	$(MAKE) build.celeste
-	$(MAKE) build.sonic-1
-	$(MAKE) build.sonic-2
-	$(MAKE) build.sonic-3
-	$(MAKE) build.sonic-mania
-	$(MAKE) build.sonic-cd
-	$(MAKE) build.smw
-	$(MAKE) build.jgenesis
-	$(MAKE) build.blastem
-	$(MAKE) build.neo-geo
-	$(MAKE) build.ui
+preview: ## Serve dist/ with COOP/COEP on :$(PORT)
+	npx vite preview --host --port $(PORT)
 
-up: node_modules
-	npm run dev -- --host --port $(PORT)
+test: node_modules ## Catalog checks
+	npm test
 
+clean: ## Remove build output and fetched engines
+	rm -rf dist dev-dist public/engines
+
+help: ## List targets
+	@grep -E '^[a-zA-Z_.-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help

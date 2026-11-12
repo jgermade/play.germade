@@ -1,68 +1,60 @@
-# play.germade.dev
+# play.germade
 
-A WebAssembly (WASM) games collection and launcher.
+A Netflix-style launcher for the [wasm-gaming](https://github.com/wasm-gaming) engines:
+modern retro games and emulators running in the browser, installable as a PWA.
+
+The launcher is a **pure consumer**. It builds no engine and has no per-engine page: every
+engine is an independent repo implementing
+[`@wasm-gaming/engine-specs`](https://github.com/wasm-gaming/engine-specs), and one generic
+player drives all of them.
+
+```bash
+make up                 # dev server (fetches the pinned engines first) → http://localhost:5173
+make build && make preview
+make test
+```
+
+To run against a local engine build instead of its release:
+
+```bash
+ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
+```
 
 ## Project Specs
-- WebAssembly games launcher built with **Astro**.
-- Games are organized in `src/data/games.ts` and pages are in `src/pages/game/[slug]/index.astro`.
-- Styles live in `src/styles/main.css`.
-- Celeste WASM engine uses `.NET 9 threaded WebAssembly` from upstream repo `MercuryWorkshop/celeste-wasm` (branch `threads-v2`).
-- Celeste engine is built via Docker with `make build.celeste` and outputs to `public/game/celeste/build`.
-- Scripts are organized inside `scripts/celeste/`.
-- Gamepad proxy (`patch-gamepad-proxy.mjs`) is applied post-build to support controllers in Emscripten web workers.
-- Console-style Launcher UI with horizontal and vertical grid navigation, keyboard and gamepad support, and in-place OPFS asset extraction.
-- Sonic 1 & 2 use **RSDKv4** (Rubberduckycooly decompilation) compiled to WASM via Emscripten inside Docker.
-  - Build script: `scripts/sonic/build-sonic-docker.sh [1|2]` (generalized, accepts game number as argument).
-  - Custom HTML shell (`scripts/sonic/index.html`, shared by both) with: fullscreen canvas, AudioContext resume, Gamepad→Keyboard translator.
-  - Gamepad support is implemented as a JavaScript gamepad→keyboard translator (bypasses SDL2 gamepad, which is broken in Emscripten). Buttons A→Z, B→X, Start→Enter, D-pad/Stick→Arrow keys.
-  - `Data.rsdk` and `settings.ini` (per-game, `scripts/sonic/settings-sonic-{1,2}.ini`) are loaded from `game-assets/sonic-{1,2}/`.
-- Sonic 3 uses **Sonic 3 A.I.R.** (`Eukaryot/sonic3air`), consuming the upstream project's own official prebuilt Emscripten web release (GitHub release asset `sonic3air_web_data.zip`) rather than compiling the C++ engine from source.
-  - Build script: `scripts/sonic3/build-sonic3-web.sh` — fetches latest release, validates the ROM (`game-assets/sonic-3/Sonic_Knuckles_wSonic3.bin`, must be exactly 4,194,304 bytes), deploys to `public/game/sonic-3/`.
-  - Unlike RSDKv4 (ROM baked in at compile time via `--preload-file`), this engine loads its ROM at runtime into an Emscripten IDBFS filesystem. The build script patches the shipped `index.html` to auto-fetch the ROM from a same-origin `rom/` path and inject it via `FS_createDataFile`, avoiding the engine's native file-picker prompt.
-  - Uses SDL2's standard Gamepad API bindings directly (no manual gamepad patch needed, unlike RSDKv4).
-- Sonic Mania uses **RSDKv5U** (Rubberduckycooly decompilation) compiled to WASM via Emscripten inside Docker (`scripts/sonic-mania/build-sonic-mania-docker.sh`).
-  - Function-pointer signature mismatches in `GameLink.h`/`CPZBoss`/`GHZCutsceneK` are patched at build time instead of using `-sEMULATE_FUNCTION_POINTER_CASTS` (which taxed every indirect call in the engine's hottest path); link stage runs with `-O3`. Result: no `call_indirect` traps and a 23% smaller `.wasm`.
-- Sonic CD uses **RSDKv3** (Rubberduckycooly's `Sonic-CD-11-Decompilation`) compiled to WASM via Emscripten inside Docker (`scripts/sonic-cd/build-sonic-cd-docker.sh`), with a script-generated Emscripten build (no upstream WASM fork exists for RSDKv3).
-  - `libtheora` and `tinyxml2` are vendored by the build script; FMVs are skipped (engine falls back gracefully without `videos/`).
-  - OpenGL is fully disabled for Emscripten (`RETRO_USING_OPENGL=0`): RSDKv3 uses its software rasterizer into an SDL2 texture, avoiding Emscripten `LEGACY_GL_EMULATION` bugs; `ALLOW_MEMORY_GROWTH` is off to dodge a resizable-ArrayBuffer crash on newer V8.
-- Super Mario World uses **snesrev/smw** (full C reimplementation, no emulator at runtime) compiled to WASM via Emscripten inside Docker (`scripts/smario-world/build-smw-docker.sh`).
-  - Widescreen support (`patch-smw-widescreen.py`, a runtime-configurable C port of `VitorVilela7/wide-snes`): `ExtendedAspectRatio = W:H` in `smw.ini` (any ratio up to ~21:9, `?aspect=` URL param, default 16:9; 4:3 stays bit-exact vanilla by construction — every patch is gated on the runtime `g_widescreen_extra`). Camera-inset model, 9-bit OAM sprite machinery, spawn/despawn margins, windowing/HDMA effects, shooters/generators/bosses/cluster sprites, proximity-wrap fixes.
-  - Non-level screens (title, file select, overworld, credits) render pillarboxed vanilla 4:3 between black bars, zelda3-style per-frame side-space clamping keyed on the game-mode band; player screen bounds are widened so Mario walks flush to the visible edges when scrolling ends.
-  - Assets are extracted from the user's USA ROM (`game-assets/smario-world/smario-world-USA.sfc`, SHA1-verified) **inside the container at build time** (`restool.py --no-include-rom`); the ROM itself is never shipped and the runtime runs in pure-C `RM_MINE` mode.
-  - `src/main.c` is patched at build time (`patch-smw-emscripten.py`): `emscripten_set_main_loop` with a catch-up wrapper (`EmscriptenFrameLoop`) that keeps game logic at 60fps on any rAF rate (verified at 30/60/120Hz), SDL renderer forced (desktop OpenGL excluded), fixed-size window, explicit audio subsystem init.
-  - Fixed 128MB memory (no `ALLOW_MEMORY_GROWTH`), IDBFS-persisted `saves/` (blocking initial sync so SRAM is visible at boot, periodic flush every 3s + on tab-hide), Escape mini-menu overlay mode, custom SNES gamepad keymap.
-- All game wrappers support a `?rAF=60fps` debug URL flag that polyfills `requestAnimationFrame` with a 60fps `setTimeout` loop (bypasses VSync; for perf testing/QA, not normal play).
-- Neo-Geo/Arcade uses **FBNeo** (`OkCyb0rg/fbneo-wasm-port`) compiled to WASM inside Docker (`scripts/neo-geo/build-neo-geo-docker.sh`).
-  - Supports ROMs loaded into `public/roms/neo-geo/` along with the `BIOS/neogeo.zip`.
-  - Frontend shell customized to remove developer UI and add a seamless game gallery UI and the standard Escape mini-menu.
-- Shared game-input script (`public/shared/game-input.js`, loaded synchronously *before* the engine script): AudioContext autoplay unlock, gamepad→keyboard translator with per-engine key-map presets (`window.__gamepadKeyMap = 'rsdkv4' | 'rsdkv5'` or a custom map object), and the SDL2 gamepad proxy (`mapping: "standard"` + synthetic `gamepadconnected`). Wired into Sonic 1/2 (`rsdkv4`) and Sonic Mania (`rsdkv5`), replacing the formerly-inline duplicated copies in each game's `index.html`.
-- Shared cross-game overlay script (`public/shared/launcher-overlay.js`, served at `/shared/launcher-overlay.js`): a Cmd+Enter/Alt+Enter shortcut to toggle native browser fullscreen (always), plus a way back to `/` — either a persistent corner button + gamepad long-press (default, e.g. Celeste when wired), or (`window.__launcherReturnViaEscMenu = true`) a minimal Escape-triggered mini-menu with gamepad Select+Start as an Escape alias, for games with no in-game menu of their own (Sonic 3). Games with their own richer return option (Sonic 1/2's Dev Menu) set `window.__hideLauncherReturnButton = true` instead. Wired into Sonic 1/2 and Sonic 3; Celeste still pending.
-- Sega Megadrive supports two selectable emulator cores (chosen in the ESC-menu settings, stored in `localStorage.preferredGenesisCore`, page reloads on change): **JGenesis** (`jsgroth/jgenesis`, Rust + `wgpu`/WebGPU + `winit`, cycle-accurate) and **BlastEm** (retrodev, C→Emscripten/SDL2, high performance). SNES uses JGenesis only. A single `scripts/consoles/megadrive/index.html` conditionally loads either core (JGenesis via dynamic `import()`, BlastEm via script-tag injection).
-  - **BlastEm canvas requirement:** Emscripten's SDL2 port locates the canvas via `document.querySelector('#canvas')`, so the injected canvas **must** have `id="canvas"` — otherwise SDL creates a 0x0 window and BlastEm aborts in `nk_font_atlas_add` (Nuklear font size = window height / 24 = 0).
-  - **BlastEm ROM loading:** the WASM exports `ccall,cwrap,callMain` but **not** `FS`, so ROMs are written via the exported `FS_createPath`/`FS_createDataFile`/`FS_unlink` helpers (not `Module.FS.writeFile`), then handed to `handle_chooser_result`.
-  - The benign JGenesis console message `Using exceptions for control flow ... This isn't actually an error!` is `winit`'s normal stack-unwind mechanism; a black screen under JGenesis means missing WebGPU, not that message.
-  - Console build outputs under `public/console/{megadrive,snes,shared}/*` are gitignored (generated). BlastEm artifacts are regenerable via `scripts/engines/blastem/build-blastem-docker.sh`; the JGenesis build script's paths are currently stale (see Todos).
-- Sonic 1 & 2 replace RSDKv4's native Escape-triggered Dev Menu with an HTML overlay (`scripts/sonic/index.html`):
-  - `RSDKv4/WebDevMenu.cpp` (generated by `build-sonic-docker.sh`) exposes `web_devmenu_get_stage_list()`, `web_devmenu_load_stage()` and `web_devmenu_set_paused()` via Emscripten embind (build already uses `--bind`).
-  - Escape is intercepted client-side (capture phase) so the native menu never opens; F1/F2/F3/F10/F12/Backspace were left native at first, but since fixing the boot bug below required `DevMenu=false`, those are now fully replaced by the web menu.
-  - The web menu pre-selects a "Return to Launcher" entry, pauses the engine (`Engine.masterPaused`) while open, and gamepad Select+Start held together is an alias for Escape (toggles the menu; suppressed from also reaching the game as raw Select/Start presses).
-  - `settings-sonic-{1,2}.ini`: `DevMenu=false` (was `true`, which — for reasons not fully root-caused in RSDKv4 source, only empirically confirmed — caused a native menu-like screen to appear at boot) plus `StartingCategory=0`/`StartingScene=0`/`StartingPlayer=0` so boot skips this fork's custom "Start Menu" front-end and goes straight to the classic SEGA logo → TITLE SCREEN sequence.
+
+- **UI with jq79 + Vite** (see [STACK.md](STACK.md)): `src/App.html` (hero + category rows,
+  keyboard and gamepad navigation), `src/components/` (`Hero`, `InstallDialog`, `Notice`),
+  `src/services/` (`storage`, `library`, `input`).
+- **Categories** (`src/data/catalog.js`): *Retro moderno* (decompiled/ported games: RSDK,
+  Celeste…) and *Emuladores* (systems, each with its own ROM library). A game is a data entry
+  with `engine`, `kind`, `status` and the files it `install`s — never a page.
+- **Engines** pinned in `src/data/engines.json`, fetched from GitHub Releases at build time
+  (`scripts/fetch-engines.mjs`), served same-origin from `/engines/<id>/`. The npm packages carry
+  the SDK but not the wasm; the release asset carries both.
+- **Storage** — OPFS `<engine-id>/<slug>/`: the engine owns `<engine-id>/`, the launcher passes
+  the slug as `storage.namespace`. *Install* writes the game's files there once; *Play* hands
+  them to the engine as thunks that read them back; saves land beside them. Uninstall removes
+  the data and keeps the saves. Persistent storage is requested on first install.
+- **Player** — `/play/?game=<slug>` in a full-screen iframe: imports the engine SDK, then
+  `new SDK({ config }).assets().storage({ namespace: slug }).mount().start()`. Escape (or
+  Select+Start) opens the pause menu: continue / restart / back to the catalog, which destroys
+  the engine and drops the iframe — safe for engines that cannot restart in process.
+- **PWA** — installable (fullscreen, landscape), offline catalog, engines cached on first play,
+  updates offered with a prompt (never mid-game). The service worker adds COOP/COEP to every
+  navigation, so threaded engines get `crossOriginIsolated` on any static host; one reload on the
+  very first visit.
+- **Legacy** — the first proof of concept (Astro, per-game pages, engine build scripts) lives in
+  [legacy/](legacy/) for reference until each engine is migrated. It is not part of the build.
 
 ## Todos
-- Implement hosted assets feature to bypass `showDirectoryPicker()` (In Progress, see `SESSIONS/2026-07-04_17h02.hosted-assets.session.md`).
-- Redesign Launcher UI to Netflix style (Completed).
-- Add Sonic 1 (Completed). ✅
-- Add Sonic 2 — parametrize build script to `scripts/sonic/build-sonic-docker.sh` accepting game number as argument. (Completed) ✅
-- Add Sonic 3 (A.I.R.), via upstream's official prebuilt web release. (Completed) ✅
-- Add Quake and Doom games (WIP).
-- Add an in-game overlay to return to the launcher without using the browser back button, plus a web replacement for RSDKv4's Dev Menu (Sonic 1 & 2). (Completed) ✅
-- Wire `/shared/launcher-overlay.js` into Sonic 3 (Completed) ✅ — Celeste deferred to a future session.
-- Add Sonic Mania (Completed) ✅ — integration, music streaming, WASM perf (fpcast removal) and gamepad support (see `SESSIONS/2026-07-05_*.session.md`).
-- Add Sonic CD (Completed) ✅ — RSDKv3 WASM build, software renderer, `?rAF=60fps` debug flag (see `SESSIONS/2026-07-05_21h00.sonic-cd-integration.session.md`).
-- Add Super Mario World — Phase 1: 4:3 base integration (Completed) ✅ (see `SESSIONS/2026-07-05_23h56.smw-widescreen-integration.session.md`).
-- Super Mario World Phase 2: wide-snes-style widescreen — flexible `ExtendedAspectRatio` (default 16:9) (Completed) ✅ — 18 iterations; wide-snes checklist fully ported except the rooms/base-BPS package (see `SESSIONS/2026-07-06_00h45.smw-widescreen-phase2.session.md`).
-- Super Mario World widescreen — remaining work: side-exit trigger positions, real-wide title/overworld/credits (rooms/base-BPS package), deferred-verification debt (castle/ghost/water/boss scenes) (Pending, see `SESSIONS/2026-07-08_13h00.smw-widescreen-remaining.session.md`).
-- Super Mario World: cover image for the launcher card + optional web save-state UI (Pending).
-- Add FBNeo as Arcade/Neo-Geo emulator (Completed) ✅ (see `SESSIONS/2026-07-08_21h52.fbneo-integration.session.md`).
-- Add JGenesis and BlastEm as Sega Megadrive/SNES emulator cores (Completed) ✅ (see `SESSIONS/2026-07-09_00h16.blastem-integration.session.md`) — includes the BlastEm 0x0-window/font crash fix (canvas `id="canvas"`) and ROM-loading fix (`FS_createDataFile` instead of unexported `FS.writeFile`).
-- Fix stale `scripts/engines/jgenesis/build-jgenesis-docker.sh` paths (`scripts/jgenesis` → `scripts/engines/jgenesis`, `public/console/jgenesis` → the real `shared/jgenesis` + `megadrive` + `snes` targets) so JGenesis/SNES build outputs are reproducible instead of only copyable (Pending).
+
+- [ ] Release `rsdkv4-wasm` 0.3.0 (pinned in `engines.json`; until then use `ENGINE_SRC_RSDKV4`).
+- [ ] Emulators: per-system ROM list organised by game (versions grouped, as in ROM Manager),
+      version picker, ROM-hacking patches (IPS/BPS/UPS) applied on the fly while loading.
+- [ ] Gamepad inside games (engines that only read the keyboard need a mapping).
+- [ ] Settings panel painted from each engine's `config()` / `options()` descriptors.
+- [ ] Migrate engines in priority order: rsdkv3 → rsdkv5 → fbneo → blastem → jgenesis → celeste.
+- [ ] Sonic 3 A.I.R. and Super Mario World: decide on engine repos (see SESSIONS).
+- [ ] Deploy target and CI (build + Pages).
+
+See [SESSIONS/](SESSIONS/) for the decisions behind all of this.

@@ -1,20 +1,29 @@
 {
   "name": "play-germade",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Netflix-style launcher for the wasm-gaming engines: a PWA built with jq79 and Vite that drives every engine through @wasm-gaming/engine-specs.",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview"
-  },
-  "devDependencies": {
-    "astro": "^5.0.0",
-    "playwright": "^1.61.1"
+    "engines": "node scripts/fetch-engines.mjs",
+    "dev": "node scripts/fetch-engines.mjs && vite",
+    "build": "node scripts/fetch-engines.mjs && vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@wasm-gaming/engine-specs": "^0.3.2",
+    "jq79": "0.7.12"
+  },
+  "devDependencies": {
     "axios": "^1.18.1",
     "cheerio": "^1.2.0",
-    "fflate": "^0.8.3"
+    "playwright": "^1.61.1",
+    "vite": "^7.3.0",
+    "vite-plugin-pwa": "2.0.0",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1",
+    "workbox-expiration": "^7.4.1"
   }
 }

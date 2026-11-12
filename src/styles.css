@@ -1,0 +1,188 @@
+:root {
+  color-scheme: dark;
+  --bg: #08090d;
+  --panel: #12141c;
+  --line: #262a36;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --focus: #fbbf24;
+  --ok: #34d399;
+  --radius: 14px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+body { overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+kbd {
+  font: 600 0.72rem ui-monospace, monospace;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--muted);
+}
+code { font-family: ui-monospace, monospace; font-size: 0.9em; color: #cbd5e1; }
+
+.launcher { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+.launcher.is-playing { visibility: hidden; }
+
+.topbar {
+  position: fixed; inset: 0 0 auto 0; z-index: 5;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 32px 16px;
+  background: linear-gradient(var(--bg), transparent);
+}
+.brand { font-size: 1.25rem; letter-spacing: 0.02em; color: var(--muted); }
+.brand b { color: var(--text); }
+.hint { font-size: 0.8rem; color: var(--muted); display: flex; gap: 0.3rem; align-items: center; }
+
+/* Hero */
+.hero { position: relative; min-height: 52vh; display: flex; align-items: flex-end; overflow: hidden; }
+.hero-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(1.1); transform: scale(1.05);
+}
+.hero-shade {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 70%, transparent) 45%, transparent 75%),
+    linear-gradient(0deg, var(--bg) 0%, transparent 45%),
+    radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 60%);
+}
+.hero-body { position: relative; padding: 0 32px 24px; max-width: 640px; }
+.hero-kicker { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; margin: 0; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.6rem); margin: 0.3rem 0; line-height: 1.05; }
+.hero-desc { color: #cbd5e1; line-height: 1.5; margin: 0 0 1rem; }
+.hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+button.primary, button.ghost {
+  border-radius: 10px; padding: 0.7rem 1.4rem; font-weight: 650; border: 1px solid transparent;
+}
+button.primary { background: var(--text); color: var(--bg); }
+button.primary:disabled { background: #334155; color: var(--muted); cursor: default; }
+button.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Rows */
+.rows { overflow-y: auto; padding: 8px 0 48px; scrollbar-width: none; }
+.row { margin-bottom: 18px; }
+.row-title { margin: 0 32px 10px; font-size: 1.15rem; }
+.row-title small { font-weight: 400; color: var(--muted); font-size: 0.8rem; margin-left: 0.6rem; }
+.cards {
+  list-style: none; margin: 0; padding: 18px 32px 22px;
+  display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+}
+.card {
+  position: relative; width: 172px; aspect-ratio: 2 / 3; padding: 0;
+  border-radius: var(--radius); border: 2px solid transparent; overflow: hidden;
+  background: linear-gradient(160deg, var(--accent), var(--panel));
+  display: grid; place-items: center; scroll-snap-align: center;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card .glyph { font-size: 3.2rem; filter: drop-shadow(0 4px 10px #0008); }
+.card-title {
+  position: absolute; inset: auto 0 0 0; padding: 28px 10px 10px; text-align: left;
+  font-weight: 650; font-size: 0.9rem;
+  background: linear-gradient(transparent, #000c);
+}
+.card.is-soon { filter: grayscale(0.55) brightness(0.8); }
+.card.is-focused {
+  transform: scale(1.08); border-color: var(--focus); filter: none;
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.badge {
+  position: absolute; top: 8px; right: 8px; font-size: 0.68rem; font-weight: 700;
+  padding: 0.2rem 0.45rem; border-radius: 6px; background: #000a; color: var(--muted);
+}
+.badge.is-ok { color: var(--ok); }
+
+/* Dialogs */
+.dialog-backdrop {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: #000a; backdrop-filter: blur(6px); padding: 16px;
+}
+.dialog {
+  width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 24px; line-height: 1.5;
+}
+.dialog h2 { margin-top: 0; }
+.dialog p { color: #cbd5e1; }
+.dialog .file { display: grid; gap: 0.4rem; margin: 1rem 0; }
+.dialog .file span { font-weight: 600; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+.error { color: #fca5a5; }
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 20;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 0.6rem 0.6rem 0.6rem 1rem; display: flex; gap: 1rem; align-items: center;
+}
+.toast button { background: var(--text); color: var(--bg); border: 0; border-radius: 8px; padding: 0.4rem 0.9rem; }
+
+.player { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; background: #000; z-index: 30; }
+
+@media (max-width: 640px) {
+  .hint { display: none; }
+  .topbar, .hero-body { padding-left: 16px; padding-right: 16px; }
+  .cards { padding-left: 16px; padding-right: 16px; }
+  .row-title { margin-left: 16px; }
+  .row-title small { display: block; margin: 0.2rem 0 0; }
+  .card { width: 128px; }
+}
+
+/* Emulator folders — the iOS 6 way: the grid splits under the row, a drawer with a
+   notch pointing at the card slides open, everything else dims. */
+.row { transition: opacity 200ms ease; }
+.row.is-dimmed { opacity: 0.3; }
+.card.is-open { border-color: var(--focus); transform: scale(1.04); filter: none; }
+
+.drawer {
+  position: relative;
+  margin: 4px 0 8px;
+  animation: drawer-open 240ms ease-out;
+  transform-origin: top;
+}
+.drawer::before {
+  /* the notch, pointing back at the card */
+  content: "";
+  position: absolute; top: -13px; left: calc(var(--notch) - 14px);
+  border: 14px solid transparent; border-top: 0; border-bottom: 14px solid #1a1d27;
+  filter: drop-shadow(0 -1px 0 #ffffff14);
+}
+.drawer-panel {
+  background:
+    repeating-linear-gradient(45deg, #ffffff05 0 2px, transparent 2px 5px),
+    linear-gradient(#1a1d27, #11131a);
+  border-top: 1px solid #ffffff14;
+  border-bottom: 1px solid #00000080;
+  box-shadow: inset 0 10px 18px -10px #000, inset 0 -10px 18px -10px #000;
+  padding: 18px 32px 22px;
+}
+.drawer-head { display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.6rem; }
+.drawer-head h3 { margin: 0; font-size: 1.05rem; text-shadow: 0 1px 0 #000; }
+.drawer-meta { color: var(--muted); font-size: 0.8rem; }
+.drawer-empty { color: #cbd5e1; max-width: 680px; line-height: 1.5; font-size: 0.92rem; }
+.drawer-empty p { margin: 0.4rem 0; }
+.drawer-soon { color: var(--muted); }
+
+.rom-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 18px; }
+.rom { position: relative; display: grid; justify-items: center; gap: 6px; }
+.rom-art {
+  width: 72px; height: 72px; border-radius: 16px; display: grid; place-items: center; font-size: 2rem;
+  background: linear-gradient(160deg, var(--accent), #0b0d12); box-shadow: 0 3px 8px #000a;
+}
+.rom-title { font-size: 0.78rem; text-align: center; text-shadow: 0 1px 0 #000; }
+.rom-badge {
+  /* versions behind one tile, like the iOS badge */
+  position: absolute; top: -6px; right: calc(50% - 44px);
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: #dc2626; border: 2px solid #fff; color: #fff; font: 700 0.72rem/18px system-ui; text-align: center;
+}
+
+@keyframes drawer-open { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: none; } }
+@media (max-width: 640px) { .drawer-panel { padding: 16px; } }
+.hero { transition: min-height 240ms ease; }
+.launcher.has-drawer .hero { min-height: 30vh; }

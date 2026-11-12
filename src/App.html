@@ -1,0 +1,138 @@
+<script :setup="{ rows, library, shell, refresh, install, uninstall, onAction, setPaused, Hero, InstallDialog, Notice, RomDrawer }">
+  let focus = { row: 0, col: 0 }
+  let dialog = null        // { type: 'install' | 'notice', game }
+  let playing = null       // slug of the game in the player iframe
+  let drawer = null        // { slug, row, notch } — an emulator's ROM folder, open under its row
+
+  $: current = rows[focus.row]?.games[focus.col] ?? null
+
+  const isInstalled = (game) => !!library.installed[game.slug]
+
+  const play = (game) => {
+    dialog = null
+    playing = game.slug
+    setPaused(true)
+  }
+
+  // An emulator opens like an iOS 6 folder: the drawer splits the grid under its row
+  // and the notch points at the card (measured from the card itself, so it follows
+  // the row's horizontal scroll).
+  const toggleDrawer = (game) => {
+    if (drawer?.slug === game.slug) { drawer = null; return }
+    const card = $self(`[data-slug="${game.slug}"]`)
+    const row = card?.closest('.row')
+    const notch = card && row
+      ? card.getBoundingClientRect().left - row.getBoundingClientRect().left + card.offsetWidth / 2
+      : 120
+    drawer = { slug: game.slug, row: focus.row, notch }
+    // Let it render and the hero shrink, then bring the whole folder into view.
+    setTimeout(() => $self('.drawer')?.scrollIntoView({ block: 'end', behavior: 'smooth' }), 260)
+  }
+
+  const open = (game) => {
+    if (!game) return
+    if (game.kind === 'emulator') toggleDrawer(game)
+    else if (game.status !== 'ready') dialog = { type: 'notice', game }
+    else if (game.kind === 'game' && game.install && !isInstalled(game)) dialog = { type: 'install', game }
+    else play(game)
+  }
+
+  const select = (row, col) => {
+    focus = { row, col }
+  }
+
+  const stop = () => {
+    playing = null
+    setPaused(false)
+    refresh()
+  }
+
+  const move = (dRow, dCol) => {
+    const row = Math.min(rows.length - 1, Math.max(0, focus.row + dRow))
+    const size = rows[row].games.length
+    const col = Math.min(size - 1, Math.max(0, dRow ? Math.min(focus.col, size - 1) : focus.col + dCol))
+    focus = { row, col }
+  }
+
+  onAction((action) => {
+    if (dialog) {
+      if (action === 'back') dialog = null
+      return
+    }
+    if (drawer && (action === 'back' || action === 'up' || action === 'down')) {
+      drawer = null
+      if (action === 'back') return
+    }
+    if (action === 'up') move(-1, 0)
+    else if (action === 'down') move(1, 0)
+    else if (action === 'left') move(0, -1)
+    else if (action === 'right') move(0, 1)
+    else if (action === 'accept') open(current)
+  })
+
+  // The player page says when it is done; it has already destroyed its engine.
+  window.addEventListener('message', (event) => {
+    if (event.origin === location.origin && event.data?.type === 'launcher:exit') stop()
+  })
+
+  const onInstalled = ({ detail: game }) => play(game)
+
+  await refresh()
+  await $mounted()
+
+  // Keep the focused card in view whenever the focus moves.
+  $: focus, requestAnimationFrame(() => {
+    $self('.card.is-focused')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  })
+</script>
+
+<div class="launcher" :class.is-playing="playing" :class.has-drawer="drawer">
+  <header class="topbar">
+    <span class="brand">play<b>.germade</b></span>
+    <span class="hint">
+      <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> navegar · <kbd>Enter</kbd> jugar · <kbd>Esc</kbd> atrás
+    </span>
+  </header>
+
+  <Hero :game="current" :installed="current && isInstalled(current)" @open="open(current)"
+        @uninstall="uninstall(current)" />
+
+  <section class="rows">
+    <div class="row" :each="row, r in rows" :key="row.id" :class.is-dimmed="drawer && drawer.row !== r">
+      <h2 class="row-title">{{ row.title }} <small>{{ row.subtitle }}</small></h2>
+      <ul class="cards">
+        <li :each="game, c in row.games" :key="game.slug">
+          <button class="card" :data-slug="game.slug"
+                  :class.is-open="drawer?.slug === game.slug"
+                  :class.is-focused="focus.row === r && focus.col === c"
+                  :class.is-soon="game.status !== 'ready'"
+                  :style="`--accent: ${game.accent ?? '#334155'}`"
+                  @mouseenter="select(r, c)" @focus="select(r, c)" @click="open(game)">
+            <img :if="game.cover" :src="game.cover" :alt="game.title" loading="lazy" />
+            <span :else class="glyph">{{ game.glyph ?? '🎮' }}</span>
+            <span class="card-title">{{ game.title }}</span>
+            <span :if="game.status !== 'ready'" class="badge">Próximamente</span>
+            <span :elseif="game.kind === 'game' && isInstalled(game)" class="badge is-ok">Instalado</span>
+          </button>
+        </li>
+      </ul>
+      <div :if="drawer && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
+        <RomDrawer :game="row.games.find(g => g.slug === drawer.slug)" />
+      </div>
+    </div>
+  </section>
+
+  <div :if="dialog" class="dialog-backdrop" @click.self="dialog = null">
+    <InstallDialog :if="dialog.type === 'install'" :game="dialog.game" :install
+                   @installed="onInstalled" @cancel="dialog = null" />
+    <Notice :if="dialog.type === 'notice'" :game="dialog.game" @close="dialog = null" />
+  </div>
+
+  <div :if="shell.update && !playing" class="toast">
+    Hay una versión nueva.
+    <button @click="shell.update()">Actualizar</button>
+  </div>
+</div>
+
+<iframe :if="playing" class="player" :src="`/play/?game=${playing}`" title="Juego"
+        allow="fullscreen; gamepad; autoplay; keyboard-map" @load="$event.target.focus()"></iframe>
