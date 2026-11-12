@@ -54,7 +54,7 @@ ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
 - [ ] Gamepad inside games (engines that only read the keyboard need a mapping).
 - [ ] Settings panel painted from each engine's `config()` / `options()` descriptors.
 - [ ] Migrate engines in priority order: rsdkv3 → rsdkv5 → fbneo → blastem → jgenesis → celeste.
-- [ ] Sonic 3 A.I.R. and Super Mario World: decide on engine repos (see SESSIONS).
+- [ ] Sonic 3 A.I.R. and Super Mario World: decide on engine repos (see RECORD/).
 - [ ] Deploy target and CI (build + Pages).
 
-See [SESSIONS/](SESSIONS/) for the decisions behind all of this.
+See [RECORD/](RECORD/) for the decisions behind all of this.

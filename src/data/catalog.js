@@ -5,7 +5,7 @@
 //   'game'     — a modern retro game on a decompiled/ported engine: install its data
 //                once, then play. Storage is the engine's own `<engine>/<slug>/`.
 //   'emulator' — a system: opens its ROM list (one entry per game, versions grouped,
-//                optional ROM-hack patches applied while loading). See SESSIONS.
+//                optional ROM-hack patches applied while loading). See RECORD/.
 //
 // `install` lists the files a game needs, keyed by the engine's asset name. Each is
 // staged once into OPFS `<engine>/<slug>/<file>` and handed to the engine as a thunk
