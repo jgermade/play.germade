@@ -18,10 +18,10 @@
   <rect x="96" y="44" width="48" height="50" rx="7" fill="url(#cart)"/>
   <rect x="96" y="44" width="48" height="6" rx="3" fill="#fff" fill-opacity=".07"/>
   <g stroke="#000" stroke-opacity=".45" stroke-linecap="round"><path d="M104 58v26M110 58v26"/></g>
-  <rect x="44" y="94" width="20" height="6" rx="3" fill="#121316"/>
+  <rect x="40" y="93" width="14" height="8" rx="2.5" fill="#121316"/><rect x="58" y="95" width="18" height="4" rx="2" fill="#121316"/>
   <rect x="176" y="94" width="20" height="6" rx="3" fill="#121316"/>
   <path d="M40 140h160" stroke="#000" stroke-opacity=".6"/>
   <path d="M40 141.5h160" stroke="#fff" stroke-opacity=".05"/>
-  <circle cx="196" cy="125" r="7" fill="url(#led)" opacity=".7"/>
-  <circle cx="196" cy="125" r="1.8" fill="#ff5a4e"/>
+  <circle cx="44" cy="125" r="7" fill="url(#led)" opacity=".7"/>
+  <circle cx="44" cy="125" r="1.8" fill="#ff5a4e"/>
 </svg>

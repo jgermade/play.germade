@@ -31,13 +31,16 @@
   <rect x="48" y="36" width="50" height="8" rx="2" fill="url(#flap)"/>
   <rect x="102" y="36" width="50" height="8" rx="2" fill="url(#flap)"/>
   <path d="M48 36.5h104" stroke="#fff" stroke-opacity=".18"/>
-  <!-- vents, slider and power LED on the front deck -->
-  <g stroke="#17181c" stroke-width="3" stroke-linecap="round"><path d="M18 152h38M18 162h38M18 172h38"/></g>
-  <g stroke="#fff" stroke-opacity=".08" stroke-linecap="round"><path d="M18 154.5h38M18 164.5h38M18 174.5h38"/></g>
-  <rect x="146" y="150" width="36" height="9" rx="4.5" fill="#16171a"/>
-  <rect x="152" y="150.5" width="11" height="8" rx="4" fill="#4a4d55"/>
-  <circle cx="172" cy="176" r="10" fill="url(#led)" opacity=".75"/>
-  <circle cx="172" cy="176" r="2.6" fill="#ff5a4e"/>
+  <!-- power switch and volume slider on the left, power LED beside them; vents on the right -->
+  <rect x="16" y="146" width="36" height="16" rx="5" fill="#16171a"/>
+  <rect x="18" y="148" width="15" height="12" rx="4" fill="#4a4d55"/>
+  <rect x="19" y="148.5" width="13" height="3" rx="1.5" fill="#fff" fill-opacity=".2"/>
+  <rect x="60" y="150" width="40" height="9" rx="4.5" fill="#16171a"/>
+  <rect x="78" y="150.5" width="11" height="8" rx="4" fill="#4a4d55"/>
+  <circle cx="24" cy="178" r="10" fill="url(#led)" opacity=".75"/>
+  <circle cx="24" cy="178" r="2.6" fill="#ff5a4e"/>
+  <g stroke="#17181c" stroke-width="3" stroke-linecap="round"><path d="M138 152h44M138 162h44M138 172h44"/></g>
+  <g stroke="#fff" stroke-opacity=".08" stroke-linecap="round"><path d="M138 154.5h44M138 164.5h44M138 174.5h44"/></g>
   <rect width="200" height="200" fill="url(#light)"/>
   <rect width="200" height="200" filter="url(#grain)"/>
 </svg>
