@@ -76,7 +76,13 @@ kbd {
 .brand-mark { width: 30px; height: 30px; }
 .brand-mark rect { fill: #fff; }
 .brand-mark path { fill: var(--bg); }
-.clock { font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
+.topbar-link {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 999px;
+  color: var(--soft); text-decoration: none; font-weight: 600; font-size: 0.82rem; border: 1px solid var(--line-strong); background: rgb(255 255 255 / 0.04);
+}
+.topbar-link svg { width: 15px; fill: currentColor; }
+.topbar-link:hover { color: var(--text); border-color: #fff; }
+.clock { margin-left: 18px; font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
 
 /* The scroll area holds the hero and the rows together, so the folder can push them up. */
 .launcher > .hero, .launcher > .rows { grid-column: 1; }
@@ -305,6 +311,17 @@ kbd {
   background: linear-gradient(#ef4444, #b91c1c); border: 2px solid #fff; color: #fff;
   font: 800 0.72rem/20px var(--ui); text-align: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.6);
 }
+.rom-mods {
+  font: 700 0.62rem var(--ui); letter-spacing: 0.06em; text-transform: uppercase; color: #fbbf24;
+  padding: 2px 7px; border-radius: 999px; background: rgb(251 191 36 / 0.12);
+}
+.drawer-manage { height: 30px; padding: 0 0.9rem; border-radius: 999px; background: transparent; color: var(--soft); border: 1px solid var(--line-strong); font-size: 0.78rem; font-weight: 600; }
+.mod-tag {
+  display: inline-block; margin-right: 0.5rem; padding: 1px 6px; border-radius: 6px; font: 800 0.62rem/1.4 var(--ui);
+  letter-spacing: 0.08em; font-style: normal; background: #fbbf24; color: #1a1205; vertical-align: 2px;
+}
+.v-meta[data-status='verified'] { color: var(--ok); }
+.v-meta[data-status='mismatch'] { color: #f87171; }
 .rom-more { position: absolute; top: 2px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgb(0 0 0 / 0.55); color: var(--soft); opacity: 0; transition: opacity 120ms; }
 .rom:hover .rom-more, .rom-more:focus-visible { opacity: 1; }
 .drawer-message { color: var(--soft); font-size: 0.84rem; margin: 0.9rem 0 0; }
@@ -330,7 +347,8 @@ kbd {
 .versions li button { height: 38px; padding: 0 1rem; border-radius: 999px; font-weight: 700; }
 .versions li .primary { grid-area: play; background: #fff; color: #0a0b10; border: 0; }
 .versions li .ghost { grid-area: remove; background: transparent; color: var(--soft); border: 1px solid var(--line-strong); }
-.versions header .ghost { margin-left: auto; height: 34px; padding: 0 1rem; border-radius: 999px; background: transparent; color: var(--soft); border: 1px solid var(--line-strong); }
+.versions header .ghost:first-of-type { margin-left: auto; }
+.versions header .ghost { height: 34px; padding: 0 1rem; border-radius: 999px; background: transparent; color: var(--soft); border: 1px solid var(--line-strong); }
 
 /* ---------- Dialogs and toast ---------- */
 

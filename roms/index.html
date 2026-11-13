@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#08090d" />
+  <meta name="description" content="Juegos retro modernos y emuladores en WebAssembly, en tu navegador." />
+  <title>Biblioteca · play.germade</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/src/roms/roms.css" />
+  <script>
+    // View transitions are progressive: when the browser skips one, its promises
+    // reject. Nothing depends on them; acknowledge them before the first render.
+    for (const type of ['pageswap', 'pagereveal']) addEventListener(type, (e) => {
+      const t = e.viewTransition;
+      if (t) for (const p of [t.ready, t.finished, t.updateCallbackDone]) p && p.catch(() => {});
+    });
+  </script>
+</head>
+<body>
+  <main id="roms"></main>
+  <script type="module" src="/src/roms/main.js"></script>
+</body>
+</html>

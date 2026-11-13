@@ -18,6 +18,11 @@
   $: games = entry?.games ?? []
   $: consoleCore = entry?.core ?? game.engine
   $: pickerGame = picker ? games.find((g) => g.id === picker) : null
+  // The list behind Y: the game's versions, then its mods.
+  $: pickerRows = pickerGame ? [
+      ...pickerGame.versions.map((v) => ({ kind: 'version', key: v.sha1, v })),
+      ...(pickerGame.mods ?? []).map((m) => ({ kind: 'mod', key: m.sha1, m })),
+    ] : []
 
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
@@ -27,10 +32,14 @@
   const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 1048576 ? 2 : 1)} MB`
   const versionLabel = (v) => v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
 
-  const play = (g, version) => {
+  const play = (g, version, mod = null) => {
     if (!g) return
-    $emit('play', { system: game.system, gameId: g.id, sha1: (version ?? g.versions[0]).sha1 })
+    const v = version ?? (mod ? library.versionForMod(mod, g) : g.versions[0])
+    $emit('play', { system: game.system, gameId: g.id, sha1: v.sha1, patch: mod?.sha1 ?? null })
   }
+  const playRow = (g, row) => row.kind === 'mod' ? play(g, null, row.m) : play(g, row.v)
+  const modState = { verified: 'verificado', unverified: 'sin verificar', mismatch: 'no coincide' }
+  const manage = (g = null) => location.assign(`/roms/?system=${game.system}${g ? `&game=${encodeURIComponent(g.id)}` : ''}`)
 
   const addFiles = async (files) => {
     if (!files?.length) return
@@ -85,11 +94,11 @@
 
   const off = onAction((action) => {
     if (picker) {
-      const versions = pickerGame?.versions ?? []
+      const rows = pickerRows
       if (action === 'back' || action === 'more') picker = null
       else if (action === 'up') pickerFocus = Math.max(0, pickerFocus - 1)
-      else if (action === 'down') pickerFocus = Math.min(versions.length - 1, pickerFocus + 1)
-      else if (action === 'accept') play(pickerGame, versions[pickerFocus])
+      else if (action === 'down') pickerFocus = Math.min(rows.length - 1, pickerFocus + 1)
+      else if (action === 'accept' && rows[pickerFocus]) playRow(pickerGame, rows[pickerFocus])
       return
     }
     const count = games.length + 1 // the "add" tile closes the grid
@@ -121,6 +130,7 @@
         </option>
       </select>
     </label>
+    <button class="ghost drawer-manage" @click="manage()">Gestionar</button>
     <input type="file" multiple hidden :accept="(game.accept ?? []).join(',')" @change="onPicked" />
   </header>
 
@@ -130,6 +140,7 @@
               @mouseenter="focus = i" @click="play(g)">
         <span class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
         <span :if="g.versions.length > 1" class="rom-badge">{{ g.versions.length }}</span>
+        <span :if="g.mods?.length" class="rom-mods">{{ g.mods.length }} mod{{ g.mods.length === 1 ? '' : 's' }}</span>
         <span class="rom-title">{{ g.title }}</span>
         <span :if="g.core" class="rom-core">{{ coreLabel(g.core) }}</span>
       </button>
@@ -161,14 +172,18 @@
           <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">{{ core.label }}</option>
         </select>
       </label>
+      <button class="ghost" @click="manage(pickerGame)">Mods…</button>
       <button class="ghost" @click="picker = null">Cerrar</button>
     </header>
     <ol>
-      <li :each="v, j in pickerGame.versions" :key="v.sha1" :class.is-focused="pickerFocus === j" @mouseenter="pickerFocus = j">
-        <span class="v-name">{{ versionLabel(v) }}<small :if="j === 0"> · la más reciente</small></span>
-        <span class="v-meta">{{ v.serial ?? '' }} · {{ mb(v.size) }} · {{ v.sha1.slice(0, 8) }}</span>
-        <button class="primary" @click="play(pickerGame, v)">Jugar</button>
-        <button class="ghost" title="Quita la ROM; las partidas se conservan" @click="removeVersion(pickerGame, v)">Quitar</button>
+      <li :each="row, j in pickerRows" :key="row.key" :class.is-focused="pickerFocus === j" :class.is-mod="row.kind === 'mod'" @mouseenter="pickerFocus = j">
+        <span :if="row.kind === 'version'" class="v-name">{{ versionLabel(row.v) }}<small :if="j === 0"> · la más reciente</small></span>
+        <span :if="row.kind === 'version'" class="v-meta">{{ row.v.serial ?? '' }} · {{ mb(row.v.size) }} · {{ row.v.sha1.slice(0, 8) }}</span>
+        <span :if="row.kind === 'mod'" class="v-name"><i class="mod-tag">MOD</i>{{ row.m.name }}</span>
+        <span :if="row.kind === 'mod'" class="v-meta" :data-status="row.m.status">{{ row.m.format.toUpperCase() }} · {{ modState[row.m.status] }}</span>
+        <button class="primary" @click="playRow(pickerGame, row)">Jugar</button>
+        <button :if="row.kind === 'version'" class="ghost" title="Quita la ROM; las partidas se conservan" @click="removeVersion(pickerGame, row.v)">Quitar</button>
+        <button :if="row.kind === 'mod'" class="ghost" @click="manage(pickerGame)">Gestionar</button>
       </li>
     </ol>
   </div>

@@ -111,15 +111,32 @@ async function startRom(gameId) {
     return showLibrary();
   }
   const { index, game } = found;
+  const wantedMod = (params.get('patch') ?? '').toLowerCase();
+  const mod = wantedMod ? game.mods.find((m) => m.sha1.startsWith(wantedMod)) : null;
+  if (wantedMod && !mod) {
+    // Never fall back to the unpatched game silently: say so and show the library.
+    view.notice = 'Ese mod no está en tu biblioteca.';
+    return showLibrary();
+  }
   const wanted = (params.get('version') ?? '').toLowerCase();
-  const version = (wanted && game.versions.find((v) => v.sha1.startsWith(wanted))) || game.versions[0];
-  if (wanted && !version.sha1.startsWith(wanted)) view.notice = 'Esa versión no está en la biblioteca: se carga la más reciente.';
-  if (params.get('patch')) view.notice = 'Los parches de ROM hacking llegarán pronto: se carga la ROM sin parchear.';
+  let version = (wanted && game.versions.find((v) => v.sha1.startsWith(wanted))) || null;
+  if (!version) {
+    version = mod ? romLibrary.versionForMod(mod, game) : game.versions[0];
+    if (wanted) view.notice = 'Esa versión no está en la biblioteca: se carga la más reciente.';
+  }
+  let rom;
+  try {
+    // Patched up front: a mod that does not fit fails here, with its own reason.
+    rom = await romLibrary.readRomWithMod(entry.system, version, mod);
+  } catch (error) {
+    return fail(mod ? `No se pudo aplicar «${mod.name}»: ${error.message}` : error.message);
+  }
   await launch({
     engineId: romLibrary.coreFor(index, game, entry.engine),
-    title: game.title,
-    assets: { rom: () => romLibrary.readRom(entry.system, version) },
-    namespace: gameId,
+    title: mod ? `${game.title} · ${mod.name}` : game.title,
+    assets: { rom: () => rom },
+    // A mod is another game as far as saves go: its own folder.
+    namespace: mod ? `${gameId}+${mod.sha1.slice(0, 8)}` : gameId,
   });
 }
 
@@ -131,6 +148,7 @@ async function showLibrary() {
 // A ROM chosen in the library: same page, new query — a navigation the view transition covers.
 const openRom = ({ detail }) => {
   const q = new URLSearchParams({ game: detail.gameId, version: detail.sha1.slice(0, 8) });
+  if (detail.patch) q.set('patch', detail.patch.slice(0, 8));
   location.assign(`/${slug}/?${q}`);
 };
 

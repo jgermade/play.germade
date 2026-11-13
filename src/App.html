@@ -49,6 +49,7 @@
   const playRom = ({ detail }) => {
     const system = rows.flatMap((r) => r.games).find((g) => g.system === detail.system)
     const q = new URLSearchParams({ game: detail.gameId, version: detail.sha1.slice(0, 8) })
+    if (detail.patch) q.set('patch', detail.patch.slice(0, 8))
     go(system, `/${system.slug}/?${q}`)
   }
 
@@ -140,6 +141,10 @@
       </svg>
       <span>play<b>.germade</b></span>
     </span>
+    <a class="topbar-link" href="/roms/">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
+      Biblioteca
+    </a>
     <time class="clock">{{ clock }}</time>
   </header>
 

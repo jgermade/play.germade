@@ -63,6 +63,7 @@ export default defineConfig({
       // plus one entry per catalog item, added by routesPlugin()
       input: {
         main: 'index.html',
+        roms: 'roms/index.html',
       },
     },
   },
