@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ececf0"/><stop offset="1" stop-color="#cfcfd6"/></linearGradient>
+    <linearGradient id="well" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9b9c1"/><stop offset="1" stop-color="#d6d6dc"/></linearGradient>
+    <linearGradient id="cart" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a5a5ae"/><stop offset="1" stop-color="#8a8a94"/></linearGradient>
+    <linearGradient id="lav" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c9ca6"/><stop offset="1" stop-color="#77777f"/></linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#85858f"/><stop offset="1" stop-color="#5f5f68"/></linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#deck)"/>
+  <!-- cartridge well and a cartridge in it -->
+  <rect x="34" y="-10" width="132" height="92" rx="14" fill="url(#well)"/>
+  <rect x="34" y="-10" width="132" height="92" rx="14" fill="none" stroke="#fff" stroke-opacity=".7"/>
+  <rect x="52" y="-8" width="96" height="70" rx="6" fill="url(#cart)"/>
+  <g stroke="#7b7b85" stroke-linecap="round"><path d="M60 8h80M60 14h80M60 20h80"/></g>
+  <rect x="62" y="28" width="76" height="28" rx="3" fill="#9a9aa4"/>
+  <rect x="52" y="60" width="96" height="10" rx="3" fill="#56565f"/>
+  <!-- power and reset sliders -->
+  <rect x="14" y="104" width="64" height="34" rx="12" fill="#c0c0c8"/>
+  <rect x="18" y="108" width="40" height="26" rx="10" fill="url(#lav)"/>
+  <rect x="18" y="108" width="40" height="8" rx="4" fill="#fff" fill-opacity=".3"/>
+  <rect x="122" y="104" width="64" height="34" rx="12" fill="#c0c0c8"/>
+  <rect x="142" y="108" width="40" height="26" rx="10" fill="url(#lav)"/>
+  <rect x="142" y="108" width="40" height="8" rx="4" fill="#fff" fill-opacity=".3"/>
+  <!-- eject -->
+  <rect x="82" y="96" width="36" height="16" rx="6" fill="url(#purple)"/>
+  <rect x="82" y="96" width="36" height="5" rx="2.5" fill="#fff" fill-opacity=".25"/>
+  <!-- ridges and LED -->
+  <g stroke="#b5b5be" stroke-width="2" stroke-linecap="round"><path d="M18 160h126M18 170h126M18 180h126"/></g>
+  <g stroke="#fff" stroke-linecap="round"><path d="M18 162h126M18 172h126M18 182h126"/></g>
+  <circle cx="100" cy="146" r="2.6" fill="#e53935"/>
+  <!-- the four colours of the EU / Super Famicom buttons -->
+  <g transform="translate(166 172)">
+    <circle cx="0" cy="-11" r="7" fill="#1e5fd8"/><circle cx="11" cy="0" r="7" fill="#d62d2d"/>
+    <circle cx="-11" cy="0" r="7" fill="#22a052"/><circle cx="0" cy="11" r="7" fill="#f2c318"/>
+    <g fill="#fff" fill-opacity=".35"><circle cx="-2" cy="-13" r="2.2"/><circle cx="9" cy="-2" r="2.2"/><circle cx="-13" cy="-2" r="2.2"/><circle cx="-2" cy="9" r="2.2"/></g>
+  </g>
+</svg>

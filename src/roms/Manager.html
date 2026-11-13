@@ -1,0 +1,571 @@
+<script :setup="{ systems, initialSystem, initialGame, roms, library, input, persistent, requestPersistence, exit }">
+  // The ROM manager, in ROM Manager's own look (wasm-gaming/rom-manager): a header,
+  // the LIBRARY tree on the left (systems as folders, games inside, mods waiting for
+  // a game), and a details pane with one card for what the tree has selected.
+  //
+  // The tree is the selection: moving through it (pad, keys or mouse) shows each
+  // row's card. A on a game steps into its card, whose rows (versions, mods) take A
+  // to play and Y for options; B steps back out. engine-specs UX.md throughout.
+
+  let expanded = Object.fromEntries(systems.filter((s) => s.ready).map((s) => [s.id, true]))
+  let selected = null       // tree key: 'sys:<id>' | 'game:<sys>:<id>' | 'mod:<sys>:<sha1>' | 'loose:<sys>'
+  let zone = 'tree'         // 'tree' | 'card'
+  let cardFocus = 0
+  let query = ''
+  let overlay = null        // { kind: 'confirm' | 'menu' | 'rename' | 'picker', … }
+  let busy = false
+  let message = null
+  let dragging = false
+  let isPersistent = await persistent
+  // ROM Manager's region preference: which box to show when a game has several.
+  let region = (() => { try { return localStorage.getItem('roms-region') || 'EU' } catch { return 'EU' } })()
+  let shownCover = null     // { key, url, region } for the game on screen
+  const REGION_LIST = ['EU', 'US', 'JP']
+
+  for (const s of systems) if (s.ready) await library.load(s.id)
+
+  const first = systems.find((s) => s.id === initialSystem && s.ready) ?? systems.find((s) => s.ready)
+  selected = first ? (initialGame && roms[first.id]?.games.some((g) => g.id === initialGame) ? `game:${first.id}:${initialGame}` : `sys:${first.id}`) : null
+
+  // ---- the tree, flattened ------------------------------------------------------------
+  // One list of visible rows: what the pad walks and what the template draws.
+  $: tree = systems.flatMap((s) => {
+      const v = roms[s.id] ?? { games: [], unassigned: [] }
+      const games = v.games.filter((g) => !query || g.title.toLowerCase().includes(query.toLowerCase()))
+      const rows = [{ key: `sys:${s.id}`, kind: 'sys', depth: 0, s, count: v.games.length }]
+      if (!s.ready || !expanded[s.id]) return rows
+      for (const g of games) rows.push({ key: `game:${s.id}:${g.id}`, kind: 'game', depth: 1, s, g })
+      if (v.unassigned?.length) {
+        rows.push({ key: `loose:${s.id}`, kind: 'loose', depth: 1, s, count: v.unassigned.length })
+        if (expanded[`loose:${s.id}`] !== false) for (const m of v.unassigned) rows.push({ key: `mod:${s.id}:${m.sha1}`, kind: 'mod', depth: 2, s, m })
+      }
+      return rows
+    })
+  $: row = tree.find((r) => r.key === selected) ?? null
+  $: system = row?.s ?? first
+  $: view = roms[system?.id] ?? { games: [], unassigned: [], core: null }
+  $: game = row?.kind === 'game' ? view.games.find((g) => g.id === row.g.id) ?? null : null
+  $: looseMod = row?.kind === 'mod' ? view.unassigned.find((m) => m.sha1 === row.m.sha1) ?? null : null
+  // The card's own rows (versions, mods, add) — what A / Y act on inside a game.
+  $: cardRows = game ? [
+      ...game.versions.map((v, i) => ({ kind: 'version', key: v.sha1, v, newest: i === 0 })),
+      ...game.mods.map((m, i) => ({ kind: 'mod', key: m.sha1, m, first: i === 0 })),
+      { kind: 'add', key: 'add' },
+    ] : []
+  $: totals = system && library.totals(system.id)
+
+  // ---- helpers ------------------------------------------------------------------------
+  const mb = (bytes) => bytes < 1048576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1048576).toFixed(1)} MB`
+  const date = (ms) => ms ? new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  const versionLabel = (v) => v.dat ? v.dat.key : v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
+  const initials = (title) => title.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const STATUS = {
+    verified: ['Verificado', 'Hecho para una de tus versiones: se comprueba al cargar'],
+    unverified: ['Sin verificar', 'IPS no lleva suma de control: se aplica a la versión elegida'],
+    mismatch: ['No coincide', 'Hecho para otra versión de la ROM, que no tienes'],
+  }
+  const coreLabel = (id) => system?.cores.find((c) => c.id === id)?.label ?? id
+  const targetOf = (m) => game && m.status === 'verified' ? library.versionForMod(m, game) : null
+  const modTarget = (m) => targetOf(m) ? `sobre ${versionLabel(targetOf(m))}` : m.status === 'mismatch' ? `para CRC ${library.hex(m.sourceCrc).toUpperCase()}` : 'sobre la versión más reciente'
+  const say = (text) => {
+    message = text
+    clearTimeout(say.timer)
+    say.timer = setTimeout(() => { message = null }, 5000)
+  }
+  const reveal = () => setTimeout(() => $self('.is-focus')?.scrollIntoView({ block: 'nearest' }), 0)
+
+  // ---- play ---------------------------------------------------------------------------
+  const go = (url) => location.assign(url)
+  const playVersion = (g, v) => go(`/${system.slug}/?${new URLSearchParams({ game: g.id, version: v.sha1.slice(0, 8) })}`)
+  const playMod = (g, m) => {
+    if (m.status === 'mismatch') return say(`«${m.name}» es para otra versión de la ROM: añade esa versión para jugarlo.`)
+    const v = library.versionForMod(m, g)
+    go(`/${system.slug}/?${new URLSearchParams({ game: g.id, version: v.sha1.slice(0, 8), patch: m.sha1.slice(0, 8) })}`)
+  }
+
+  // ---- import -------------------------------------------------------------------------
+  const addFiles = async (files) => {
+    if (!files?.length || !system?.ready) return
+    busy = true
+    try {
+      const r = await library.importFiles(system.id, [...files], { gameId: game?.id ?? null })
+      const parts = []
+      if (r.added.length) parts.push(`${r.added.length} ROM${r.added.length > 1 ? 's' : ''} añadida${r.added.length > 1 ? 's' : ''}`)
+      for (const m of r.mods) {
+        const owner = m.gameId ? view.games.find((g) => g.id === m.gameId)?.title : null
+        parts.push(owner ? `mod «${m.name}» → ${owner}${m.status === 'verified' ? ' ✓' : ''}` : `mod «${m.name}» sin asignar`)
+      }
+      if (r.duplicates.length) parts.push(`${r.duplicates.length} ya estaba${r.duplicates.length > 1 ? 'n' : ''}`)
+      if (r.rejected.length) parts.push(`no reconocido: ${r.rejected.join(', ')}`)
+      say(parts.join(' · ') || 'Nada que añadir')
+      setTimeout(refreshCover, 0)
+      isPersistent = (await navigator.storage?.persisted?.()) ?? false
+    } catch (e) {
+      say(e.message ?? String(e))
+    } finally {
+      busy = false
+    }
+  }
+  const pick = () => $self('input.pick-any')?.click()
+  const onPicked = (event) => {
+    addFiles(event.target.files)
+    event.target.value = ''
+  }
+  const onDragOver = () => { dragging = true }
+  const onDragLeave = (event) => { if (!event.relatedTarget || !$self('.rm')?.contains(event.relatedTarget)) dragging = false }
+  const onDrop = (event) => {
+    dragging = false
+    addFiles(event.dataTransfer?.files)
+  }
+
+  // ---- overlays -----------------------------------------------------------------------
+  const confirmThen = (title, text, yes, run) => { overlay = { kind: 'confirm', title, text, yes, run, focus: 0 } }
+  const menu = (title, items) => { overlay = { kind: 'menu', title, items, focus: 0 } }
+  const rename = (title, value, run) => {
+    overlay = { kind: 'rename', title, value, run }
+    setTimeout(() => $self('.rename-input')?.select(), 30)
+  }
+  const assign = (m) => {
+    if (!view.games.length) return say('Añade antes la ROM del juego al que pertenece el mod.')
+    overlay = { kind: 'picker', mod: m, focus: 0 }
+  }
+  const closeOverlay = () => { overlay = null }
+  const runConfirm = async () => {
+    const o = overlay
+    overlay = null
+    await o.run()
+  }
+  const runMenu = async (item) => {
+    if (item.disabled) return
+    overlay = null
+    await item.run()
+  }
+  const submitRename = async () => {
+    const o = overlay
+    const value = $self('.rename-input')?.value ?? o.value
+    overlay = null
+    await o.run(value)
+  }
+  const assignTo = async (g) => {
+    const m = overlay.mod
+    overlay = null
+    await library.assignMod(system.id, m.sha1, g.id)
+    say(`«${m.name}» → ${g.title}`)
+    selected = `game:${system.id}:${g.id}`
+    setTimeout(refreshCover, 0)
+  }
+
+  // ---- row actions --------------------------------------------------------------------
+  const removeVersion = (v) =>
+    confirmThen(`¿Quitar ${versionLabel(v)}?`, 'Se borra el archivo de la biblioteca. Las partidas guardadas se conservan.', 'Quitar', async () => {
+      const last = game.versions.length === 1
+      await library.removeVersion(system.id, game.id, v.sha1)
+      if (last) { selected = `sys:${system.id}`; zone = 'tree' }
+      cardFocus = Math.min(cardFocus, Math.max(0, cardRows.length - 1))
+    })
+  const removeMod = (m) =>
+    confirmThen(`¿Quitar «${m.name}»?`, 'Se borra el mod. Las partidas jugadas con él se conservan.', 'Quitar', async () => {
+      const wasLoose = !!looseMod
+      await library.removeMod(system.id, m.sha1)
+      if (wasLoose) selected = `sys:${system.id}`
+      cardFocus = Math.min(cardFocus, Math.max(0, cardRows.length - 1))
+    })
+  const modMenu = (m) => menu(m.name, [
+    { label: 'Jugar con el mod', disabled: m.status === 'mismatch', run: () => playMod(game, m) },
+    { label: 'Renombrar…', run: () => rename('Nombre del mod', m.name, (name) => library.renameMod(system.id, m.sha1, name)) },
+    { label: 'Pasar a otro juego…', run: () => assign(m) },
+    { label: 'Dejar sin asignar', run: () => library.assignMod(system.id, m.sha1, null) },
+    { label: 'Quitar', danger: true, run: () => removeMod(m) },
+  ])
+  const renameGame = () => rename('Nombre del juego', game.title, (title) => library.renameGame(system.id, game.id, title))
+  const cardAccept = (r) => {
+    if (r.kind === 'version') return playVersion(game, r.v)
+    if (r.kind === 'mod') return playMod(game, r.m)
+    return pick()
+  }
+  const cardMore = (r) => {
+    if (r.kind === 'version') return removeVersion(r.v)
+    if (r.kind === 'mod') return modMenu(r.m)
+    return menu(game.title, [{ label: 'Renombrar…', run: renameGame }, { label: 'Añadir un mod…', run: pick }])
+  }
+  const setGameCore = (event) => library.setCore(system.id, event.target.value || null, game.id)
+  const setConsoleCore = (event) => library.setCore(system.id, event.target.value)
+  const persist = async () => {
+    isPersistent = await requestPersistence()
+    say(isPersistent ? 'El navegador no borrará tu biblioteca por falta de espacio.' : 'El navegador no ha concedido el almacenamiento persistente.')
+  }
+
+  // ---- covers -------------------------------------------------------------------------
+  // The selected game's box, in the preferred region (from OPFS, or fetched once).
+  const refreshCover = async () => {
+    const [kind, sys, ...rest] = (selected ?? '').split(':')
+    if (kind !== 'game') return
+    const g = roms[sys]?.games.find((x) => x.id === rest.join(':'))
+    if (!g) return
+    const key = `${sys}:${g.id}:${region}:${g.versions.length}`
+    if (shownCover?.key === key) return
+    const found = await library.coverOf(sys, g, region)
+    if (selected !== `game:${sys}:${g.id}`) return
+    if (shownCover?.url) URL.revokeObjectURL(shownCover.url)
+    shownCover = found ? { key, url: found.url, region: found.region } : { key, url: null, region: null }
+  }
+  const setRegion = (r) => {
+    region = r
+    try { localStorage.setItem('roms-region', r) } catch {}
+    refreshCover()
+  }
+  const regionsOfVersion = (v) => v.dat?.regions ?? []
+  const inCatalog = (g) => g.versions.some((v) => v.dat)
+
+  // ---- tree ---------------------------------------------------------------------------
+  const select = (key) => {
+    selected = key
+    zone = 'tree'
+    cardFocus = 0
+    setTimeout(refreshCover, 0)
+    const r = tree.find((x) => x.key === key)
+    if (r?.kind === 'game') history.replaceState(null, '', `?system=${r.s.id}&game=${encodeURIComponent(r.g.id)}`)
+    else if (r) history.replaceState(null, '', `?system=${r.s.id}`)
+  }
+  const isOpen = (r) => r.kind === 'sys' ? r.s.ready && !!expanded[r.s.id] : expanded[r.key] !== false
+  const toggle = (r) => {
+    if (r.kind === 'sys' && !r.s.ready) return say(`${r.s.title} llegará pronto.`)
+    const id = r.kind === 'sys' ? r.s.id : r.key
+    expanded = { ...expanded, [id]: !isOpen(r) }
+  }
+  const clickRow = (r) => {
+    select(r.key)
+    if (r.kind === 'sys' || r.kind === 'loose') toggle(r)
+  }
+  const enterCard = () => {
+    if (game) {
+      zone = 'card'
+      cardFocus = 0
+    } else if (looseMod) assign(looseMod)
+  }
+
+  // ---- input --------------------------------------------------------------------------
+  const onOverlay = (action) => {
+    const o = overlay
+    if (action === 'back') return closeOverlay()
+    if (o.kind === 'rename') return
+    const count = o.kind === 'confirm' ? 2 : o.kind === 'menu' ? o.items.length : view.games.length
+    if (action === 'up' || action === 'left') o.focus = Math.max(0, o.focus - 1)
+    else if (action === 'down' || action === 'right') o.focus = Math.min(count - 1, o.focus + 1)
+    else if (action === 'accept') {
+      if (o.kind === 'confirm') return o.focus === 1 ? runConfirm() : closeOverlay()
+      if (o.kind === 'menu') return runMenu(o.items[o.focus])
+      if (o.kind === 'picker') return assignTo(view.games[o.focus])
+    }
+    overlay = { ...o }
+  }
+
+  const off = input.on((action) => {
+    if (busy) return
+    if (overlay) return onOverlay(action)
+    if (zone === 'card') {
+      if (action === 'back' || action === 'left') zone = 'tree'
+      else if (action === 'up') cardFocus = Math.max(0, cardFocus - 1)
+      else if (action === 'down') cardFocus = Math.min(cardRows.length - 1, cardFocus + 1)
+      else if (action === 'accept') cardAccept(cardRows[cardFocus])
+      else if (action === 'more') cardMore(cardRows[cardFocus])
+      reveal()
+      return
+    }
+    const at = Math.max(0, tree.findIndex((r) => r.key === selected))
+    const r = tree[at]
+    if (!r) return action === 'back' ? exit() : undefined
+    if (action === 'up' && at > 0) select(tree[at - 1].key)
+    else if (action === 'down' && at < tree.length - 1) select(tree[at + 1].key)
+    else if (action === 'right') {
+      if ((r.kind === 'sys' || r.kind === 'loose') && !isOpen(r)) toggle(r)
+      else if (r.kind === 'game') enterCard()
+    } else if (action === 'left') {
+      if ((r.kind === 'sys' || r.kind === 'loose') && isOpen(r)) toggle(r)
+      else if (r.depth > 0) {
+        const parent = tree.slice(0, at).reverse().find((x) => x.depth < r.depth)
+        if (parent) select(parent.key)
+      }
+    } else if (action === 'accept') {
+      if (r.kind === 'sys' || r.kind === 'loose') toggle(r)
+      else enterCard()
+    } else if (action === 'more') {
+      if (r.kind === 'mod') removeMod(looseMod)
+      else pick()
+    } else if (action === 'back') exit()
+    reveal()
+  })
+  $destroyed(off)
+
+  const onKeyRename = (event) => {
+    if (event.key === 'Enter') submitRename()
+  }
+  const setQuery = (event) => { query = event.target.value }
+  const hoverCard = (j) => {
+    if (zone === 'card') cardFocus = j
+  }
+  const rowName = (r) => r.kind === 'sys' ? r.s.title : r.kind === 'game' ? r.g.title : r.kind === 'loose' ? 'Mods sin asignar' : r.m.name
+  setTimeout(refreshCover, 0)
+  const hintA = () => zone === 'card' ? 'jugar' : game ? 'entrar' : looseMod ? 'asignar' : 'abrir'
+  const hintY = () => zone === 'card' ? 'opciones' : looseMod ? 'quitar' : 'añadir'
+</script>
+
+<div class="rm" :class.is-dragging="dragging" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
+  <header class="rm-header">
+    <div class="rm-header-left">
+      <button class="rm-title" title="Volver al lanzador" @click="exit()">
+        <svg class="rm-logo" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="15" height="11" rx="1.6" fill="var(--icon-paper)" transform="rotate(-8 10 10)"/>
+          <rect x="6" y="8" width="15" height="12" rx="1.8" fill="var(--slab-ink)"/>
+          <rect x="8" y="10" width="11" height="5" rx=".8" fill="var(--accent)"/>
+          <rect x="8" y="16.2" width="6" height="1.6" rx=".6" fill="var(--warn)"/>
+        </svg>
+        <h1>Biblioteca</h1>
+      </button>
+      <button class="rm-icon-btn" title="Volver al lanzador" @click="exit()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="rm-header-right">
+      <label class="rm-search">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15 15 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="search" placeholder="Buscar juego" :value="query" @input="setQuery" />
+      </label>
+      <div class="header-regions" role="group" aria-label="Región de las carátulas">
+        <button :each="r in REGION_LIST" :key="r" class="header-region" :class.on="region === r" @click="setRegion(r)">{{ r }}</button>
+      </div>
+      <button class="btn-primary" :disabled="busy || !system?.ready" @click="pick()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <span class="label">{{ busy ? 'Añadiendo…' : 'Añadir ROMs y mods' }}</span>
+      </button>
+      <input class="pick-any" type="file" multiple hidden :accept="[...(system?.accept ?? []), '.ips', '.bps', '.ups'].join(',')" @change="onPicked" />
+    </div>
+  </header>
+
+  <div class="rm-body">
+    <aside class="rm-tree">
+      <div class="rm-tree-head">
+        <span>Biblioteca</span>
+        <button class="rm-icon-btn is-small" title="Añadir ROMs y mods" @click="pick()">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <ul class="rm-tree-body">
+        <li :each="r in tree" :key="r.key" class="tree-item" :data-kind="r.kind" :data-depth="r.depth"
+            :class.selected="selected === r.key" :class.active="selected === r.key && zone === 'tree'" :class.is-focus="selected === r.key && zone === 'tree' && !overlay"
+            :class.muted="r.kind === 'sys' && !r.s.ready" @click="clickRow(r)">
+          <span class="tree-caret">
+            <svg :if="r.kind === 'sys' || r.kind === 'loose'" viewBox="0 0 24 24" :class.open="isOpen(r)"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="tree-icon">
+            <span :if="r.kind === 'sys'" class="system-folder-icon">
+              <svg viewBox="0 0 24 24"><path d="M2.4 6.6a1.6 1.6 0 0 1 1.6-1.6h4.5c.44 0 .86.18 1.16.5l1.5 1.6H20a1.6 1.6 0 0 1 1.6 1.6v9.1a1.6 1.6 0 0 1-1.6 1.6H4a1.6 1.6 0 0 1-1.6-1.6z" fill="var(--icon-folder-back)"/><path d="M2.4 9.6h19.2v8.2a1.6 1.6 0 0 1-1.6 1.6H4a1.6 1.6 0 0 1-1.6-1.6z" fill="var(--icon-folder)"/></svg>
+              <img :if="r.s.art" class="system-folder-badge" :src="r.s.art" alt="" />
+            </span>
+            <svg :elseif="r.kind === 'game'" viewBox="0 0 24 24">
+              <path d="M2.5 12.8c0-3.8 4-7.3 9.5-7.3s9.5 3.5 9.5 7.3c0 2.2-1.3 4.2-3.2 4.2-1.6 0-2.6-1.1-3.5-2.2l-.6-.8c-.5-.6-1.2-.9-1.9-.9s-1.4.3-1.9.9l-.6.8c-.9 1.1-1.9 2.2-3.5 2.2-1.9 0-3.3-2-3.3-4.2z" fill="var(--icon-pad)"/>
+              <circle cx="7.2" cy="12" r="3.2" fill="#0f172a" opacity=".4"/><rect x="6.2" y="9.8" width="2" height="4.4" rx=".5" fill="var(--icon-pad-mark)"/><rect x="5" y="11" width="4.4" height="2" rx=".5" fill="var(--icon-pad-mark)"/>
+              <rect x="11" y="8.2" width="1.8" height="2.8" rx=".5" fill="#ef4444" transform="rotate(-15 11.9 9.6)"/>
+              <circle cx="14.8" cy="13.2" r="1.25" fill="#cbd5e1"/><circle cx="17.2" cy="12.1" r="1.25" fill="#cbd5e1"/><circle cx="19.5" cy="11" r="1.25" fill="#cbd5e1"/>
+            </svg>
+            <svg :elseif="r.kind === 'loose'" viewBox="0 0 24 24"><path d="M2.4 6.6a1.6 1.6 0 0 1 1.6-1.6h4.5c.44 0 .86.18 1.16.5l1.5 1.6H20a1.6 1.6 0 0 1 1.6 1.6v9.1a1.6 1.6 0 0 1-1.6 1.6H4a1.6 1.6 0 0 1-1.6-1.6z" fill="var(--icon-folder-back)"/><path d="M2.4 9.6h19.2v8.2a1.6 1.6 0 0 1-1.6 1.6H4a1.6 1.6 0 0 1-1.6-1.6z" fill="var(--warn)"/></svg>
+            <svg :else viewBox="0 0 24 24"><path d="M6.2 2.4h7.1L19.2 8.3v11.9a1.5 1.5 0 0 1-1.5 1.5H6.2a1.5 1.5 0 0 1-1.5-1.5V3.9a1.5 1.5 0 0 1 1.5-1.5z" fill="var(--icon-paper)"/><path d="M13.3 2.4 19.2 8.3h-4.4a1.5 1.5 0 0 1-1.5-1.5z" fill="var(--icon-paper-fold)"/><path d="M8 13h8M8 16h5" stroke="var(--warn-ink)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </span>
+          <span class="tree-name">{{ rowName(r) }}</span>
+          <span class="tree-marks">
+            <span :if="r.kind === 'sys' && !r.s.ready" class="tree-note">pronto</span>
+            <span :elseif="r.kind === 'sys'" class="tree-count">{{ r.count }}</span>
+            <span :elseif="r.kind === 'loose'" class="tree-count is-warn">{{ r.count }}</span>
+            <span :elseif="r.kind === 'mod'" class="tag video">{{ r.m.format.toUpperCase() }}</span>
+            <span :if="r.kind === 'game' && r.g.versions.length > 1" class="tree-count">{{ r.g.versions.length }}</span>
+            <span :if="r.kind === 'game' && r.g.mods.length" class="tag is-mod">{{ r.g.mods.length }} mod{{ r.g.mods.length === 1 ? '' : 's' }}</span>
+          </span>
+        </li>
+      </ul>
+      <footer class="rm-tree-foot">
+        <span :if="totals">{{ totals.games }} juegos · {{ totals.versions }} ROMs · {{ totals.mods }} mods · {{ mb(totals.bytes) }}</span>
+        <button class="btn-inline" :class.is-ok="isPersistent" @click="persist()">{{ isPersistent ? 'Persistente ✓' : 'Hacer persistente' }}</button>
+      </footer>
+    </aside>
+
+    <main class="rm-details" :class.drop-target="dragging">
+      <article :if="game" class="rom-info">
+        <div class="rom-info-hero">
+          <figure class="rom-info-cover-figure">
+            <div class="rom-info-cover-wrapper" :class.landscape="system.boxart === '4 / 3'" :style="`aspect-ratio: ${system.boxart}`">
+              <img :if="shownCover?.url && shownCover.key.startsWith(`${system.id}:${game.id}:`)" class="rom-info-cover" :src="shownCover.url" alt="" />
+              <div :else class="rom-info-cover placeholder">{{ initials(game.title) }}</div>
+            </div>
+            <figcaption class="rom-info-cover-region">{{ shownCover?.url && shownCover.key.startsWith(`${system.id}:${game.id}:`) ? `${shownCover.region} box` : 'Sin carátula' }}</figcaption>
+          </figure>
+          <div class="rom-info-heading">
+            <h2>{{ game.title }}</h2>
+            <p class="rom-info-system">{{ system.title }}</p>
+            <div class="rom-info-tags">
+              <span :if="inCatalog(game)" class="tag status-complete">En el catálogo</span>
+              <span :else class="tag status-partial" title="Ninguna versión está en los DAT de No-Intro: homebrew, hack o volcado sin catalogar">Fuera del catálogo</span>
+              <span class="tag">{{ game.versions.length }} versi{{ game.versions.length === 1 ? 'ón' : 'ones' }}</span>
+              <span :if="game.mods.length" class="tag">{{ game.mods.length }} mod{{ game.mods.length === 1 ? '' : 's' }}</span>
+            </div>
+            <div class="rom-info-actions">
+              <button class="btn-primary" @click="playVersion(game, game.versions[0])">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg> Jugar
+              </button>
+              <button class="btn-inline" @click="renameGame()">Renombrar…</button>
+              <label class="core-select">Motor
+                <select :value="game.core ?? ''" @change="setGameCore">
+                  <option value="">Como la consola ({{ coreLabel(view.core ?? system.engine) }})</option>
+                  <option :each="c in system.cores" :key="c.id" :value="c.id" :disabled="c.available === false">{{ c.label }}</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="variants-title">Versiones</h3>
+        <ul class="variants">
+          <li :each="r, j in cardRows" :key="r.key" class="variant" :data-kind="r.kind" :data-first="r.first ? 'mods' : null"
+              :class.is-focus="zone === 'card' && cardFocus === j && !overlay"
+              :class.status-partial="r.kind === 'mod' && r.m.status === 'unverified'" :class.status-missing="r.kind === 'mod' && r.m.status === 'mismatch'"
+              @mouseenter="hoverCard(j)">
+            <div :if="r.kind === 'version'" class="variant-heading">
+              <span class="variant-mark">●</span>
+              <span class="variant-key">{{ versionLabel(r.v) }}<small :if="r.newest" class="variant-note"> · la más reciente</small></span>
+              <span class="variant-support">
+                <span :each="g in regionsOfVersion(r.v)" :key="g" class="tag region">{{ g }}</span>
+                <span :each="vs in (r.v.dat?.video ?? [])" :key="vs" class="tag video">{{ vs }}</span>
+                <span :if="!r.v.dat && r.v.serial" class="tag region">{{ r.v.serial }}</span>
+                <span :if="!r.v.dat && r.v.revision && r.v.revision !== '00'" class="tag video">REV {{ r.v.revision }}</span>
+              </span>
+            </div>
+            <div :if="r.kind === 'version'" class="variant-file">
+              <span class="file-chip" :title="`SHA-1 ${r.v.sha1}`">{{ r.v.dat ? r.v.dat.name : `${r.v.sha1.slice(0, 10)}${r.v.file.slice(r.v.file.lastIndexOf('.'))}` }}</span>
+              <span class="variant-file-crc">{{ r.v.crc32 != null ? library.hex(r.v.crc32).toUpperCase() : '' }}</span>
+              <span class="variant-file-size">{{ mb(r.v.size) }}</span>
+              <button class="btn-inline is-play" @click="playVersion(game, r.v)">Jugar</button>
+              <button class="tree-remove" title="Quitar esta versión" @click="removeVersion(r.v)">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+
+            <div :if="r.kind === 'mod'" class="variant-heading">
+              <span class="variant-mark">●</span>
+              <span class="variant-key">{{ r.m.name }}</span>
+              <span class="variant-support">
+                <span class="tag video">{{ r.m.format.toUpperCase() }}</span>
+                <span class="tag" :class.status-complete="r.m.status === 'verified'" :class.status-partial="r.m.status === 'unverified'" :class.status-missing="r.m.status === 'mismatch'" :title="STATUS[r.m.status][1]">{{ STATUS[r.m.status][0] }}</span>
+              </span>
+            </div>
+            <div :if="r.kind === 'mod'" class="variant-file">
+              <span class="variant-file-target">{{ modTarget(r.m) }}</span>
+              <span class="variant-file-size">{{ mb(r.m.size) }}</span>
+              <button class="btn-inline is-play" :disabled="r.m.status === 'mismatch'" @click="playMod(game, r.m)">Jugar</button>
+              <button class="tree-remove" title="Opciones del mod" @click="modMenu(r.m)">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
+              </button>
+            </div>
+
+            <button :if="r.kind === 'add'" class="variant-add" @click="pick()">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Añadir un mod <small>.ips, .bps o .ups (también en .zip), o suéltalo aquí</small>
+            </button>
+          </li>
+        </ul>
+        <p class="rom-info-note">Los mods se aplican al cargar, sobre una copia en memoria: la ROM guardada no se toca y cada mod guarda sus partidas aparte. Los BPS y UPS dicen para qué ROM son; un IPS no, así que va «sin verificar».</p>
+      </article>
+
+      <article :elseif="looseMod" class="rom-info">
+        <div class="rom-info-heading">
+          <h2>{{ looseMod.name }}</h2>
+          <p class="rom-info-system">Mod sin asignar · {{ system.title }}</p>
+          <div class="rom-info-tags">
+            <span class="tag video">{{ looseMod.format.toUpperCase() }}</span>
+            <span class="tag status-partial">Sin asignar</span>
+          </div>
+        </div>
+        <dl class="kv">
+          <dt>Tamaño</dt><dd>{{ mb(looseMod.size) }}</dd>
+          <dt>Hecho para</dt><dd>{{ looseMod.sourceCrc != null ? `una ROM con CRC32 ${library.hex(looseMod.sourceCrc).toUpperCase()}` : 'no lo dice (IPS)' }}</dd>
+          <dt>Añadido</dt><dd>{{ date(looseMod.addedAt) }}</dd>
+        </dl>
+        <p class="rom-info-note">{{ looseMod.sourceCrc != null ? 'Ninguna de tus ROMs es la que este mod espera. Añádela y se enganchará sola, o asígnalo a mano.' : 'Un IPS no dice para qué juego es: elige tú a cuál pertenece.' }}</p>
+        <div class="rom-info-actions">
+          <button class="btn-primary" @click="assign(looseMod)">Asignar a un juego…</button>
+          <button class="btn-inline btn-danger" @click="removeMod(looseMod)">Quitar</button>
+        </div>
+      </article>
+
+      <section :elseif="system" class="system-details">
+        <div class="system-hero">
+          <div class="system-logo-wrapper"><img :if="system.art" :src="system.art" alt="" /></div>
+          <h2>{{ system.title }}</h2>
+          <div class="rom-info-tags">
+            <span :if="!system.ready" class="tag status-missing">Pronto</span>
+            <span :if="system.ready" class="tag status-complete">{{ view.games.length }} juego{{ view.games.length === 1 ? '' : 's' }}</span>
+            <span :if="system.ready && totals" class="tag">{{ totals.versions }} ROMs</span>
+            <span :if="system.ready && totals?.mods" class="tag">{{ totals.mods }} mods</span>
+          </div>
+        </div>
+        <div :if="system.ready" class="system-section">
+          <h4>Motor por defecto</h4>
+          <label class="core-select">
+            <select :value="view.core ?? system.engine" @change="setConsoleCore">
+              <option :each="c in system.cores" :key="c.id" :value="c.id" :disabled="c.available === false">{{ c.label }}{{ c.available === false ? ' (pronto)' : '' }}</option>
+            </select>
+            <span>Cada juego puede elegir otro en su ficha.</span>
+          </label>
+        </div>
+        <div :if="system.ready" class="system-section">
+          <h4>Qué puedes añadir</h4>
+          <div class="ext-list">
+            <span :each="e in system.accept" :key="e" class="ext">{{ e }}</span>
+            <span class="ext is-mod">.ips</span><span class="ext is-mod">.bps</span><span class="ext is-mod">.ups</span>
+          </div>
+          <p>Suelta los archivos en cualquier parte de la página, o usa <b>Añadir ROMs y mods</b>. Las versiones de un juego se agrupan; cada mod se engancha a la versión para la que se hizo.</p>
+        </div>
+        <div :if="!system.ready" class="system-section"><p>{{ system.title }} llegará cuando su motor esté en el contrato 1.0.</p></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="rm-hints">
+    <span><kbd>↑↓</kbd>moverse</span>
+    <span><kbd>A</kbd>{{ hintA() }}</span>
+    <span><kbd>Y</kbd>{{ hintY() }}</span>
+    <span><kbd>B</kbd>{{ zone === 'card' ? 'volver al árbol' : 'salir' }}</span>
+  </footer>
+
+  <p :if="message" class="rm-toast" role="status">{{ message }}</p>
+
+  <div :if="overlay" class="rm-scrim" @click.self="closeOverlay()">
+    <section :if="overlay.kind === 'confirm'" class="modal">
+      <header class="modal-header"><h3>{{ overlay.title }}</h3></header>
+      <div class="modal-body"><p>{{ overlay.text }}</p></div>
+      <footer class="modal-footer">
+        <button class="btn-inline" :class.is-focus="overlay.focus === 0" @click="closeOverlay()">Cancelar</button>
+        <button class="btn-primary is-danger" :class.is-focus="overlay.focus === 1" @click="runConfirm()">{{ overlay.yes }}</button>
+      </footer>
+    </section>
+    <section :elseif="overlay.kind === 'menu'" class="modal">
+      <header class="modal-header"><h3>{{ overlay.title }}</h3></header>
+      <div class="modal-body is-list">
+        <button :each="item, k in overlay.items" :key="item.label" class="menu-item" :class.is-danger="item.danger" :class.is-focus="overlay.focus === k" :disabled="item.disabled" @click="runMenu(item)">{{ item.label }}</button>
+      </div>
+    </section>
+    <section :elseif="overlay.kind === 'picker'" class="modal">
+      <header class="modal-header"><h3>¿De qué juego es «{{ overlay.mod.name }}»?</h3></header>
+      <div class="modal-body is-list">
+        <p :if="overlay.mod.sourceCrc != null" class="modal-note">Se hizo para una ROM con CRC32 {{ library.hex(overlay.mod.sourceCrc).toUpperCase() }}. Si la añades, se enganchará sola.</p>
+        <button :each="g, k in view.games" :key="g.id" class="menu-item" :class.is-focus="overlay.focus === k" @click="assignTo(g)">{{ g.title }}</button>
+      </div>
+    </section>
+    <section :elseif="overlay.kind === 'rename'" class="modal">
+      <header class="modal-header"><h3>{{ overlay.title }}</h3></header>
+      <div class="modal-body"><input class="rename-input" type="text" :value="overlay.value" @keydown="onKeyRename" /></div>
+      <footer class="modal-footer">
+        <button class="btn-inline" @click="closeOverlay()">Cancelar</button>
+        <button class="btn-primary" @click="submitRename()">Guardar</button>
+      </footer>
+    </section>
+  </div>
+</div>

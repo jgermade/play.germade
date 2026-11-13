@@ -1,0 +1,47 @@
+<script :setup="{ game, installed, roms }">
+  $: action = !game ? ''
+    : game.kind === 'emulator' ? 'Abrir biblioteca'
+    : game.status !== 'ready' ? 'Próximamente'
+    : installed ? 'Jugar' : 'Instalar'
+  $: disabled = game?.kind === 'game' && game.status !== 'ready'
+  $: romGames = game?.system ? roms?.[game.system]?.games?.length ?? 0 : 0
+  $: kicker = !game ? ''
+    : game.kind === 'emulator' ? (game.kicker ?? 'Emulador')
+    : 'Retro moderno'
+  $: chips = !game ? [] : [
+      game.year ? String(game.year) : null,
+      game.kind === 'emulator' ? `${romGames} juego${romGames === 1 ? '' : 's'}` : null,
+      `motor ${game.engine}`,
+    ].filter(Boolean)
+  const initials = (title) => title.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+</script>
+
+<section class="hero" :if="game" :style="`--accent: ${game.accent ?? '#334155'}`">
+  <div class="hero-body">
+    <p class="hero-kicker"><span class="dot"></span>{{ kicker }}</p>
+    <h1 class="hero-title">{{ game.title }}</h1>
+    <ul class="hero-chips">
+      <li :each="chip in chips" :key="chip">{{ chip }}</li>
+      <li :if="installed && game.kind === 'game'" class="is-ok">Instalado</li>
+      <li :if="game.status !== 'ready'" class="is-soon">Próximamente</li>
+    </ul>
+    <p class="hero-desc">{{ game.description }}</p>
+    <div class="hero-actions">
+      <button class="cta" :disabled="disabled" @click="$emit('open')">
+        <svg :if="action === 'Jugar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.2v11.6L15.6 10z"/></svg>
+        <svg :elseif="action === 'Instalar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0l-3.6-3.6M10 12l3.6-3.6M4 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg :elseif="action === 'Abrir biblioteca'" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
+        {{ action }}
+      </button>
+      <button :if="installed && game.kind === 'game'" class="cta is-ghost" @click="$emit('uninstall')">
+        Quitar datos
+      </button>
+    </div>
+  </div>
+
+  <div class="hero-visual" aria-hidden="true">
+    <img :if="game.cover" class="hero-cover" :src="game.cover" alt="" />
+    <img :elseif="game.art" class="hero-art" :src="game.art" alt="" />
+    <div :else class="hero-poster poster"><span class="poster-mark">{{ initials(game.title) }}</span><span class="poster-title">{{ game.title }}</span></div>
+  </div>
+</section>

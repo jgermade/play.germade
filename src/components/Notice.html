@@ -1,0 +1,22 @@
+<script :setup="{ game }">
+  await $mounted()
+  $self('button')?.focus()
+</script>
+
+<div class="dialog">
+  <h2>{{ game.title }}</h2>
+  <p>{{ game.description }}</p>
+  <p :if="game.kind === 'emulator'">
+    Cada emulador tendrá su propia lista de ROMs, organizada por juego como en
+      ROM Manager: varias versiones de una misma ROM agrupadas, para elegir cuál
+      cargar, y parches de ROM hacking aplicados al vuelo durante la carga, sin
+      tocar la ROM original.
+  </p>
+  <p :else>
+    Este juego llegará cuando su motor (<code>{{ game.engine }}</code>) esté migrado
+    al contrato común de los motores.
+  </p>
+  <div class="dialog-actions">
+    <button class="primary" @click="$emit('close')">Entendido</button>
+  </div>
+</div>

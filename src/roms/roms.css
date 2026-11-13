@@ -1,0 +1,459 @@
+/* /roms/ — the ROM manager, in the look of wasm-gaming/rom-manager.
+   The palette below is ROM Manager's own (src/styles/index.css), copied verbatim;
+   dark follows the system, as its "Automatic" theme does. */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces, from the page up through panels to the chrome resting on them. */
+  --app-bg: #fafafa;
+  --surface: #fff;
+  --surface-2: #f5f5f5;
+  --surface-3: #f0f0f0;
+
+  --border: #e0e0e0;
+  --border-soft: #f0f0f0;
+  --border-strong: #bdbdbd;
+
+  /* Ink, brightest first: headings, labels, quiet notes, marks nobody reads. */
+  --text: #212121;
+  --text-2: #424242;
+  --text-muted: #616161;
+  --text-dim: #757575;
+  --text-faint: #9e9e9e;
+  --text-disabled: #bdbdbd;
+
+  /* Accent. `-on` writes on the accent itself, `-ink` on its tinted panels. */
+  --accent: #1976d2;
+  --accent-hover: #1565c0;
+  --accent-on: #fff;
+  --accent-soft: #e3f2fd;
+  --accent-ink: #1565c0;
+  --focus-ring: rgba(25, 118, 210, 0.1);
+
+  --danger: #ef5350;
+  --danger-hover: #d32f2f;
+  --danger-on: #fff;
+  --danger-soft: #ffebee;
+  --danger-ink: #c62828;
+  --danger-line: #ef5350;
+
+  --ok: #66bb6a;
+  --ok-strong: #558b2f;
+  --ok-on: #fff;
+  --ok-soft: #e8f5e9;
+  --ok-ink: #2e7d32;
+
+  --warn: #f9a825;
+  --warn-soft: #fff8e1;
+  --warn-ink: #b26a00;
+
+  /* Badges that stand for a fact about a release rather than for its state. */
+  --region-soft: #ede7f6;
+  --region-ink: #5e35b1;
+  --video-soft: #f1f8e9;
+  --video-ink: #558b2f;
+
+  /* The blue-grey slabs: cover placeholders, the back button, paths in code. */
+  --slab: #eceff1;
+  --slab-hover: #cfd8dc;
+  --slab-ink: #37474f;
+  --slab-dim: #90a4ae;
+
+  /* A game row, which reads as neither a folder nor a file. */
+  --game: royalblue;
+  --conflict-ink: #8d6e63;
+
+  /* The tree icons, which keep the colours of the emoji they replace. The four
+     face buttons are literals in the drawing: they hold up on either theme. */
+  --icon-pad: #5f6a77;
+  --icon-pad-mark: #ccd4dd;
+  --icon-folder: #e6ac3f;
+  --icon-folder-back: #c9902d;
+  --icon-box: #c58a4b;
+  --icon-box-tape: #9c6630;
+
+  /* One hue each, so a column of rows reads as a column of kinds: silver for a
+     disc, sky for a picture, teal for saved games, paper grey for the rest. */
+  --icon-disc: #8fa3b6;
+  --icon-disc-mark: #eef3f8;
+  --icon-photo: #a8d1f0;
+  --icon-photo-hill: #4f9a67;
+  --icon-card: #4f8a87;
+  --icon-card-mark: #d5ecea;
+  /* Darker than a page looks like it should be: it is the one mark that is also
+     drawn faded, and pale grey at half strength on white is not drawn at all. */
+  --icon-paper: #c2cbd6;
+  --icon-paper-fold: #9caab9;
+  --icon-paper-mark: #7f8a99;
+
+  --veil: rgba(0, 0, 0, 0.1);
+  --veil-soft: rgba(0, 0, 0, 0.05);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-cover: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/*
+ * Dark is not the light palette inverted: the accents are lightened instead,
+ * since a saturated blue that reads well on white goes muddy on a dark panel —
+ * and the text that sits *on* those accents darkens to keep its contrast.
+ * Shadows lean on light veils, because black on near-black shows nothing.
+ */
+@media (prefers-color-scheme: dark) {
+:root {
+  color-scheme: dark;
+
+  --app-bg: #12161c;
+  --surface: #1a1f26;
+  --surface-2: #222831;
+  --surface-3: #2b323d;
+
+  --border: #333b47;
+  --border-soft: #272e38;
+  --border-strong: #4b5563;
+
+  --text: #e8ecf2;
+  --text-2: #cbd2dd;
+  --text-muted: #aab3c0;
+  --text-dim: #98a1af;
+  --text-faint: #7d8694;
+  --text-disabled: #5d6673;
+
+  --accent: #64b5f6;
+  --accent-hover: #90caf9;
+  --accent-on: #0f151c;
+  --accent-soft: rgba(100, 181, 246, 0.16);
+  --accent-ink: #9ecbf8;
+  --focus-ring: rgba(100, 181, 246, 0.25);
+
+  --danger: #b3403d;
+  --danger-hover: #c94b47;
+  --danger-on: #fff;
+  --danger-soft: rgba(239, 83, 80, 0.16);
+  --danger-ink: #ff9d95;
+  --danger-line: #b3403d;
+
+  --ok: #81c784;
+  --ok-strong: #66bb6a;
+  --ok-on: #101a12;
+  --ok-soft: rgba(129, 199, 132, 0.16);
+  --ok-ink: #a5d6a7;
+
+  --warn: #ffca28;
+  --warn-soft: rgba(255, 202, 40, 0.14);
+  --warn-ink: #ffbe5c;
+
+  --region-soft: rgba(179, 157, 219, 0.18);
+  --region-ink: #c3b0e8;
+  --video-soft: rgba(174, 213, 129, 0.16);
+  --video-ink: #c3e08e;
+
+  --slab: #2a323d;
+  --slab-hover: #364150;
+  --slab-ink: #cfd8dc;
+  --slab-dim: #8b95a3;
+
+  --game: #8ab4f8;
+  --conflict-ink: #c5aca4;
+
+  /* Lighter bodies and marks: the same greys would sink into the dark panel. */
+  --icon-pad: #828d9b;
+  --icon-pad-mark: #dfe5ec;
+  --icon-folder: #e0aa42;
+  --icon-folder-back: #c08f34;
+  --icon-box: #d0a06a;
+  --icon-box-tape: #a2703d;
+
+  --icon-disc: #9db1c4;
+  --icon-disc-mark: #f0f5fa;
+  --icon-photo: #86b8dd;
+  --icon-photo-hill: #5fa974;
+  --icon-card: #6ba7a3;
+  --icon-card-mark: #e0f2f0;
+  --icon-paper: #b0bac6;
+  --icon-paper-fold: #929daa;
+  --icon-paper-mark: #5c6673;
+
+  --veil: rgba(255, 255, 255, 0.12);
+  --veil-soft: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-cover: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+}
+
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  color: var(--text); background: var(--app-bg); overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+.icon { flex: 0 0 auto; width: 1.15em; height: 1.15em; vertical-align: -0.22em; }
+
+.rm { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--app-bg); }
+
+/* ---- header ---- */
+.rm-header {
+  display: flex; align-items: center; padding: 0.75rem 1rem; background: var(--surface);
+  border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm); position: relative; z-index: 2;
+}
+.rm-header-left { flex: 0 0 380px; display: flex; align-items: center; justify-content: space-between; padding-right: 1rem; }
+.rm-header-right { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; padding-left: 0.5rem; }
+.rm-title { all: unset; display: flex; align-items: center; gap: 0.55rem; cursor: pointer; }
+.rm-title h1 { margin: 0; font-size: 1.5rem; font-weight: 600; color: var(--text); }
+.rm-logo { width: 34px; height: 34px; }
+.rm-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted);
+}
+.rm-icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.rm-icon-btn.is-small { width: 28px; height: 26px; }
+.rm-search {
+  display: flex; align-items: center; gap: 0.4rem; width: min(320px, 40vw); height: 34px; padding: 0 0.6rem;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text-faint);
+}
+.rm-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); color: var(--text-muted); }
+.rm-search input { all: unset; flex: 1; min-width: 0; color: var(--text); font-size: 0.875rem; }
+
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5rem 1rem; border: none; border-radius: 4px;
+  background: var(--accent); color: var(--accent-on); font-size: 0.875rem; font-weight: 500; white-space: nowrap;
+  transition: background-color 0.2s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary.is-danger { background: var(--danger); color: var(--danger-on); }
+.btn-primary.is-danger:hover { background: var(--danger-hover); }
+.btn-inline {
+  padding: 0.25rem 0.625rem; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 4px;
+  font-size: 0.8125rem; color: var(--text-2); white-space: nowrap;
+}
+.btn-inline:hover:not(:disabled) { background: var(--surface-2); }
+.btn-inline:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-inline.is-play { color: var(--accent-ink); border-color: var(--accent); }
+.btn-inline.is-ok { color: var(--ok-ink); border-color: var(--ok); }
+.btn-inline.btn-danger { color: var(--danger-ink); border-color: var(--danger-line); }
+.is-focus.btn-inline, .is-focus.btn-primary { box-shadow: 0 0 0 3px var(--focus-ring), 0 0 0 1px var(--accent); }
+
+/* ROM Manager's region switch: which box a game shows. */
+.header-regions { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.header-region {
+  padding: 0.3rem 0.55rem; border: 0; border-left: 1px solid var(--border); background: var(--surface);
+  font: 600 0.72rem Menlo, Monaco, Consolas, monospace; color: var(--text-faint);
+}
+.header-region:first-child { border-left: 0; }
+.header-region:hover:not(.on) { background: var(--surface-2); color: var(--text-2); }
+.header-region.on { background: var(--accent); color: var(--accent-on); }
+.rom-info-cover { width: 100%; height: 100%; object-fit: cover; box-shadow: var(--shadow-cover); display: block; }
+
+/* ---- body: tree + details ---- */
+.rm-body { flex: 1; min-height: 0; display: flex; }
+.rm-tree { flex: 0 0 380px; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }
+.rm-tree-head {
+  display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem;
+  font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted);
+}
+.rm-tree-body { margin: 0; padding: 0 0 0.5rem; list-style: none; flex: 1; overflow-y: auto; scrollbar-gutter: stable; }
+.tree-item {
+  display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.6rem; padding: 0.35rem 0.75rem 0.35rem 0;
+  cursor: pointer; border-left: 3px solid transparent; user-select: none; transition: background-color 0.15s, border-color 0.15s;
+}
+.tree-item[data-depth='0'] { padding-left: 0.25rem; }
+.tree-item[data-depth='1'] { padding-left: 1.25rem; }
+.tree-item[data-depth='2'] { padding-left: 2.25rem; }
+.tree-item:hover { background: var(--surface-2); }
+.tree-item.selected { background: var(--accent-soft); }
+.tree-item.active { border-left-color: var(--accent); }
+.tree-item.selected .tree-name { color: var(--accent); font-weight: 500; }
+.tree-item[data-kind='game'] .tree-name { color: var(--game); }
+.tree-item.selected[data-kind='game'] .tree-name { color: var(--accent); }
+.tree-item.muted .tree-icon, .tree-item.muted .tree-name { opacity: 0.55; }
+.tree-caret { flex: 0 0 1rem; width: 1rem; height: 1.6rem; display: flex; align-items: center; justify-content: center; color: var(--text-faint); }
+.tree-caret svg { width: 0.9rem; height: 0.9rem; transition: transform 0.15s; }
+.tree-caret svg.open { transform: rotate(90deg); }
+.tree-icon { flex: 0 0 1.6rem; height: 1.6rem; display: flex; align-items: center; justify-content: center; }
+.tree-icon > svg { display: block; width: 1.6rem; height: 1.6rem; }
+.system-folder-icon { position: relative; width: 1.6rem; height: 1.6rem; }
+.system-folder-icon > svg { display: block; width: 1.6rem; height: 1.6rem; }
+.system-folder-badge {
+  position: absolute; right: -3px; bottom: -1px; width: 15px; height: 15px; border-radius: 4px; object-fit: cover;
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.tree-name { flex: 1; min-width: 0; word-break: break-word; font-size: 0.95rem; color: var(--text); }
+.tree-marks { flex: 0 0 auto; display: flex; align-items: center; gap: 0.35rem; height: 1.6rem; }
+.tree-count {
+  min-width: 1.4rem; padding: 0 0.4rem; border-radius: 999px; background: var(--surface-2); color: var(--text-dim);
+  font-size: 0.72rem; line-height: 1.2rem; text-align: center; font-variant-numeric: tabular-nums;
+}
+.tree-count.is-warn { background: var(--warn-soft); color: var(--warn-ink); }
+.tree-note { font-size: 0.75rem; color: var(--text-faint); }
+.rm-tree-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border-soft); font-size: 0.75rem; color: var(--text-dim);
+}
+
+.rm-details { flex: 1; min-width: 0; overflow-y: auto; padding: 1.5rem; background: var(--surface-3); }
+@media (prefers-color-scheme: dark) { .rm-details { background: var(--app-bg); } }
+.rm-details.drop-target { background: var(--ok-soft); outline: 2px dashed var(--ok); outline-offset: -0.5rem; }
+
+/* ---- the game card (ROM Manager's .rom-info) ---- */
+.rom-info {
+  position: relative; background: var(--surface); padding: 1.25rem; border-radius: 8px; box-shadow: var(--shadow-sm);
+  max-width: 800px; margin: 0 auto;
+}
+.rom-info-hero { display: flex; gap: 1.25rem; margin-bottom: 1.25rem; }
+.rom-info-cover-figure { margin: 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.rom-info-cover-wrapper { width: 180px; aspect-ratio: 3 / 4; border-radius: 3px; overflow: hidden; }
+.rom-info-cover-wrapper.landscape { width: 240px; }
+.rom-info-cover.placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  background: var(--slab); color: var(--slab-dim); font-size: 2.4rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.rom-info-cover-region { color: var(--slab-dim); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.rom-info-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; min-width: 0; }
+.rom-info-heading h2 { margin: 0; font-size: 1.5rem; color: var(--text); }
+.rom-info-system { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.rom-info-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.rom-info-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.25rem; }
+.rom-info-note { margin: 1rem 0 0; color: var(--text-dim); font-size: 0.8125rem; line-height: 1.5; }
+
+.tag { padding: 0.125rem 0.5rem; background: var(--accent-soft); color: var(--accent-ink); border-radius: 999px; font-size: 0.75rem; white-space: nowrap; }
+.tag.status-complete { background: var(--ok-soft); color: var(--ok-ink); }
+.tag.status-partial { background: var(--warn-soft); color: var(--warn-ink); }
+.tag.status-missing { background: var(--danger-soft); color: var(--danger-ink); }
+.tag.region, .tag.video { padding: 0 0.3rem; font-size: 0.6875rem; border-radius: 3px; }
+.tag.region { background: var(--region-soft); color: var(--region-ink); }
+.tag.video { background: var(--video-soft); color: var(--video-ink); }
+.tag.is-mod { background: var(--warn-soft); color: var(--warn-ink); font-size: 0.6875rem; padding: 0 0.4rem; }
+
+.core-select { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--text-dim); }
+.core-select select {
+  padding: 0.25rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface);
+  color: var(--text); font: inherit; font-size: 0.8125rem;
+}
+
+.variants-title { margin: 1.5rem 0 0.5rem; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.variants { list-style: none; margin: 0; padding: 0; }
+.variant { padding: 0.5rem 0.5rem; margin: 0 -0.5rem; border-bottom: 1px solid var(--border-soft); border-radius: 4px; }
+.variant.is-focus { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.variant[data-first='mods'] { margin-top: 2.6rem; position: relative; }
+.variant[data-first='mods']::before {
+  content: 'Mods'; position: absolute; left: 0.5rem; top: -1.9rem; font-size: 0.8125rem; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-dim);
+}
+.variant-heading { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.875rem; }
+.variant-mark { flex: 0 0 auto; font-size: 0.7rem; color: var(--ok-ink); }
+.variant.status-partial .variant-mark { color: var(--warn); }
+.variant.status-missing .variant-mark { color: var(--danger); }
+.variant.status-missing .variant-key { color: var(--text-faint); }
+.variant-key { flex: 1; word-break: break-word; color: var(--text); }
+.variant-note { color: var(--ok-ink); }
+.variant-support { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.variant-file { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; padding: 0.25rem 0 0 1.25rem; }
+.file-chip {
+  padding: 0.125rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface);
+  font-size: 0.75rem; color: var(--text-2); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.variant-file-target { color: var(--text-muted); font-size: 0.8rem; }
+.variant-file-crc { margin-left: auto; color: var(--text-faint); font-size: 0.75rem; font-family: Menlo, Monaco, Consolas, monospace; }
+.variant-file-target + .variant-file-size { margin-left: auto; }
+.variant-file-size { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.tree-remove {
+  background: none; border: none; padding: 0 0.2rem; line-height: 1; opacity: 0.65; color: var(--text-faint);
+  display: inline-flex; align-items: center; transition: opacity 0.15s, color 0.15s;
+}
+.tree-remove:hover { opacity: 1; color: var(--danger); }
+.variant[data-kind='add'] { border-bottom: 0; padding-top: 0.75rem; }
+.variant-add {
+  width: 100%; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 2px dashed var(--border);
+  border-radius: 8px; background: none; color: var(--text-muted); font-size: 0.875rem; text-align: left;
+}
+.variant-add small { color: var(--text-faint); font-size: 0.78rem; }
+.variant-add:hover { border-color: var(--accent); color: var(--accent); }
+.variant[data-kind='add'].is-focus { background: none; box-shadow: none; }
+.variant[data-kind='add'].is-focus .variant-add { border-color: var(--accent); color: var(--accent); }
+
+.kv { display: grid; grid-template-columns: auto 1fr; margin: 1rem 0 0; }
+.kv dt, .kv dd { margin: 0; padding: 0.6rem 0; border-bottom: 1px solid var(--border-soft); font-size: 0.875rem; }
+.kv dt { color: var(--text-dim); }
+.kv dd { text-align: right; color: var(--text); }
+
+/* ---- the system card (ROM Manager's .system-details) ---- */
+.system-details { display: flex; flex-direction: column; gap: 1.5rem; max-width: 800px; margin: 0 auto; }
+.system-hero { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center; padding: 0.5rem 0 1.5rem; border-bottom: 1px solid var(--border-soft); }
+.system-hero h2 { margin: 0.4rem 0 0; font-size: 1.6rem; }
+.system-logo-wrapper {
+  width: 128px; height: 128px; border-radius: 28px; overflow: hidden; background: var(--surface);
+  border: 2px solid var(--border-strong); box-shadow: var(--shadow-sm);
+}
+.system-logo-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.system-section { background: var(--surface); border-radius: 8px; padding: 1rem 1.25rem; box-shadow: var(--shadow-sm); }
+.system-section h4 { margin: 0 0 0.6rem; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2); }
+.system-section p { margin: 0.6rem 0 0; color: var(--text-2); font-size: 0.9rem; line-height: 1.5; }
+.ext-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ext { padding: 0.15rem 0.55rem; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); font-size: 0.82rem; font-weight: 600; color: var(--text-2); }
+.ext.is-mod { background: var(--warn-soft); border-color: transparent; color: var(--warn-ink); }
+
+/* ---- hints, toast, modals ---- */
+.rm-hints {
+  display: flex; gap: 1.25rem; padding: 0.45rem 1rem; border-top: 1px solid var(--border); background: var(--surface);
+  font-size: 0.75rem; color: var(--text-dim);
+}
+.rm-hints span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.rm-hints kbd {
+  min-width: 1.3rem; padding: 0 0.3rem; border-radius: 3px; border: 1px solid var(--border-strong); background: var(--surface-2);
+  font: 600 0.7rem Menlo, Monaco, Consolas, monospace; text-align: center; color: var(--text-2);
+}
+.rm-toast {
+  position: fixed; left: 50%; bottom: 3rem; transform: translateX(-50%); margin: 0; max-width: min(720px, 92vw);
+  padding: 0.65rem 1rem; border-radius: 6px; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  box-shadow: var(--shadow-md); font-size: 0.875rem; z-index: 30;
+}
+.rm-scrim { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: var(--scrim); padding: 1rem; }
+.modal {
+  width: min(26rem, 90vw); max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-md);
+}
+.modal-header { padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.modal-header h3 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.modal-body { padding: 1.1rem 1.5rem; overflow: auto; }
+.modal-body p { margin: 0; color: var(--text-2); font-size: 0.9rem; line-height: 1.5; }
+.modal-body.is-list { display: grid; gap: 0.25rem; padding: 0.6rem; }
+.modal-note { padding: 0.4rem 0.9rem 0.6rem; font-size: 0.82rem !important; color: var(--text-dim) !important; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.9rem 1.5rem; border-top: 1px solid var(--border-soft); }
+.menu-item {
+  display: block; width: 100%; padding: 0.6rem 0.9rem; border: 0; border-radius: 4px; background: none; text-align: left;
+  font-size: 0.9rem; color: var(--text);
+}
+.menu-item:hover:not(:disabled), .menu-item.is-focus { background: var(--accent-soft); color: var(--accent-ink); }
+.menu-item.is-danger { color: var(--danger-ink); }
+.menu-item.is-danger.is-focus { background: var(--danger-soft); }
+.menu-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.rename-input {
+  width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface);
+  color: var(--text); font: inherit;
+}
+.rename-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+@media (max-width: 900px) {
+  .rm-header-left { flex: 0 0 auto; padding-right: 0.5rem; }
+  .rm-title h1 { font-size: 1.15rem; }
+  .rm-header-left .rm-icon-btn { display: none; }
+  .rm-search { width: auto; flex: 1; }
+  .btn-primary .label { display: none; }
+  .rm-body { flex-direction: column; }
+  .rm-tree { flex: 0 0 auto; max-height: 38vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  .rm-details { padding: 0.75rem; }
+  .rom-info-hero { flex-direction: column; }
+  .rom-info-cover-wrapper { width: 120px; }
+  .variant-file { flex-wrap: wrap; padding-left: 0; }
+  .rm-hints { display: none; }
+}

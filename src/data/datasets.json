@@ -1,0 +1,10 @@
+{
+  "$comment": "ROM Manager's DAT datasets (No-Intro, with libretro-thumbnails boxarts), taken at a pinned commit. scripts/fetch-datasets.mjs slims each into public/datasets/<system>.json. DATASETS_SRC=<rom-manager checkout> reads a local copy instead.",
+  "repo": "wasm-gaming/rom-manager",
+  "commit": "d23406e5796bc5137c12b7c6feb97aef17adf684",
+  "systems": {
+    "megadrive": "MegaDrive",
+    "snes": "SNES",
+    "gba": "GBA"
+  }
+}

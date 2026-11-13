@@ -1,0 +1,46 @@
+<script :setup="{ game, install }">
+  let files = {}
+  let busy = false
+  let error = null
+
+  $: entries = Object.entries(game.install ?? {})
+  $: ready = entries.every(([key]) => files[key])
+
+  const pick = (key, event) => {
+    files = { ...files, [key]: event.target.files?.[0] ?? null }
+    error = null
+  }
+
+  const submit = async () => {
+    busy = true
+    error = null
+    try {
+      await install(game, files)
+      $emit('installed', game)
+    } catch (e) {
+      error = e.message ?? String(e)
+    } finally {
+      busy = false
+    }
+  }
+
+  await $mounted()
+  $self('input')?.focus()
+</script>
+
+<form class="dialog" @submit.prevent="submit">
+  <h2>Instalar {{ game.title }}</h2>
+  <p>
+    Los datos del juego no se distribuyen: aportas tu copia y se queda en tu navegador,
+    en <code>{{ game.engine }}/{{ game.slug }}/</code>. Las partidas se guardan al lado.
+  </p>
+  <label :each="entry in entries" :key="entry[0]" class="file">
+    <span>{{ entry[1].label ?? entry[1].file }}</span>
+    <input type="file" :accept="(entry[1].accept ?? []).join(',')" @change="pick(entry[0], $event)" />
+  </label>
+  <p :if="error" class="error">{{ error }}</p>
+  <div class="dialog-actions">
+    <button type="button" class="ghost" @click="$emit('cancel')">Cancelar</button>
+    <button type="submit" class="primary" :disabled="!ready || busy">{{ busy ? 'Instalando…' : 'Instalar y jugar' }}</button>
+  </div>
+</form>

@@ -3,38 +3,45 @@
 
 Check [STACK.md](STACK.md)
 
-## Project Managment
+## Project management — RECORD/
 
-Initial specifications in: [_INITIAL_SECS_.md](./SESSIONS/_INITIAL_SECS_.md)
+Plans, decisions and walkthroughs live in [RECORD/](./RECORD/). Convention:
 
-Sessions and specifications live in [SESSIONS/](./SESSIONS/). Convention:
-
-- Name format: `YYYY-MM-DD_HHhMM.<summary>.session.md` where `<summary>` is a kebab-case slug of the topic.
-- Files can be **extended** (appended to the end) but existing content must never be deleted or modified. The extensions should include the date and time of the extension, as well as the summary of the new content added.
-- For a new topic with no relation to previous ones: create a new file.
-- When current session is completed, add "Completed" at the end of the session file.
-- Also, When session is completed, update `README.md` with the project specifications (in -# Project Specs- section) and a todo list (in -# Todos- section).
+- Name format: `YYYY-MM-DD.<summary>.WIP.md` while open, `YYYY-MM-DD.<summary>.completed.md`
+  once closed. `<summary>` is a kebab-case slug of the topic.
+- **`.WIP.md` files are append-only.** Extend them at the end, with the date and time of the
+  extension and a summary of what it adds. Existing content MUST NEVER BE DELETED OR MODIFIED.
+- **`.completed.md` files are read-only.** A follow-up goes in a new record that links back.
+- For a new topic with no relation to previous ones: create a new record.
+- Records are always written in English.
 
 ## Critical Rules
 
-### Session-first workflow
-**Never make changes without first documenting them in a session file.** This is non-negotiable. Before implementing any feature, refactoring code, or adding dependencies:
+### Record-first workflow
+**Never make changes without first documenting them in a record.** This is non-negotiable.
+Before implementing any feature, refactoring code, or adding dependencies:
 
-1. Create or extend the appropriate session file in `SESSIONS/`
+1. Create or extend the appropriate `.WIP.md` record in `RECORD/`
 2. Document the planned changes in detail
 3. Wait for user approval before proceeding
+4. A record is completed only when the user explicitly says so. Then append the final
+   walkthrough and rename it from `.WIP.md` to `.completed.md`.
 
-### Session lifecycle
-- A session's status must remain **In Progress** until the user says **"capitular"**
-- Only after capitulating may you:
-  - Change the session status to "Completed"
-  - Update `README.md`
+## Tasks
+
+- When a task is done, append a walkthrough of what was done to the current record, and
+  suggest a 1-line commit message in English.
+
+## Ending sessions
 
 When the user says **"capitular"**:
 
-1. Complete current session
-2. Ask user to start a new session.
-3. Unless user require to capitulate explicitly, never create a new session file. Instead attach proposal to the current session file and ask the user to review and approve it.
+1. Complete the current record (walkthrough, rename to `.completed.md`) and update `README.md`
+   with the project specifications (in -# Project Specs- section) and a todo list (in -# Todos-
+   section if exists).
+2. Ask the user to start a new session.
+
+## Temporary files and scripts
 
 For temp files and folders, use `.tmp/` into project root.
 Temporary scripts should be created in `.tmp/scripts/`.

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a72e6"/><stop offset=".55" stop-color="#5a4fd0"/><stop offset="1" stop-color="#4236a8"/></linearGradient>
+    <radialGradient id="light" cx=".3" cy="-.05" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b1a2c"/><stop offset="1" stop-color="#0a0a10"/></linearGradient>
+    <linearGradient id="lcd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#253131"/><stop offset="1" stop-color="#131c1c"/></linearGradient>
+    <radialGradient id="pad" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#3a3470"/><stop offset="1" stop-color="#211c4a"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#shell)"/>
+  <!-- shoulder seam -->
+  <path d="M-20 22 Q 0 4 36 2 H 220" fill="none" stroke="#3b2f9a" stroke-width="2"/>
+  <path d="M-20 24 Q 0 6 36 4 H 220" fill="none" stroke="#a49df2" stroke-opacity=".6"/>
+  <!-- a big screen bleeding off the right -->
+  <rect x="64" y="22" width="156" height="128" rx="14" fill="url(#glass)"/>
+  <rect x="78" y="36" width="150" height="100" rx="2" fill="url(#lcd)"/>
+  <g fill="#7fd6c2" opacity=".55">
+    <rect x="78" y="122" width="150" height="3"/><rect x="96" y="104" width="10" height="18"/>
+    <rect x="132" y="96" width="16" height="16"/><rect x="132" y="96" width="16" height="3" fill="#a8e8d8"/>
+    <rect x="166" y="80" width="6" height="6"/><rect x="178" y="74" width="6" height="6"/><rect x="190" y="80" width="6" height="6"/>
+  </g>
+  <path d="M64 22h80l-80 128z" fill="#fff" opacity=".045"/>
+  <circle cx="72" cy="30" r="2" fill="#43d17a"/>
+  <!-- d-pad -->
+  <circle cx="32" cy="90" r="28" fill="#5248c2"/>
+  <circle cx="32" cy="90" r="28" fill="none" stroke="#8b83ea" stroke-opacity=".5"/>
+  <g fill="url(#pad)"><rect x="24" y="66" width="16" height="48" rx="3"/><rect x="8" y="82" width="48" height="16" rx="3"/></g>
+  <circle cx="32" cy="90" r="4" fill="#1a163c"/>
+  <!-- start / select -->
+  <rect x="18" y="160" width="22" height="8" rx="4" fill="#2e2675"/>
+  <rect x="18" y="176" width="22" height="8" rx="4" fill="#2e2675"/>
+  <!-- speaker -->
+  <g fill="#3a2f95"><circle cx="150" cy="172" r="2"/><circle cx="160" cy="172" r="2"/><circle cx="170" cy="172" r="2"/><circle cx="155" cy="180" r="2"/><circle cx="165" cy="180" r="2"/><circle cx="160" cy="164" r="2"/></g>
+  <rect width="200" height="200" fill="url(#light)"/>
+</svg>
