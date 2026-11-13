@@ -2,7 +2,7 @@
   "$comment": "Engines the launcher plays, pinned. scripts/fetch-engines.mjs downloads each release asset and copies `path` (inside the archive) to public/engines/<id>/. For local development, ENGINE_SRC_<ID>=<dir> copies a local build instead (e.g. ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4).",
   "rsdkv4": {
     "repo": "wasm-gaming/rsdkv4-wasm",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "asset": "rsdkv4.tar.gz",
     "path": "rsdkv4/rsdkv4",
     "entry": "rsdkv4.sdk.js",
@@ -10,7 +10,7 @@
   },
   "blastem": {
     "repo": "wasm-gaming/blastem-wasm",
-    "version": "0.2.0",
+    "version": "0.1.1",
     "asset": "blastem.tar.gz",
     "path": "blastem/blastem",
     "entry": "blastem.sdk.js",
