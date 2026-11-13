@@ -243,6 +243,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn-inline.btn-danger { color: var(--danger-ink); border-color: var(--danger-line); }
 .is-focus.btn-inline, .is-focus.btn-primary { box-shadow: 0 0 0 3px var(--focus-ring), 0 0 0 1px var(--accent); }
 
+/* ROM Manager's region switch: which box a game shows. */
+.header-regions { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.header-region {
+  padding: 0.3rem 0.55rem; border: 0; border-left: 1px solid var(--border); background: var(--surface);
+  font: 600 0.72rem Menlo, Monaco, Consolas, monospace; color: var(--text-faint);
+}
+.header-region:first-child { border-left: 0; }
+.header-region:hover:not(.on) { background: var(--surface-2); color: var(--text-2); }
+.header-region.on { background: var(--accent); color: var(--accent-on); }
+.rom-info-cover { width: 100%; height: 100%; object-fit: cover; box-shadow: var(--shadow-cover); display: block; }
+
 /* ---- body: tree + details ---- */
 .rm-body { flex: 1; min-height: 0; display: flex; }
 .rm-tree { flex: 0 0 380px; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }

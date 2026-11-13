@@ -15,6 +15,7 @@ import { $reactive } from 'jq79';
 import * as megaDrive from '../data/systems/mega-drive.js';
 import { readZip } from './zip.js';
 import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from './patch.js';
+import * as dat from './dat.service.js';
 import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
 
 const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive };
@@ -146,15 +147,29 @@ const modName = (fileName, archive) => {
   return named.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
 };
 
-/** Versions imported before CRC32 was recorded get it now (BPS / UPS match by it). */
+/**
+ * Fill in what older libraries lack: the CRC32 of each version (BPS / UPS match by
+ * it) and its DAT entry (ROM Manager's dataset). A game keeps its id — its saves
+ * hang off it — but takes the DAT's title unless the player renamed it.
+ */
 async function ensureCrcs(system, index) {
   let changed = false;
   for (const game of Object.values(index.games)) {
     for (const version of game.versions) {
-      if (version.crc32 != null) continue;
-      const file = await readFile(`${dirOf(system)}/roms`, version.file);
-      if (!file) continue;
-      version.crc32 = crc32(new Uint8Array(await file.arrayBuffer()));
+      if (version.crc32 == null) {
+        const file = await readFile(`${dirOf(system)}/roms`, version.file);
+        if (!file) continue;
+        version.crc32 = crc32(new Uint8Array(await file.arrayBuffer()));
+        changed = true;
+      }
+      if (version.dat === undefined) {
+        version.dat = await dat.match(system, version.crc32, version.size);
+        changed = true;
+      }
+    }
+    const known = game.versions.find((v) => v.dat)?.dat;
+    if (known && !game.renamed && game.title !== known.title) {
+      game.title = known.title;
       changed = true;
     }
   }
@@ -196,22 +211,28 @@ export async function importFiles(system, files, { gameId = null } = {}) {
       result.duplicates.push(name);
       continue;
     }
+    // The DAT first (ROM Manager's dataset, by checksum); the cartridge header when
+    // the catalogue does not know the ROM (homebrew, hacks).
+    const crc = crc32(bytes);
+    const inDat = await dat.match(system, crc, bytes.length);
     const id = spec.identify(bytes, name);
+    const gameId = inDat ? megaDrive.slug(inDat.title) : id.gameId;
     const file = `${hash}${extOf(name) || '.bin'}`;
     await writeFile(`${dirOf(system)}/roms`, file, new Blob([bytes]));
-    const game = (index.games[id.gameId] ??= { title: id.title, core: null, versions: [] });
+    const game = (index.games[gameId] ??= { title: inDat?.title ?? id.title, core: null, versions: [] });
     game.versions.push({
       sha1: hash,
       file,
-      name: id.name,
+      name: inDat?.key ?? id.name,
       size: bytes.length,
-      crc32: crc32(bytes),
+      crc32: crc,
       serial: id.serial,
-      revision: id.revision,
+      revision: inDat?.revision ?? id.revision,
+      dat: inDat,
       addedAt: Date.now(),
     });
     known.add(hash);
-    result.added.push(id.title);
+    result.added.push(game.title);
   }
 
   // Mods after ROMs, so a ROM and its mod dropped together find each other.
@@ -290,6 +311,7 @@ export async function renameGame(system, gameId, title) {
   const index = await readIndex(system);
   if (!index.games[gameId] || !title?.trim()) return;
   index.games[gameId].title = title.trim();
+  index.games[gameId].renamed = true; // the DAT's title no longer overrides it
   await writeIndex(system, index);
   publish(system, index);
 }
@@ -321,6 +343,9 @@ export function totals(system) {
 }
 
 export { hex };
+
+/** A game's cover (blob URL + region), from OPFS or fetched once: see dat.service.js. */
+export const coverOf = (system, game, region) => dat.cover(system, game, region);
 
 /** Remove one version's file. The game's saves (in the engine's folder) are kept. */
 export async function removeVersion(system, gameId, hash) {

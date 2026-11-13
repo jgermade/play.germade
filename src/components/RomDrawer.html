@@ -24,13 +24,26 @@
       ...(pickerGame.mods ?? []).map((m) => ({ kind: 'mod', key: m.sha1, m })),
     ] : []
 
+  // Boxes from ROM Manager's catalogue, in the region the manager prefers.
+  let covers = {}
+  const region = (() => { try { return localStorage.getItem('roms-region') || 'EU' } catch { return 'EU' } })()
+  const loadCovers = async () => {
+    for (const g of roms[game.system]?.games ?? []) {
+      if (covers[g.id] !== undefined) continue
+      covers = { ...covers, [g.id]: null }
+      const found = await library.coverOf(game.system, g, region)
+      if (found) covers = { ...covers, [g.id]: found.url }
+    }
+  }
+  loadCovers()
+
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
   const initials = (title) => title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   // Golden-angle spread: neighbouring ids still land on clearly different hues.
   const hue = (id) => Math.round(([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) * 137.508) % 360)
   const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 1048576 ? 2 : 1)} MB`
-  const versionLabel = (v) => v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
+  const versionLabel = (v) => v.dat ? v.dat.key : v.revision && v.revision !== '00' ? `${v.name} · rev ${v.revision}` : v.name
 
   const play = (g, version, mod = null) => {
     if (!g) return
@@ -52,6 +65,7 @@
       if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
       if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
       message = parts.join(' · ') || 'Nada que añadir'
+      loadCovers()
     } catch (e) {
       message = e.message ?? String(e)
     } finally {
@@ -138,7 +152,8 @@
     <li :each="g, i in games" :key="g.id" class="rom">
       <button class="rom-tile" :class.is-focused="!picker && focus === i" :title="g.title"
               @mouseenter="focus = i" @click="play(g)">
-        <span class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
+        <span :if="covers[g.id]" class="rom-art is-cover"><img :src="covers[g.id]" alt="" /></span>
+        <span :else class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
         <span :if="g.versions.length > 1" class="rom-badge">{{ g.versions.length }}</span>
         <span :if="g.mods?.length" class="rom-mods">{{ g.mods.length }} mod{{ g.mods.length === 1 ? '' : 's' }}</span>
         <span class="rom-title">{{ g.title }}</span>

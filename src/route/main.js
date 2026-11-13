@@ -50,14 +50,14 @@ const fail = (message) => {
 };
 
 /** Mount the engine's app (or the generic one) with everything resolved. */
-async function launch({ engineId, title, assets, namespace, init = {}, options = {} }) {
+async function launch({ engineId, title, assets, namespace, art = null, init = {}, options = {} }) {
   const engine = engines[engineId];
   if (!engine) return fail(`El motor "${engineId}" no está disponible en este lanzador.`);
   view.title = title;
   view.status = 'Arrancando el motor…';
   const base = `/engines/${engineId}/`;
   const host = {
-    game: { slug, title, accent: entry.accent, art: entry.cover ?? entry.tileArt ?? entry.art },
+    game: { slug, title, accent: entry.accent, art: art ?? entry.cover ?? entry.tileArt ?? entry.art },
     storage: { namespace },
     assets,
     input,
@@ -131,7 +131,10 @@ async function startRom(gameId) {
   } catch (error) {
     return fail(mod ? `No se pudo aplicar «${mod.name}»: ${error.message}` : error.message);
   }
+  // The box from ROM Manager's catalogue, when the game is in it: the engine app's boot screen.
+  const box = await romLibrary.coverOf(entry.system, game, localStorage.getItem('roms-region') || 'EU').catch(() => null);
   await launch({
+    art: box?.url ?? null,
     engineId: romLibrary.coreFor(index, game, entry.engine),
     title: mod ? `${game.title} · ${mod.name}` : game.title,
     assets: { rom: () => rom },

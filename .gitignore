@@ -9,6 +9,9 @@ dev-dist/
 # Engines fetched at build time from each engine's GitHub Release (scripts/fetch-engines.mjs)
 public/engines/
 
+# ROM Manager datasets, slimmed at build time (scripts/fetch-datasets.mjs)
+public/datasets/
+
 # Route pages generated from the catalog (scripts/routes-plugin.mjs)
 routes/
 

@@ -6,7 +6,7 @@
 
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 const ISOLATION = {
@@ -64,3 +64,10 @@ registerRoute(
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// ROM Manager's catalogue (scripts/fetch-datasets.mjs): served from the cache, refreshed
+// behind it, so identification works offline and a new build's data arrives next time.
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/datasets/'),
+  new StaleWhileRevalidate({ cacheName: 'datasets' }),
+);
