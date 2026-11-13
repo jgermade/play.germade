@@ -1,0 +1,87 @@
+name: Build
+
+# Tests and builds the launcher, and leaves the site as the `site` artifact. What
+# happens to it afterwards — the GitHub Release, Pages — belongs to release.yml,
+# which calls this workflow with the version it is about to tag.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: >-
+          Version to stamp into package.json and the lockfile before building. Blank
+          builds whatever the checkout says, which is what a PR wants.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # The caller's name under workflow_call, so a release does not queue behind a
+  # push to main. Only pull requests get cancelled.
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Stamp the release version
+        if: inputs.version != ''
+        run: npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # Engines come from their pinned GitHub Releases (src/data/engines.json),
+      # ROM Manager's datasets from their pinned commit (src/data/datasets.json).
+      - name: Build
+        run: npm run build
+
+      - name: Check the site is laid out the way the pages load it
+        run: |
+          set -e
+          missing=0
+          need() { test -f "dist/$1" || { echo "missing: dist/$1"; missing=1; }; }
+          need index.html
+          need sw.js
+          need manifest.webmanifest
+          need roms/index.html
+          # One page per catalog entry (scripts/routes-plugin.mjs).
+          for slug in $(node --input-type=module -e "import { GAMES } from './src/data/catalog.js'; console.log(GAMES.map((g) => g.slug).join(' '))"); do
+            need "$slug/index.html"
+          done
+          # Each pinned engine: SDK, the contract beside it, its app when it declares one.
+          for line in $(node -e "const e=require('./src/data/engines.json'); for (const [id, x] of Object.entries(e)) if (id[0] !== '\$') console.log([id, x.entry, x.app ?? ''].join(','))"); do
+            IFS=, read -r id entry app <<< "$line"
+            need "engines/$id/$entry"
+            need "engines/$id/engine-specs.js"
+            if [ -n "$app" ]; then need "engines/$id/$app"; fi
+            if grep -rq "from '@wasm-gaming/engine-specs'" "dist/engines/$id" --include='*.js'; then
+              echo "engines/$id: an SDK imports the bare @wasm-gaming/engine-specs"; missing=1
+            fi
+          done
+          for system in $(node -e "console.log(Object.keys(require('./src/data/datasets.json').systems).join(' '))"); do
+            need "datasets/$system.json"
+          done
+          du -sh dist
+          exit $missing
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist/
