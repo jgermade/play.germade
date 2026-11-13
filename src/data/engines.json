@@ -10,7 +10,7 @@
   },
   "blastem": {
     "repo": "wasm-gaming/blastem-wasm",
-    "version": "0.3.0",
+    "version": "0.2.0",
     "asset": "blastem.tar.gz",
     "path": "blastem/blastem",
     "entry": "blastem.sdk.js",
