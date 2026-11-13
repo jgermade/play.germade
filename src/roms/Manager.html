@@ -392,7 +392,7 @@
       <article :if="game" class="rom-info">
         <div class="rom-info-hero">
           <figure class="rom-info-cover-figure">
-            <div class="rom-info-cover-wrapper">
+            <div class="rom-info-cover-wrapper" :class.landscape="system.boxart === '4 / 3'" :style="`aspect-ratio: ${system.boxart}`">
               <img :if="shownCover?.url && shownCover.key.startsWith(`${system.id}:${game.id}:`)" class="rom-info-cover" :src="shownCover.url" alt="" />
               <div :else class="rom-info-cover placeholder">{{ initials(game.title) }}</div>
             </div>

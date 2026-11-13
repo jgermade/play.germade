@@ -21,6 +21,7 @@ const systems = GAMES.filter((g) => g.kind === 'emulator').map((g) => ({
   art: g.tileArt ?? g.art,
   accent: g.accent,
   accept: g.accept ?? [],
+  boxart: g.boxart ?? '3 / 4',
   cores: g.cores ?? [{ id: g.engine, label: g.engine }],
   engine: g.engine,
   ready: supported.has(g.system) && g.status === 'ready',

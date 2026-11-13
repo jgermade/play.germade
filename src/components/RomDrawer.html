@@ -37,6 +37,13 @@
   }
   loadCovers()
 
+  // The tiles take the shape of the system's boxes, with the area a square tile had.
+  const box = (() => {
+    const [w, h] = (game.boxart ?? '1 / 1').split('/').map(Number)
+    const side = Math.sqrt((78 * 78 * w) / h)
+    return { w: Math.round(side), h: Math.round((side * h) / w) }
+  })()
+
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
   const initials = (title) => title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
@@ -131,7 +138,7 @@
   $destroyed(off)
 </script>
 
-<section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}`"
+<section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}; --box-w: ${box.w}px; --box-h: ${box.h}px`"
          @dragover.prevent="dragging = true" @dragleave.self="dragging = false" @drop.prevent="onDrop">
   <header class="drawer-head">
     <h3>{{ game.title }}</h3>

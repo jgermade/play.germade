@@ -312,6 +312,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .rom-info-hero { display: flex; gap: 1.25rem; margin-bottom: 1.25rem; }
 .rom-info-cover-figure { margin: 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.375rem; }
 .rom-info-cover-wrapper { width: 180px; aspect-ratio: 3 / 4; border-radius: 3px; overflow: hidden; }
+.rom-info-cover-wrapper.landscape { width: 240px; }
 .rom-info-cover.placeholder {
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   background: var(--slab); color: var(--slab-dim); font-size: 2.4rem; font-weight: 700; letter-spacing: 0.04em;

@@ -5,7 +5,8 @@
 //   'game'     — a modern retro game on a decompiled/ported engine: install its data
 //                once, then play. Storage is the engine's own `<engine>/<slug>/`.
 // Art: `cover` (a poster image), else `art` (a system illustration), else the card
-// draws a typographic poster from the title — never an emoji.
+// draws a typographic poster from the title — never an emoji. Systems carry `boxart`,
+// the shape of their games' boxes: the ROM tiles take it, cover or not.
 //
 //   'emulator' — a system: opens its ROM list (one entry per game, versions grouped,
 //                optional ROM-hack patches applied while loading). See RECORD/.
@@ -109,6 +110,7 @@ export const GAMES = [
     art: '/art/systems/arcade.svg',
     tileArt: '/art/systems/tiles/arcade.svg',
     kicker: 'Arcade · SNK',
+    boxart: '3 / 4', // the box's aspect ratio (width / height), as ROM Manager's systemAspectRatio()
   },
   {
     slug: 'megadrive',
@@ -128,6 +130,7 @@ export const GAMES = [
     art: '/art/systems/mega-drive.svg',
     tileArt: '/art/systems/tiles/mega-drive.svg',
     kicker: 'Sega · 16 bits',
+    boxart: '3 / 4', // the box's aspect ratio (width / height), as ROM Manager's systemAspectRatio()
   },
   {
     slug: 'snes',
@@ -141,6 +144,7 @@ export const GAMES = [
     art: '/art/systems/snes.svg',
     tileArt: '/art/systems/tiles/snes.svg',
     kicker: 'Nintendo · 16 bits',
+    boxart: '4 / 3', // the box's aspect ratio (width / height), as ROM Manager's systemAspectRatio()
   },
   {
     slug: 'gba',
@@ -154,6 +158,7 @@ export const GAMES = [
     art: '/art/systems/gba.svg',
     tileArt: '/art/systems/tiles/gba.svg',
     kicker: 'Portátil · 32 bits',
+    boxart: '4 / 3', // the box's aspect ratio (width / height), as ROM Manager's systemAspectRatio()
   },
 ];
 
