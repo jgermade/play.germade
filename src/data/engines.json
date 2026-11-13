@@ -5,7 +5,8 @@
     "version": "0.3.0",
     "asset": "rsdkv4.tar.gz",
     "path": "rsdkv4/rsdkv4",
-    "entry": "rsdkv4.sdk.js"
+    "entry": "rsdkv4.sdk.js",
+    "app": "app/app.js"
   },
   "blastem": {
     "repo": "wasm-gaming/blastem-wasm",

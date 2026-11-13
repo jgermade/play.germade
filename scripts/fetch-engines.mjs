@@ -60,7 +60,7 @@ for (const [id, engine] of Object.entries(engines)) {
     cpSync(from, ready, { recursive: true });
   }
 
-  for (const file of [engine.entry, 'engine-specs.js']) {
+  for (const file of [engine.entry, 'engine-specs.js', ...(engine.app ? [engine.app] : [])]) {
     if (!existsSync(join(ready, file))) die(`${id}: ${file} missing — the engine must ship a self-contained SDK`);
   }
 
