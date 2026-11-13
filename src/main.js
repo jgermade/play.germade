@@ -5,13 +5,12 @@ import { $reactive } from 'jq79';
 
 import App from './App.html';
 import Hero from './components/Hero.html';
-import InstallDialog from './components/InstallDialog.html';
 import Notice from './components/Notice.html';
 import RomDrawer from './components/RomDrawer.html';
 
 import { rows } from './data/catalog.js';
-import { library, refresh, install, uninstall } from './services/library.service.js';
-import { onAction, setPaused } from './services/input.service.js';
+import { library, refresh, uninstall } from './services/library.service.js';
+import { onAction } from './services/input.service.js';
 import * as romLibrary from './services/rom-library.service.js';
 
 // What the page shows about the app itself: a new version waiting, isolation.
@@ -39,12 +38,9 @@ App.mount('#app', {
   library,
   shell,
   refresh,
-  install,
   uninstall,
   onAction,
-  setPaused,
   Hero,
-  InstallDialog,
   Notice,
   RomDrawer,
   roms: romLibrary.roms,

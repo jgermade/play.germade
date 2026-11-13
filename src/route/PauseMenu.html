@@ -1,0 +1,15 @@
+<script :setup="{ state, title, choose }"></script>
+
+<div :if="state.open" class="pause-backdrop">
+  <div class="pause" role="dialog" aria-label="Pausa">
+    <p class="pause-kicker">Pausa</p>
+    <h2>{{ title }}</h2>
+    <p :if="state.error" class="error">{{ state.error }}</p>
+    <button :each="item, i in state.items" :key="item" class="pause-item" :class.is-focused="i === state.focus"
+            @mouseenter="state.focus = i" @click="choose(item)">{{ item }}</button>
+    <p class="pause-hint">
+      <span><i class="key is-a">A</i> Elegir</span>
+      <span :if="!state.error"><i class="key is-b">B</i> Continuar</span>
+    </p>
+  </div>
+</div>

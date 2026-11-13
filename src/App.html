@@ -1,7 +1,14 @@
-<script :setup="{ rows, library, shell, refresh, install, uninstall, onAction, setPaused, Hero, InstallDialog, Notice, RomDrawer, roms, romLibrary }">
-  let focus = { row: 0, col: 0 }
-  let dialog = null        // { type: 'install' | 'notice', game }
-  let playing = null       // URL of the player page in the iframe
+<script :setup="{ rows, library, shell, refresh, uninstall, onAction, Hero, Notice, RomDrawer, roms, romLibrary }">
+  // Focus restored when coming back from a route (?focus=<slug>), else the first tile.
+  const focusOf = (slug) => {
+    for (const [r, row] of rows.entries()) {
+      const c = row.games.findIndex((g) => g.slug === slug)
+      if (c >= 0) return { row: r, col: c }
+    }
+    return { row: 0, col: 0 }
+  }
+  let focus = focusOf(new URLSearchParams(location.search).get('focus'))
+  let dialog = null        // { type: 'notice', game }
   let drawer = null        // { slug, row, notch } — an emulator's ROM folder, open under its row
 
   $: current = rows[focus.row]?.games[focus.col] ?? null
@@ -28,17 +35,21 @@
 
   const isInstalled = (game) => !!library.installed[game.slug]
 
-  const startPlayer = (url) => {
-    dialog = null
-    playing = url
-    setPaused(true)
+  // Every game and system has its own page. The tile's art is named for the view
+  // transition, so it morphs into the page's splash; the URL keeps the focus for the way back.
+  const go = (game, url) => {
+    const card = $self(`[data-slug="${game.slug}"]`)
+    if (card) card.style.viewTransitionName = `art-${game.slug}`
+    history.replaceState(null, '', `/?focus=${encodeURIComponent(game.slug)}`)
+    location.assign(url)
   }
-  const play = (game) => startPlayer(`/play/?game=${encodeURIComponent(game.slug)}`)
+  const play = (game) => go(game, `/${game.slug}/`)
 
-  // A ROM from an emulator's library: the player resolves the core and reads the ROM.
+  // A ROM from the drawer: the system's page with the game (and version) in the query.
   const playRom = ({ detail }) => {
-    const q = new URLSearchParams({ system: detail.system, game: detail.gameId, rom: detail.sha1 })
-    startPlayer(`/play/?${q}`)
+    const system = rows.flatMap((r) => r.games).find((g) => g.system === detail.system)
+    const q = new URLSearchParams({ game: detail.gameId, version: detail.sha1.slice(0, 8) })
+    go(system, `/${system.slug}/?${q}`)
   }
 
   // An emulator opens like an iOS 6 folder: the drawer splits the grid under its row
@@ -58,18 +69,11 @@
     if (!game) return
     if (game.kind === 'emulator') toggleDrawer(game)
     else if (game.status !== 'ready') dialog = { type: 'notice', game }
-    else if (game.kind === 'game' && game.install && !isInstalled(game)) dialog = { type: 'install', game }
-    else play(game)
+    else play(game) // the page itself asks for the files if they are not installed
   }
 
   const select = (row, col) => {
     focus = { row, col }
-  }
-
-  const stop = () => {
-    playing = null
-    setPaused(false)
-    refresh()
   }
 
   const move = (dRow, dCol) => {
@@ -93,14 +97,16 @@
     else if (action === 'accept') open(current)
   })
 
-  // The player page says when it is done; it has already destroyed its engine.
-  window.addEventListener('message', (event) => {
-    if (event.origin === location.origin && event.data?.type === 'launcher:exit') stop()
+  // Back from a route through bfcache: the page is as it was; refresh what may have changed.
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return
+    for (const card of $$self('.card')) card.style.viewTransitionName = ''
+    refresh()
+    for (const system of rows.flatMap((r) => r.games).filter((g) => g.system)) romLibrary.load(system.system)
   })
 
-  const onInstalled = ({ detail: game }) => play(game)
-
   await refresh()
+  for (const system of rows.flatMap((r) => r.games).filter((g) => g.system)) romLibrary.load(system.system)
   await $mounted()
 
   // Keep the focused card in view whenever the focus moves.
@@ -125,7 +131,7 @@
   <div class="backdrop-tint"></div>
 </div>
 
-<div class="launcher" :class.is-playing="playing" :class.has-drawer="drawer">
+<div class="launcher" :class.has-drawer="drawer">
   <header class="topbar">
     <span class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -193,16 +199,12 @@
   </footer>
 
   <div :if="dialog" class="dialog-backdrop" @click.self="dialog = null">
-    <InstallDialog :if="dialog.type === 'install'" :game="dialog.game" :install
-                   @installed="onInstalled" @cancel="dialog = null" />
     <Notice :if="dialog.type === 'notice'" :game="dialog.game" @close="dialog = null" />
   </div>
 
-  <div :if="shell.update && !playing" class="toast">
+  <div :if="shell.update" class="toast">
     Hay una versión nueva.
     <button @click="shell.update()">Actualizar</button>
   </div>
 </div>
 
-<iframe :if="playing" class="player" :src="playing" title="Juego"
-        allow="fullscreen; gamepad; autoplay; keyboard-map" @load="$event.target.focus()"></iframe>

@@ -9,6 +9,9 @@ dev-dist/
 # Engines fetched at build time from each engine's GitHub Release (scripts/fetch-engines.mjs)
 public/engines/
 
+# Route pages generated from the catalog (scripts/routes-plugin.mjs)
+routes/
+
 # Local build/cache artifacts
 .cache/
 /.tmp

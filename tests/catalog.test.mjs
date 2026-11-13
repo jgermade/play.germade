@@ -9,7 +9,8 @@ const engines = JSON.parse(readFileSync(new URL('../src/data/engines.json', impo
 test('slugs are unique and usable as a storage namespace', () => {
   const slugs = GAMES.map((g) => g.slug);
   assert.equal(new Set(slugs).size, slugs.length);
-  for (const slug of slugs) assert.match(slug, /^[a-z0-9][a-z0-9-]*$/);
+  // Slugs are paths (/sonic1/, /megadrive/) and storage namespaces: lowercase, no separators.
+  for (const slug of slugs) assert.match(slug, /^[a-z0-9]+$/);
 });
 
 test('every game sits in a known category', () => {
@@ -35,4 +36,8 @@ test('a playable game has a pinned engine and says what to install', () => {
 
 test('kinds are known', () => {
   for (const game of GAMES) assert.ok(['game', 'emulator'].includes(game.kind), game.slug);
+});
+
+test('a system entry is its own library: system id = slug', () => {
+  for (const game of GAMES.filter((g) => g.kind === 'emulator' && g.system)) assert.equal(game.system, game.slug);
 });

@@ -31,7 +31,7 @@ export const CATEGORIES = [
 
 export const GAMES = [
   {
-    slug: 'sonic-1',
+    slug: 'sonic1',
     category: 'retro-moderno',
     kind: 'game',
     title: 'Sonic the Hedgehog',
@@ -47,7 +47,7 @@ export const GAMES = [
     },
   },
   {
-    slug: 'sonic-2',
+    slug: 'sonic2',
     category: 'retro-moderno',
     kind: 'game',
     title: 'Sonic the Hedgehog 2',
@@ -63,7 +63,7 @@ export const GAMES = [
     },
   },
   {
-    slug: 'sonic-cd',
+    slug: 'soniccd',
     category: 'retro-moderno',
     kind: 'game',
     title: 'Sonic CD',
@@ -74,7 +74,7 @@ export const GAMES = [
     accent: '#7c3aed',
   },
   {
-    slug: 'sonic-mania',
+    slug: 'sonicmania',
     category: 'retro-moderno',
     kind: 'game',
     title: 'Sonic Mania',
@@ -98,7 +98,7 @@ export const GAMES = [
     accent: '#be185d',
   },
   {
-    slug: 'neo-geo',
+    slug: 'neogeo',
     category: 'emuladores',
     kind: 'emulator',
     title: 'Neo Geo',
@@ -111,12 +111,12 @@ export const GAMES = [
     kicker: 'Arcade · SNK',
   },
   {
-    slug: 'mega-drive',
+    slug: 'megadrive',
     category: 'emuladores',
     kind: 'emulator',
     title: 'Mega Drive',
     description: 'Sega Mega Drive / Genesis. Tu biblioteca de ROMs, agrupada por juego y versión.',
-    system: 'mega-drive',
+    system: 'megadrive',
     engine: 'blastem', // default core; the console and each game can choose another
     cores: [
       { id: 'blastem', label: 'BlastEm' },
@@ -143,7 +143,7 @@ export const GAMES = [
     kicker: 'Nintendo · 16 bits',
   },
   {
-    slug: 'game-boy-advance',
+    slug: 'gba',
     category: 'emuladores',
     kind: 'emulator',
     title: 'Game Boy Advance',
@@ -156,6 +156,9 @@ export const GAMES = [
     kicker: 'Portátil · 32 bits',
   },
 ];
+
+/** The page for an entry: `/<slug>/` (systems take `?game=…&version=…&patch=…`). */
+export const routeOf = (entry) => `/${entry.slug}/`;
 
 export const gameBySlug = (slug) => GAMES.find((game) => game.slug === slug) ?? null;
 

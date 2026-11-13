@@ -8,7 +8,7 @@
 // under one tile. A DAT match (No-Intro, as ROM Manager does) can replace this later.
 
 export const SYSTEM = {
-  id: 'mega-drive',
+  id: 'megadrive',
   title: 'Mega Drive',
   extensions: ['.bin', '.gen', '.md', '.smd'],
 };

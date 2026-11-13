@@ -17,7 +17,7 @@ make test
 To run against a local engine build instead of its release:
 
 ```bash
-ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
+ENGINE_SPECS_SRC=../engine-specs/dist ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
 ```
 
 ## Project Specs
@@ -35,10 +35,15 @@ ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
   the slug as `storage.namespace`. *Install* writes the game's files there once; *Play* hands
   them to the engine as thunks that read them back; saves land beside them. Uninstall removes
   the data and keeps the saves. Persistent storage is requested on first install.
-- **Player** — `/play/?game=<slug>` in a full-screen iframe: imports the engine SDK, then
-  `new SDK({ config }).assets().storage({ namespace: slug }).mount().start()`. Escape (or
-  Select+Start) opens the pause menu: continue / restart / back to the catalog, which destroys
-  the engine and drops the iframe — safe for engines that cannot restart in process.
+- **Routes** — one page per catalog entry, generated at build time (`scripts/routes-plugin.mjs`):
+  games on their own path (`/sonic1/`), systems on theirs with the game in the query
+  (`/megadrive/?game=old-towers&version=ca2c05c0[&patch=…]`); `/megadrive/` alone is the library.
+  A route installs what is missing, then mounts the **engine's app** (`EngineApp` from engine-specs)
+  or, until the engine ships one, the launcher's generic app (pause menu: Continue / Restart / Back).
+  Leaving returns through history (bfcache keeps the home as it was) or to `/?focus=<slug>`.
+  Cross-document **View Transitions**: the tile's art morphs into the route's splash.
+- **Input** — `createInput()` from `@wasm-gaming/engine-specs` (UX.md there): the same buttons
+  everywhere; in game only Select+Start / Escape reach the menu.
 - **PWA** — installable (fullscreen, landscape), offline catalog, engines cached on first play,
   updates offered with a prompt (never mid-game). The service worker adds COOP/COEP to every
   navigation, so threaded engines get `crossOriginIsolated` on any static host; one reload on the
@@ -54,6 +59,7 @@ ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 make up
 
 ## Todos
 
+- [ ] Release engine-specs 0.4.0 and depend on `^0.4.0` (until then `ENGINE_SPECS_SRC`).
 - [ ] Release `rsdkv4-wasm` 0.3.0 (pinned in `engines.json`; until then use `ENGINE_SRC_RSDKV4`).
 - [x] Emulators: per-system ROM library (Mega Drive), versions grouped by game, version picker,
       core per console and per game.

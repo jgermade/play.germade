@@ -24,6 +24,10 @@
   font-feature-settings: 'cv11', 'ss01';
 }
 
+/* Cross-document view transitions between the home and the route pages. */
+@view-transition { navigation: auto; }
+::view-transition-group(*) { animation-duration: 420ms; animation-timing-function: var(--ease); }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
 body { overflow: hidden; -webkit-font-smoothing: antialiased; }

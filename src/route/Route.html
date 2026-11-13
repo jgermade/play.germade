@@ -1,0 +1,39 @@
+<script :setup="{ view, entry, roms, romLibrary, input, InstallDialog, RomDrawer, install, onInstalled, openRom, exit }">
+  const art = entry.cover ?? entry.tileArt ?? entry.art ?? null
+  const onAction = (fn) => input.on(fn)
+</script>
+
+<div class="route" :class="`is-${view.mode}`">
+  <header :if="view.mode !== 'playing'" class="route-bar">
+    <button class="route-back" @click="exit()"><i class="key is-b">B</i> Volver</button>
+    <span class="route-title">{{ entry.title }}</span>
+  </header>
+
+  <section :if="view.mode === 'loading' || view.mode === 'error'" class="splash">
+    <div class="splash-art" :style="`view-transition-name: art-${entry.slug}`">
+      <img :if="art" :src="art" alt="" />
+    </div>
+    <div class="splash-body">
+      <h1>{{ view.title ?? entry.title }}</h1>
+      <p :if="view.mode === 'loading'" class="splash-status"><span class="spinner"></span>{{ view.status ?? 'Cargando…' }}</p>
+      <p :if="view.notice" class="splash-notice">{{ view.notice }}</p>
+      <p :if="view.mode === 'error'" class="error">{{ view.error }}</p>
+      <button :if="view.mode === 'error'" class="cta" @click="exit()">Volver</button>
+    </div>
+  </section>
+
+  <section :if="view.mode === 'install'" class="route-center">
+    <InstallDialog :game="entry" :install @installed="onInstalled" @cancel="exit()" />
+  </section>
+
+  <section :if="view.mode === 'library'" class="route-library">
+    <div class="library-hero" :style="`view-transition-name: art-${entry.slug}`">
+      <img :if="art" :src="art" alt="" />
+    </div>
+    <p :if="view.notice" class="splash-notice">{{ view.notice }}</p>
+    <RomDrawer :game="entry" :roms :library="romLibrary" :onAction @play="openRom" @close="exit()" />
+  </section>
+
+  <section id="app" :class.is-hidden="view.mode !== 'playing'"></section>
+  <p :if="view.notice && view.mode === 'playing'" class="route-toast" role="status">{{ view.notice }}</p>
+</div>

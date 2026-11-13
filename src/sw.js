@@ -23,18 +23,20 @@ const isolated = (response) => {
 
 // Navigations first (registered before Workbox's routes, so this respondWith wins):
 // network when online so a deploy shows up, the precached shell when offline, and
-// the isolation headers on both. /play/ is the player that runs inside the iframe.
+// the isolation headers on both. Every route (/sonic1/, /megadrive/) has its own shell.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.mode !== 'navigate') return;
   const url = new URL(request.url);
-  const shell = url.pathname.startsWith('/play/') ? 'play/index.html' : 'index.html';
+  // /sonic1/, /megadrive/?game=… → that route's own shell; anything else → the home.
+  const route = /^\/([a-z0-9]+)\/?$/.exec(url.pathname)?.[1];
   event.respondWith(
     (async () => {
       try {
         return isolated(await fetch(request));
       } catch {
-        return isolated(await matchPrecache(shell));
+        const shell = (route && (await matchPrecache(`${route}/index.html`))) || (await matchPrecache('index.html'));
+        return isolated(shell);
       }
     })(),
   );
