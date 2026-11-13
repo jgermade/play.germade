@@ -1,0 +1,132 @@
+name: Release
+
+# Cuts a release of the launcher, start to finish:
+#
+#   guard → next → build → bump → { release, pages }
+#
+# The version is stamped into the tree the build clones rather than committed
+# ahead of it, so `main` never carries a bump for a build that failed.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version bump to apply'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      dry-run:
+        description: 'Build and pack without pushing, releasing or deploying'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # workflow_dispatch takes no branch filter, and a release from a work branch
+  # would push a bump commit onto it.
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Releases are cut from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "refusing to release from ${{ github.ref }}" >&2
+          exit 1
+
+  next:
+    needs: [guard]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      # Resolves the keyword against package.json; the tree it writes is thrown away.
+      - id: next
+        run: |
+          version="$(npm version "${{ inputs.version }}" --no-git-tag-version)"
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+          echo "next version: ${version#v}"
+
+  build:
+    needs: [next]
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.next.outputs.version }}
+
+  bump:
+    needs: [next, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "${{ needs.next.outputs.version }}" --no-git-tag-version --allow-same-version
+          git add package.json package-lock.json
+          git commit -m "v${{ needs.next.outputs.version }}"
+          git tag "v${{ needs.next.outputs.version }}"
+      # Not a fast-forward if someone merged while the build ran: this fails rather
+      # than overwriting them. Relaunching is the fix.
+      - name: Push
+        if: inputs.dry-run != true
+        run: git push --follow-tags
+
+  release:
+    needs: [next, build, bump]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: play.germade
+
+      - name: Pack the site
+        run: |
+          zip -qr play.germade.zip play.germade
+          ls -la play.germade.zip
+
+      - name: Create the GitHub Release
+        if: inputs.dry-run != true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.next.outputs.version }}
+          generate_release_notes: true
+          files: play.germade.zip
+
+  pages:
+    needs: [build, bump]
+    if: inputs.dry-run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: dist
+      # The custom domain (play.germade.dev) lives in Settings → Pages; with the
+      # GitHub Actions source no CNAME file is needed. Pages cannot send headers:
+      # COOP/COEP come from the service worker (src/sw.js).
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
