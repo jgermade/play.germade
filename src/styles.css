@@ -258,12 +258,14 @@ kbd {
 .tile-details .drawer-panel { margin: 0; }
 /* Desktop: the description under the title; chips and actions on the right. */
 @media (min-width: 761px) {
-  .tile-details .hero { grid-template-rows: auto 1fr; row-gap: 0.9rem; }
-  .tile-details .hero .hero-details { display: contents; }
-  .tile-details .hero .hero-body { grid-area: 1 / 1; }
-  .tile-details .hero .hero-desc { grid-area: 2 / 1; margin: 0; animation: rise 560ms var(--ease) both; }
-  .tile-details .hero .hero-chips { grid-area: 1 / 2; align-self: start; }
-  .tile-details .hero .hero-actions { grid-area: 2 / 2; align-self: start; }
+  /* kicker; title | chips (their tops level); description | actions */
+  .tile-details .hero { grid-template-rows: auto auto 1fr; row-gap: 0.9rem; }
+  .tile-details .hero .hero-body, .tile-details .hero .hero-details { display: contents; }
+  .tile-details .hero .hero-kicker { grid-area: 1 / 1; margin: 0; animation: rise 500ms var(--ease) both; }
+  .tile-details .hero .hero-title { grid-area: 2 / 1; animation: rise 500ms var(--ease) both; }
+  .tile-details .hero .hero-desc { grid-area: 3 / 1; margin: 0; animation: rise 560ms var(--ease) both; }
+  .tile-details .hero .hero-chips { grid-area: 2 / 2; align-self: start; }
+  .tile-details .hero .hero-actions { grid-area: 3 / 2; align-self: start; }
 }
 .tile-title { font: 650 0.84rem var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-meta { font: 500 0.7rem var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
