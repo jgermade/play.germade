@@ -18,6 +18,8 @@
   let actionFocus = null
   let inDrawer = false
 
+  const narrow = matchMedia('(max-width: 760px)') // a phone: the page scrolls by touch
+
   $: current = rows[focus.row]?.games[focus.col] ?? null
 
   // Ambient backdrop: the focused item's art, blurred, cross-faded. Two layers at most.
@@ -76,7 +78,8 @@
     actionFocus = null
     inDrawer = false
     // Once the panel is in the page and done unfolding (240ms), bring all of it into view.
-    if (scroll) setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
+    // (On a phone; on desktop the page is anchored to the focused line instead, see `anchor()`.)
+    if (scroll && narrow.matches) setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
   // A game's panel's enabled buttons, in order: the main action, then Quitar datos.
   const actionsOf = (game) => {
@@ -100,12 +103,13 @@
     }
     else if (actionsOf(detailsGame).length) actionFocus = 0
     else return false
-    $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (narrow.matches) $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     return true
   }
   // The drawer hands the keys back at its edges.
   const leaveDrawer = () => { inDrawer = false }
-  const drawerNext = () => { inDrawer = false; move(1, 0) }
+  // ↓ from the drawer's last line: on to the next line, if there is one (else stay in the drawer).
+  const drawerNext = () => { if (move(1, 0)) inDrawer = false }
 
   const closePanel = () => { details = null; actionFocus = null; inDrawer = false }
   // A click selects the tile and opens its panel; on the selected one, it closes it.
@@ -140,7 +144,7 @@
       else if (dRow < 0 && line > 0) col -= cols
       else {
         const next = row + dRow
-        if (next < 0 || next >= rows.length) return
+        if (next < 0 || next >= rows.length) return false
         const nextSize = rows[next].games.length
         const nextCols = colsOf(next)
         const start = dRow > 0 ? 0 : Math.floor((nextSize - 1) / nextCols) * nextCols
@@ -148,10 +152,11 @@
         col = Math.min(nextSize - 1, start + (col % cols))
       }
     }
-    if (row === focus.row && col === focus.col) return
+    if (row === focus.row && col === focus.col) return false
     focus = { row, col }
     // An open panel follows the selection, as the hero used to.
     if (details) place(row, col)
+    return true
   }
 
   onAction((action) => {
@@ -224,7 +229,18 @@
     : isInstalled(current) ? 'Jugar' : 'Instalar'
 
   // Keep the focused tile in view whenever the focus moves.
+  // Desktop: the focused line always sits where the first line sits at the top of the page, so
+  // the tiles keep their height on screen whatever the size of the panel under them.
+  const anchor = (behavior = 'smooth') => {
+    const tile = $self('.card.is-focused')?.closest('.tile')
+    const first = $self('.tile')
+    if (!tile || !first) return
+    // The page offset that puts this line where the first one is at scroll 0.
+    const top = tile.getBoundingClientRect().top - first.getBoundingClientRect().top
+    if (Math.abs(top - scrollY) > 1) window.scrollTo({ top, behavior })
+  }
   $: focus, requestAnimationFrame(() => {
+    if (!narrow.matches) return anchor()
     $self('.card.is-focused')?.closest('.tile')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 </script>

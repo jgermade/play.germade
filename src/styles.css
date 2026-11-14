@@ -130,7 +130,7 @@ kbd {
 
 /* The same layout on every size: each row is a grid, and a tile's details open under its
    grid line. The page scrolls; the bottom padding keeps the last line clear of the hint bar. */
-.rows { position: relative; overflow-x: hidden; padding: 18px 0 96px; }
+.rows { position: relative; overflow-x: hidden; padding: 18px 0 max(96px, calc(100vh - 240px)); }
 .row { margin-bottom: 18px; }
 .row-title {
   display: flex; align-items: center; gap: 0.6rem; margin: 0 var(--gutter);
@@ -335,13 +335,20 @@ kbd {
 }
 
 /* Fixed-width columns packed to the left: games and the add tile one gap apart, whatever the width. */
+/* The box size: the system's box shape (--box-w/h, the area of a 78px square) scaled up. */
+.drawer-panel {
+  --rom-scale: 1.6; --rom-w: calc(var(--box-w, 78px) * var(--rom-scale)); --rom-h: calc(var(--box-h, 78px) * var(--rom-scale));
+  /* Every box in a slot as tall as the tallest shape (3:4, 90px before scaling): a landscape box
+     is centred in it, so drawers of portrait and landscape systems are the same height. */
+  --rom-slot: calc(90px * var(--rom-scale)); --rom-pad: calc((var(--rom-slot) - var(--rom-h)) / 2);
+}
 .rom-grid {
-  list-style: none; margin: 14px 0 0; padding: 0; display: grid; justify-content: start; gap: 18px 14px;
-  grid-template-columns: repeat(auto-fill, var(--box-w, 78px));
+  list-style: none; margin: 18px 0 0; padding: 0; display: grid; justify-content: start; gap: 28px;
+  grid-template-columns: repeat(auto-fill, var(--rom-w, 78px));
 }
 .rom { position: relative; }
 /* Art and title start at the left edge, so the first tile lines up with the drawer's header and text. */
-.rom-tile { width: 100%; display: grid; justify-items: start; gap: 8px; padding: 8px 0; background: none; border: 0; border-radius: 18px; }
+.rom-tile { scroll-margin: 24px 0 88px; width: 100%; display: grid; justify-items: start; gap: 8px; padding: 8px 0; background: none; border: 0; border-radius: 18px; }
 .rom-art {
   position: relative; width: 78px; height: 78px; border-radius: 20px; display: grid; place-items: center; overflow: hidden;
   font: 800 1.45rem var(--display); letter-spacing: -0.04em; color: #fff;
@@ -356,7 +363,7 @@ kbd {
 /* A game is drawn the shape of its box: portrait on Mega Drive, landscape on Super
    Nintendo (the system's `boxart`). Same area either way, so rows stay even. */
 .drawer-panel .rom-tile .rom-art {
-  width: var(--box-w, 78px); height: var(--box-h, 78px); border-radius: 10px;
+  width: var(--rom-w, 78px); height: var(--rom-h, 78px); border-radius: 3px; margin: max(0px, var(--rom-pad, 0px)) 0;
 }
 .rom-art.is-cover { background: #111; }
 .rom-art.is-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -365,7 +372,7 @@ kbd {
 .rom-title { font: 600 0.78rem var(--ui); text-align: left; line-height: 1.25; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .rom-core { font-size: 0.66rem; color: var(--muted); }
 .rom-badge {
-  position: absolute; top: 0; left: calc(var(--box-w, 78px) - 16px); z-index: 1;
+  position: absolute; top: max(0px, var(--rom-pad, 0px)); left: calc(var(--rom-w, 78px) - 16px); z-index: 1;
   min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
   background: linear-gradient(#ef4444, #b91c1c); border: 2px solid #fff; color: #fff;
   font: 800 0.72rem/20px var(--ui); text-align: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.6);
@@ -469,7 +476,8 @@ kbd {
   .hero-desc { font-size: 0.92rem; margin-bottom: 1.1rem; }
   .hintbar .is-nav { display: none; }
   .hintbar { justify-content: center; gap: 1rem; }
-  .drawer-panel { padding: 16px; }
+  .drawer-panel { padding: 16px; --rom-scale: 1.3; }
+  .rom-grid { gap: 20px; }
 
   /* A phone: three columns that fill the width, no lift on the focused tile (it would cover
      its neighbours). */
