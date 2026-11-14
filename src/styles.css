@@ -29,8 +29,15 @@
 ::view-transition-group(*) { animation-duration: 420ms; animation-timing-function: var(--ease); }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
-body { overflow: hidden; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { -webkit-font-smoothing: antialiased; }
+body.has-sheet { overflow: hidden; }
+/* The document scrolls. On a desktop it settles with a row right under the header, as a
+   console's menu does; `proximity`, so an open ROM folder still scrolls freely. */
+@media (min-width: 761px) {
+  html { scroll-snap-type: y proximity; scroll-padding-top: var(--header-h, 0px); scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
+}
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 0.9em; color: var(--soft); }
@@ -62,9 +69,10 @@ kbd {
 /* ---------- Frame ---------- */
 
 .launcher {
-  position: relative; z-index: 1; height: 100vh; height: 100dvh;
-  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh;
 }
+/* Top bar and hero stay put while the rows go under them. */
+.head { position: sticky; top: 0; z-index: 3; }
 .launcher.is-playing { visibility: hidden; }
 
 .topbar {
@@ -84,9 +92,6 @@ kbd {
 .topbar-link:hover { color: var(--text); border-color: #fff; }
 .clock { margin-left: 18px; font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
 
-/* The scroll area holds the hero and the rows together, so the folder can push them up. */
-.launcher > .hero-slot, .launcher > .rows { grid-column: 1; }
-.launcher { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 
 /* ---------- Hero ---------- */
 
@@ -130,8 +135,11 @@ kbd {
 
 /* ---------- Rows and square tiles ---------- */
 
-.rows { position: relative; overflow-y: auto; overflow-x: hidden; padding: 6px 0 calc(100vh - 40px); scrollbar-width: none; mask-image: linear-gradient(transparent 0, #000 16px, #000 calc(100% - 40px), transparent); }
-.row { margin-bottom: 8px; transition: opacity 260ms var(--ease); }
+.rows { position: relative; overflow-x: hidden; padding: 6px 0 calc(100vh - var(--header-h, 0px) - 40px); }
+.row { margin-bottom: 8px; scroll-snap-align: start; transition: opacity 260ms var(--ease); }
+/* A row that has gone under the header: hidden, as the old frame's fade did (the header has
+   no background of its own — behind it is the blurred art). */
+.rows .row.is-under { opacity: 0; pointer-events: none; }
 .row.is-dimmed { opacity: 0.28; }
 .row-title {
   display: flex; align-items: center; gap: 0.6rem; margin: 0 var(--gutter);
@@ -389,7 +397,9 @@ kbd {
 
   /* A phone gets a grid: no hero (the details open under the tapped game), every row wraps. */
   .hero-slot { display: none; }
-  .rows { padding-bottom: 48px; mask-image: none; }
+  /* A plain page on a phone: no sticky header, no snap (pull-to-refresh needs the page). */
+  .head { position: static; }
+  .rows { padding-bottom: 48px; }
   .row-title { margin-top: 10px; }
   .cards {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px;
