@@ -65,7 +65,7 @@ function zip(entries) {
   const locals = [];
   const centrals = [];
   let offset = 0;
-  for (const { name, data, method } of entries) {
+  for (const { name, data, method, crc = 0 } of entries) {
     const body = method === 8 ? new Uint8Array(deflateRawSync(data)) : data;
     const n = enc.encode(name);
     const local = new Uint8Array(30 + n.length + body.length);
@@ -81,6 +81,7 @@ function zip(entries) {
     const cv = new DataView(central.buffer);
     cv.setUint32(0, 0x02014b50, true);
     cv.setUint16(10, method, true);
+    cv.setUint32(16, crc, true);
     cv.setUint32(20, body.length, true);
     cv.setUint32(24, data.length, true);
     cv.setUint16(28, n.length, true);
@@ -115,4 +116,50 @@ test('the zip reader returns stored and deflated entries intact', async () => {
 
 test('not a zip is said plainly', () => {
   assert.throws(() => readZip(new Uint8Array(100)), /ZIP/);
+});
+
+// ---- Neo Geo: whole sets, identified by the CRCs inside, and the BIOS apart --------
+import { identify as identifyNeo, biosKind, cleanTitle, bestSet } from '../src/data/systems/neo-geo.js';
+
+const neoDataset = {
+  games: {
+    neogeo: { parent: null, t: 'Neo Geo MVS system', roms: [{ c: '9036d879' }, { c: 'a7aab458' }, { c: 'd27a71f1' }] },
+    mslug: { parent: null, t: 'Metal Slug - Super Vehicle-001', y: '1996', m: 'Nazca', roms: [{ c: '08d8daa5' }, { c: '2f55958d' }, { c: '72813676' }] },
+    garou: { parent: null, t: 'Garou - Mark of the Wolves (NGM-2530)', y: '1999', m: 'SNK', roms: [{ c: '11111111' }, { c: '22222222' }] },
+    garouh: { parent: 'garou', t: 'Garou - Mark of the Wolves (NGM-2530 ~ NGH-2530)', roms: [{ c: '11111111' }, { c: '22222222' }] },
+  },
+};
+const crcs = (...list) => list.map((crc) => ({ crc }));
+
+test('a Neo Geo set is named by its chips, whatever the file is called', () => {
+  assert.deepEqual(identifyNeo(crcs('08d8daa5', '2f55958d', '72813676'), 'Metal Slug (1).zip', neoDataset), {
+    gameId: 'mslug', title: 'Metal Slug - Super Vehicle-001', year: '1996', maker: 'Nazca', name: 'Metal Slug (1)', matched: true,
+  });
+});
+
+test('a tie goes to the parent set, and catalogue numbers leave the title', () => {
+  const id = identifyNeo(crcs('11111111', '22222222'), 'garou.zip', neoDataset);
+  assert.equal(id.gameId, 'garou');
+  assert.equal(id.title, 'Garou - Mark of the Wolves');
+  assert.equal(cleanTitle('Metal Slug X - Super Vehicle-001 (NGM-2500 ~ NGH-2500)'), 'Metal Slug X - Super Vehicle-001');
+  assert.equal(bestSet(crcs('11111111').map((e) => e.crc), neoDataset), null); // 50 %: not enough
+});
+
+test('the BIOS set is the BIOS, and says what it can boot as the AES', () => {
+  assert.deepEqual(identifyNeo(crcs('9036d879', 'a7aab458'), 'neogeo.zip', neoDataset), { bios: 'unibios', name: 'neogeo' });
+  assert.equal(biosKind(['d27a71f1']), 'aes');
+  assert.equal(biosKind(['16d0c132']), 'aes');
+  assert.equal(biosKind(['a7aab458']), 'unibios');
+  assert.equal(biosKind(['9036d879']), 'mvs');
+});
+
+test('a set FBNeo does not list keeps its file name', () => {
+  const id = identifyNeo(crcs('deadbeef'), 'my_homebrew.zip', neoDataset);
+  assert.equal(id.gameId, 'my-homebrew');
+  assert.equal(id.matched, false);
+});
+
+test('the zip reader gives each entry its CRC-32 (from the central directory)', () => {
+  const [entry] = readZip(zip([{ name: 'a.bin', data: new Uint8Array([1, 2, 3]), method: 0, crc: 0x08d8daa5 }]));
+  assert.equal(entry.crc, '08d8daa5');
 });

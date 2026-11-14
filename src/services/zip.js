@@ -10,7 +10,7 @@ async function inflateRaw(bytes) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** `[{ name, bytes() }]` for every file in the archive (directories skipped). */
+/** `[{ name, crc, bytes() }]` for every file in the archive (directories skipped). */
 export function readZip(buffer) {
   const data = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -31,6 +31,7 @@ export function readZip(buffer) {
   for (let n = 0; n < count; n++) {
     if (u32(view, offset) !== 0x02014b50) throw new Error('ZIP dañado');
     const method = u16(view, offset + 10);
+    const crc = u32(view, offset + 16).toString(16).padStart(8, '0');
     const compressed = u32(view, offset + 20);
     const nameLength = u16(view, offset + 28);
     const extraLength = u16(view, offset + 30);
@@ -45,6 +46,7 @@ export function readZip(buffer) {
     entries.push({
       name,
       method,
+      crc, // CRC-32 of the uncompressed data, as the central directory has it
       bytes: async () => {
         if (method === 0) return raw.slice();
         if (method === 8) return inflateRaw(raw);

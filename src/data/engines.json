@@ -31,5 +31,13 @@
     "path": "rsdkv5/rsdkv5",
     "entry": "rsdkv5.sdk.js",
     "app": "app/app.js"
+  },
+  "fbneo": {
+    "repo": "wasm-gaming/fbneo-wasm",
+    "version": "0.3.0",
+    "asset": "fbneo.tar.gz",
+    "path": "fbneo/fbneo",
+    "entry": "fbneo.sdk.js",
+    "app": "app/app.js"
   }
 }

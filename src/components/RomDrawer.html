@@ -58,6 +58,7 @@
     $emit('play', { system: game.system, gameId: g.id, sha1: v.sha1, patch: mod?.sha1 ?? null })
   }
   const playRow = (g, row) => row.kind === 'mod' ? play(g, null, row.m) : play(g, row.v)
+  const BIOS_SAID = { aes: 'BIOS de AES añadida', unibios: 'BIOS añadida (Universe BIOS en modo consola)', mvs: 'BIOS añadida, pero sin AES ni Universe BIOS: no arrancará como consola' }
   const modState = { verified: 'verificado', unverified: 'sin verificar', mismatch: 'no coincide' }
   const manage = (g = null) => location.assign(`/roms/?system=${game.system}${g ? `&game=${encodeURIComponent(g.id)}` : ''}`)
 
@@ -66,8 +67,9 @@
     busy = true
     message = null
     try {
-      const { added, duplicates, rejected } = await library.importFiles(game.system, [...files])
+      const { added, duplicates, rejected, bios } = await library.importFiles(game.system, [...files])
       const parts = []
+      if (bios) parts.push(BIOS_SAID[bios])
       if (added.length) parts.push(`${added.length} ROM${added.length > 1 ? 's' : ''} añadida${added.length > 1 ? 's' : ''}`)
       if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
       if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
