@@ -16,6 +16,19 @@
     error = null
   }
 
+  // A file dropped on a zone is picked as if chosen with the button (the first one).
+  let dragging = null      // key of the zone a file is held over
+  const onDragLeave = (event) => {
+    if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) dragging = null
+  }
+  const onDrop = (key, event) => {
+    dragging = null
+    const file = event.dataTransfer?.files?.[0]
+    if (!file) return
+    files = { ...files, [key]: file }
+    error = null
+  }
+
   const submit = async () => {
     busy = true
     error = null
@@ -41,12 +54,14 @@
     en <code>{{ game.engine }}/{{ game.slug }}/</code>. Las partidas se guardan al lado.
   </p>
   <!-- The browser's own file control stays in the label, hidden: the whole zone opens it. -->
-  <label :each="entry in entries" :key="entry[0]" class="file" :class.is-picked="files[entry[0]]">
+  <label :each="entry in entries" :key="entry[0]" class="file" :class.is-picked="files[entry[0]]"
+         :class.is-dragging="dragging === entry[0]"
+         @dragover.prevent="dragging = entry[0]" @dragleave="onDragLeave" @drop.prevent="onDrop(entry[0], $event)">
     <span class="file-label">{{ entry[1].label ?? entry[1].file }}</span>
     <span class="file-row">
       <svg class="file-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
       <span class="file-name">
-        {{ files[entry[0]] ? files[entry[0]].name : `Elegir ${entry[1].file ?? 'archivo'}` }}
+        {{ files[entry[0]] ? files[entry[0]].name : `${coarse ? 'Elegir' : 'Elegir o soltar'} ${entry[1].file ?? 'archivo'}` }}
         <small :if="files[entry[0]]">{{ size(files[entry[0]]) }}</small>
       </span>
       <span class="file-button">{{ files[entry[0]] ? 'Cambiar' : 'Elegir' }}</span>

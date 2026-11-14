@@ -21,6 +21,9 @@ import { library, refresh, install } from '../services/library.service.js';
 import * as romLibrary from '../services/rom-library.service.js';
 import { input } from '../services/input.service.js';
 import { readFile, storagePath } from '../services/storage.js';
+import { guardFileDrops } from '../services/drop-guard.js';
+
+guardFileDrops();
 
 const slug = document.body.dataset.slug;
 const entry = gameBySlug(slug);

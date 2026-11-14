@@ -90,6 +90,10 @@
     addFiles(event.target.files)
     event.target.value = ''
   }
+  // Only when the pointer leaves the panel itself: moving over its tiles fires dragleave too.
+  const onDragLeave = (event) => {
+    if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) dragging = false
+  }
   const onDrop = (event) => {
     dragging = false
     addFiles(event.dataTransfer?.files)
@@ -144,7 +148,7 @@
 </script>
 
 <section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}; --box-w: ${box.w}px; --box-h: ${box.h}px`"
-         @dragover.prevent="dragging = true" @dragleave.self="dragging = false" @drop.prevent="onDrop">
+         @dragover.prevent="dragging = true" @dragleave="onDragLeave" @drop.prevent="onDrop">
   <header class="drawer-head">
     <h3>{{ game.title }}</h3>
     <span class="drawer-meta">{{ games.length }} juego{{ games.length === 1 ? '' : 's' }}</span>
