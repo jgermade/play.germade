@@ -12,6 +12,9 @@ import { rows } from './data/catalog.js';
 import { library, refresh, uninstall } from './services/library.service.js';
 import { onAction } from './services/input.service.js';
 import * as romLibrary from './services/rom-library.service.js';
+import { guardFileDrops } from './services/drop-guard.js';
+
+guardFileDrops();
 
 // What the page shows about the app itself: a new version waiting, isolation.
 const shell = $reactive({ update: null, isolated: globalThis.crossOriginIsolated === true });
