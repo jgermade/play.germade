@@ -69,10 +69,14 @@ export const GAMES = [
     kind: 'game',
     title: 'Sonic CD',
     year: 1993,
-    description: 'RSDKv3. Llega cuando rsdkv3-wasm pase al contrato 1.0.',
+    description:
+      'La decompilación de RSDKv3 de la versión de 2011, con sus propios menús y su Stage Select a mano desde la pausa. El Data.rsdk lo aportas tú.',
     engine: 'rsdkv3',
-    status: 'soon',
+    status: 'ready',
     accent: '#7c3aed',
+    install: {
+      data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic CD' },
+    },
   },
   {
     slug: 'sonicmania',
