@@ -12,6 +12,8 @@
   // The panel under a tile's grid line: a game's details ('info'), or a console's ROM
   // drawer ('drawer'). `after` is the last tile of that line; the panel goes right after it.
   let details = null       // { slug, row, after, notch, mode }
+  // The arrows can go down into a details panel: the index of its focused button, or null.
+  let actionFocus = null
 
   $: current = rows[focus.row]?.games[focus.col] ?? null
 
@@ -68,8 +70,20 @@
       ? card.getBoundingClientRect().left - cards.getBoundingClientRect().left + card.offsetWidth / 2
       : 60
     details = { slug: game.slug, row: r, after, notch, mode }
+    actionFocus = null
     // Once the panel is in the page and done unfolding (240ms), bring all of it into view.
     setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
+  }
+  // A details panel's enabled buttons, in order: the main action, then Quitar datos.
+  const actionsOf = (game) => {
+    if (!game) return []
+    if (game.kind === 'emulator') return ['Abrir biblioteca']
+    if (game.status !== 'ready') return []
+    return isInstalled(game) ? ['Jugar', 'Quitar datos'] : ['Instalar']
+  }
+  const press = (game, index) => {
+    if (actionsOf(game)[index] === 'Quitar datos') { uninstall(game); actionFocus = 0 }
+    else open(game)
   }
   const modeOf = (game) => (game.kind === 'emulator' ? 'drawer' : 'info')
   $: detailsGame = details ? rows[details.row]?.games.find((g) => g.slug === details.slug) ?? null : null
@@ -78,6 +92,7 @@
   // A click selects the tile and opens its panel; on the open one, it closes it.
   const tap = (game, r, c) => {
     select(r, c)
+    actionFocus = null
     if (details?.slug === game.slug) details = null
     else place(r, c, modeOf(game))
   }
@@ -132,6 +147,23 @@
     }
     // An open console drawer takes the input (RomDrawer has its own grid); it says when to close.
     if (details?.mode === 'drawer') return
+    // In a panel's buttons: ← → between them, ↑ back to the tile, ↓ on to the next line.
+    if (actionFocus !== null && detailsGame) {
+      const count = actionsOf(detailsGame).length
+      if (action === 'left') actionFocus = Math.max(0, actionFocus - 1)
+      else if (action === 'right') actionFocus = Math.min(count - 1, actionFocus + 1)
+      else if (action === 'up') actionFocus = null
+      else if (action === 'down') { actionFocus = null; move(1, 0) }
+      else if (action === 'back') { actionFocus = null; details = null }
+      else if (action === 'accept') press(detailsGame, actionFocus)
+      return
+    }
+    // ↓ from a tile with its details open: into the panel's buttons (if it has any).
+    if (action === 'down' && details?.mode === 'info' && details.slug === current?.slug && actionsOf(current).length) {
+      actionFocus = 0
+      $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      return
+    }
     if (action === 'up') move(-1, 0)
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
@@ -170,6 +202,7 @@
 
   // What Enter does now: open the panel, then its main action.
   $: hintAccept = !current ? ''
+    : actionFocus !== null && detailsGame ? actionsOf(detailsGame)[actionFocus] ?? ''
     : details?.mode === 'drawer' ? 'Jugar'
     : details?.slug !== current.slug ? (current.kind === 'emulator' ? 'Abrir' : 'Detalles')
     : current.kind === 'emulator' ? 'Abrir'
@@ -244,7 +277,7 @@
           <!-- Keyed by console: another console's drawer is a new one (its engines, its ROMs). -->
           <RomDrawer :each="g in drawerGames" :key="g.slug" :game="g" :roms :library="romLibrary" :onAction
                      @play="playRom" @close="details = null" />
-          <Hero :if="details.mode === 'info'" :game="detailsGame" :installed="isInstalled(detailsGame)" :roms @open="open(detailsGame)"
+          <Hero :if="details.mode === 'info'" :game="detailsGame" :installed="isInstalled(detailsGame)" :roms :focusAction="actionFocus" @open="open(detailsGame)"
                 @uninstall="uninstall(detailsGame)" />
         </li>
       </ul>

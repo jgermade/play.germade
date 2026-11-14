@@ -122,6 +122,8 @@ kbd {
 .cta svg { width: 19px; height: 19px; fill: currentColor; }
 .cta:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px rgb(255 255 255 / 0.55); }
 .cta:disabled { background: rgb(255 255 255 / 0.12); color: var(--muted); box-shadow: none; cursor: default; transform: none; }
+/* A panel's button reached with the arrows: the focus ring. */
+.cta.is-focused { outline: 2px solid #fff; outline-offset: 4px; }
 .cta.is-ghost { background: rgb(255 255 255 / 0.08); color: var(--text); border: 1px solid var(--line-strong); box-shadow: none; backdrop-filter: blur(12px); padding: 0 1.4rem; }
 
 /* ---------- Rows and square tiles ---------- */
