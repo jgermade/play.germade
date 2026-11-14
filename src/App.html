@@ -9,20 +9,9 @@
   }
   let focus = focusOf(new URLSearchParams(location.search).get('focus'))
   let dialog = null        // { type: 'notice', game }
-  let drawer = null        // { slug, row, notch } — desktop: an emulator's ROM folder, open under its row
-  let details = null       // { slug, row, after, notch } — mobile: a game's details or a console's ROM drawer, under its grid line
-
-  // Phones get a grid: a tap opens a game's details below it, a console full screen.
-  const narrow = matchMedia('(max-width: 760px)')
-  let mobile = narrow.matches
-  const onNarrow = (event) => {
-    mobile = event.matches
-    details = null
-    drawer = null
-    requestAnimationFrame(() => measure())
-  }
-  narrow.addEventListener('change', onNarrow)
-  $destroyed(() => narrow.removeEventListener('change', onNarrow))
+  // The panel under a tile's grid line: a game's details ('info'), or a console's ROM
+  // drawer ('drawer'). `after` is the last tile of that line; the panel goes right after it.
+  let details = null       // { slug, row, after, notch, mode }
 
   $: current = rows[focus.row]?.games[focus.col] ?? null
 
@@ -66,46 +55,46 @@
     go(system, `/${system.slug}/?${q}`)
   }
 
-  // An emulator opens like an iOS 6 folder: the drawer splits the grid under its row
-  // and the notch points at the card (measured from the card itself, so it follows
-  // the row's horizontal scroll).
-  const toggleDrawer = (game) => {
-    if (drawer?.slug === game.slug) { drawer = null; return }
-    const card = $self(`[data-slug="${game.slug}"]`)
-    const row = card?.closest('.row')
-    const notch = card && row
-      ? card.getBoundingClientRect().left - row.getBoundingClientRect().left + card.offsetWidth / 2
-      : 120
-    drawer = { slug: game.slug, row: focus.row, notch }
+  // Every row is a grid; its column count is whatever the CSS fitted in.
+  const colsOf = (r) => {
+    const cards = $$self('.cards')[r]
+    return cards ? Math.max(1, getComputedStyle(cards).gridTemplateColumns.split(' ').length) : 1
   }
 
-  // Mobile: a game's details — or a console's ROM drawer — open under the grid line that
-  // holds it, the notch pointing at its tile. The panel is the last item of the grid,
-  // placed with `order`.
-  const toggleDetails = (game, r, c) => {
-    if (details?.slug === game.slug) { details = null; return }
+  // The panel opens under the grid line that holds the tile, the notch pointing at it
+  // (it is the grid's last item, placed with `order`).
+  const place = (r, c, mode) => {
+    const game = rows[r]?.games[c]
+    if (!game) return
     const card = $self(`[data-slug="${game.slug}"]`)
     const cards = card?.closest('.cards')
-    const cols = cards ? getComputedStyle(cards).gridTemplateColumns.split(' ').length : 1
+    const cols = colsOf(r)
     const after = Math.min(rows[r].games.length - 1, Math.floor(c / cols) * cols + cols - 1)
     const notch = card && cards
       ? card.getBoundingClientRect().left - cards.getBoundingClientRect().left + card.offsetWidth / 2
       : 60
-    details = { slug: game.slug, row: r, after, notch }
+    details = { slug: game.slug, row: r, after, notch, mode }
     // Once the panel is in the page and done unfolding (240ms), bring all of it into view.
     setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
+  const modeOf = (game) => (game.kind === 'emulator' ? 'drawer' : 'info')
   $: detailsGame = details ? rows[details.row]?.games.find((g) => g.slug === details.slug) ?? null : null
+  $: drawerGames = details?.mode === 'drawer' && detailsGame ? [detailsGame] : []
 
+  // A click selects the tile and opens its panel; on the open one, it closes it.
   const tap = (game, r, c) => {
     select(r, c)
-    if (!mobile) open(game)
-    else toggleDetails(game, r, c)
+    if (details?.slug === game.slug) details = null
+    else place(r, c, modeOf(game))
   }
 
+  // The panel's main button (and Enter on an open panel): play, install, or open the console.
   const open = (game) => {
     if (!game) return
-    if (game.kind === 'emulator') toggleDrawer(game)
+    if (game.kind === 'emulator') {
+      const r = rows.findIndex((row) => row.games.includes(game))
+      place(r, rows[r].games.indexOf(game), 'drawer')
+    }
     else if (game.status !== 'ready') dialog = { type: 'notice', game }
     else play(game) // the page itself asks for the files if they are not installed
   }
@@ -114,11 +103,32 @@
     focus = { row, col }
   }
 
+  // The arrows walk the grids: left/right along the tiles, up/down one grid line, keeping
+  // the column, from a row's last line into the next row's first (and back).
   const move = (dRow, dCol) => {
-    const row = Math.min(rows.length - 1, Math.max(0, focus.row + dRow))
+    let { row, col } = focus
     const size = rows[row].games.length
-    const col = Math.min(size - 1, Math.max(0, dRow ? Math.min(focus.col, size - 1) : focus.col + dCol))
+    if (dCol) col = Math.min(size - 1, Math.max(0, col + dCol))
+    else {
+      const cols = colsOf(row)
+      const line = Math.floor(col / cols)
+      const lastLine = Math.floor((size - 1) / cols)
+      if (dRow > 0 && line < lastLine) col = Math.min(size - 1, col + cols)
+      else if (dRow < 0 && line > 0) col -= cols
+      else {
+        const next = row + dRow
+        if (next < 0 || next >= rows.length) return
+        const nextSize = rows[next].games.length
+        const nextCols = colsOf(next)
+        const start = dRow > 0 ? 0 : Math.floor((nextSize - 1) / nextCols) * nextCols
+        row = next
+        col = Math.min(nextSize - 1, start + (col % cols))
+      }
+    }
+    if (row === focus.row && col === focus.col) return
     focus = { row, col }
+    // An open game's panel follows the selection, as the hero used to.
+    if (details?.mode === 'info') place(row, col, 'info')
   }
 
   onAction((action) => {
@@ -126,14 +136,31 @@
       if (action === 'back') dialog = null
       return
     }
-    // An open folder takes the input (RomDrawer has its own grid); it says when to close.
-    if (drawer || detailsGame?.kind === 'emulator') return
+    // An open console drawer takes the input (RomDrawer has its own grid); it says when to close.
+    if (details?.mode === 'drawer') return
     if (action === 'up') move(-1, 0)
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
     else if (action === 'right') move(0, 1)
-    else if (action === 'accept') open(current)
+    else if (action === 'back') details = null
+    else if (action === 'accept' && current) {
+      if (details?.slug === current.slug) open(current)
+      else place(focus.row, focus.col, modeOf(current))
+    }
   })
+
+  // The grid's columns change with the width: the open panel moves to its tile's new line.
+  let resizeFrame = 0
+  const onResize = () => {
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      if (!details) return
+      const c = rows[details.row].games.findIndex((g) => g.slug === details.slug)
+      if (c >= 0) place(details.row, c, details.mode)
+    })
+  }
+  window.addEventListener('resize', onResize)
+  $destroyed(() => window.removeEventListener('resize', onResize))
 
   // Back from a route through bfcache: the page is as it was; refresh what may have changed.
   window.addEventListener('pageshow', (event) => {
@@ -147,67 +174,17 @@
   for (const system of rows.flatMap((r) => r.games).filter((g) => g.system)) romLibrary.load(system.system)
   await $mounted()
 
-  // The header's height: the page's scroll padding (rows snap right under it) and the
-  // line rows fade out at.
-  let headerH = 0
-  const head = $self('.head')
-  const measure = () => {
-    const before = headerH
-    headerH = mobile ? 0 : head?.offsetHeight ?? 0
-    document.documentElement.style.setProperty('--header-h', `${headerH}px`)
-    // The header grows or shrinks (a folder opens, a longer title): the active row follows it.
-    if (before && headerH !== before) alignActive('auto')
-    markUnder()
-  }
-  const headObserver = new ResizeObserver(measure)
-  if (head) headObserver.observe(head)
-  $destroyed(() => headObserver.disconnect())
+  // What Enter does now: open the panel, then its main action.
+  $: hintAccept = !current ? ''
+    : details?.mode === 'drawer' ? 'Jugar'
+    : details?.slug !== current.slug ? (current.kind === 'emulator' ? 'Abrir' : 'Detalles')
+    : current.kind === 'emulator' ? 'Abrir'
+    : current.status !== 'ready' ? 'Próximamente'
+    : isInstalled(current) ? 'Jugar' : 'Instalar'
 
-  // Rows that went under the header are hidden; the one under it is where the wheel left us.
-  const markUnder = () => {
-    for (const row of $$self('.row')) row.classList.toggle('is-under', !mobile && row.getBoundingClientRect().top < headerH - 8)
-  }
-  let scrolling = false     // our own smooth scroll, after a focus move: the wheel rule waits
-  let settle = null
-  const onScroll = () => {
-    requestAnimationFrame(markUnder)
-    clearTimeout(settle)
-    settle = setTimeout(() => {
-      // Desktop: scrolling with the wheel changes category — the row that settled under
-      // the header takes the focus, same column as the arrows would keep.
-      if (scrolling) { scrolling = false; return }
-      if (mobile || drawer || dialog) return
-      const tops = Array.from($$self('.row'), (row) => Math.abs(row.getBoundingClientRect().top - headerH))
-      const r = tops.indexOf(Math.min(...tops))
-      if (r >= 0 && r !== focus.row) focus = { row: r, col: Math.min(focus.col, rows[r].games.length - 1) }
-    }, 160)
-  }
-  window.addEventListener('scroll', onScroll, { passive: true })
-  $destroyed(() => { window.removeEventListener('scroll', onScroll); clearTimeout(settle) })
-  measure()
-
-  // Keep the focused card in view whenever the focus moves.
-  // The active row slides up under the header (console-style), and the
-  // focused tile into the middle of its row.
-  function alignActive(behavior = 'smooth') {
-    if (mobile) return // a grid on a phone: the page scrolls itself, by touch
-    const row = $self('.row.is-active')
-    if (!row) return
-    const top = row.getBoundingClientRect().top + scrollY - headerH
-    if (Math.abs(top - scrollY) > 2) {
-      scrolling = true
-      window.scrollTo({ top, behavior })
-    }
-  }
+  // Keep the focused tile in view whenever the focus moves.
   $: focus, requestAnimationFrame(() => {
-    alignActive()
-    if (mobile) return
-    const card = $self('.card.is-focused')
-    const strip = card?.closest('.cards')
-    if (card && strip) {
-      const tile = card.parentElement
-      strip.scrollTo({ left: tile.offsetLeft - strip.clientWidth / 2 + tile.offsetWidth / 2, behavior: 'smooth' })
-    }
+    $self('.card.is-focused')?.closest('.tile')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 </script>
 
@@ -217,8 +194,7 @@
   <div class="backdrop-tint"></div>
 </div>
 
-<div class="launcher" :class.has-drawer="drawer">
-  <div class="head">
+<div class="launcher">
   <header class="topbar">
     <span class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -234,28 +210,21 @@
     <time class="clock">{{ clock }}</time>
   </header>
 
-  <div class="hero-slot">
-    <Hero :game="current" :installed="current && isInstalled(current)" :roms @open="open(current)"
-          @uninstall="uninstall(current)" />
-  </div>
-  </div>
-
   <section class="rows">
-    <div class="row" :each="row, r in rows" :key="row.id"
-         :class.is-dimmed="drawer && drawer.row !== r" :class.is-active="focus.row === r">
+    <div class="row" :each="row, r in rows" :key="row.id" :class.is-active="focus.row === r">
       <h2 class="row-title">{{ row.title }}<span class="row-count">{{ row.games.length }}</span></h2>
       <ul class="cards">
         <li :each="game, c in row.games" :key="game.slug" class="tile" :style="`order: ${c * 2}`"
             :class.is-focused="focus.row === r && focus.col === c">
           <button class="card" :data-slug="game.slug"
-                  :class.is-open="drawer?.slug === game.slug || details?.slug === game.slug"
+                  :class.is-open="details?.slug === game.slug"
                   :class.is-focused="focus.row === r && focus.col === c"
                   :class.is-soon="game.status !== 'ready'"
                   :class.is-system="!game.cover && !game.tileArt && game.art"
                   :class.is-poster="!game.cover && !game.tileArt && !game.art"
                   :style="`--accent: ${game.accent ?? '#334155'}`"
                   :aria-label="game.title"
-                  @mouseenter="select(r, c)" @focus="select(r, c)" @click="tap(game, r, c)">
+                  @focus="select(r, c)" @click="tap(game, r, c)">
             <img :if="game.cover" class="card-cover" :src="game.cover" alt="" loading="lazy" />
             <img :elseif="game.tileArt" class="card-cover" :src="game.tileArt" alt="" loading="lazy" />
             <img :elseif="game.art" class="card-art" :src="game.art" alt="" loading="lazy" />
@@ -279,23 +248,20 @@
         </li>
         <li :if="detailsGame && details.row === r" class="tile-details"
             :style="`order: ${details.after * 2 + 1}; --notch: ${details.notch}px`">
-          <RomDrawer :if="detailsGame.kind === 'emulator'" :game="detailsGame" :roms :library="romLibrary" :onAction
+          <!-- Keyed by console: another console's drawer is a new one (its engines, its ROMs). -->
+          <RomDrawer :each="g in drawerGames" :key="g.slug" :game="g" :roms :library="romLibrary" :onAction
                      @play="playRom" @close="details = null" />
-          <Hero :else :game="detailsGame" :installed="isInstalled(detailsGame)" :roms @open="open(detailsGame)"
+          <Hero :if="details.mode === 'info'" :game="detailsGame" :installed="isInstalled(detailsGame)" :roms @open="open(detailsGame)"
                 @uninstall="uninstall(detailsGame)" />
         </li>
       </ul>
-      <div :if="drawer && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
-        <RomDrawer :game="row.games.find(g => g.slug === drawer.slug)" :roms :library="romLibrary" :onAction
-                   @play="playRom" @close="drawer = null" />
-      </div>
     </div>
   </section>
 
   <footer class="hintbar">
-    <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ !current ? '' : current.kind === 'emulator' ? 'Abrir' : current.status !== 'ready' ? 'Detalles' : isInstalled(current) ? 'Jugar' : 'Instalar' }}</span>
-    <span :if="drawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
-    <span class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> Atrás</span>
+    <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ hintAccept }}</span>
+    <span :if="details?.mode === 'drawer'" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
+    <span class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> {{ details ? 'Cerrar' : 'Atrás' }}</span>
     <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
   </footer>
 
