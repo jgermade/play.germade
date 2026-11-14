@@ -62,7 +62,7 @@
 
   // The panel opens under the grid line that holds the tile, the notch pointing at it
   // (it is the grid's last item, placed with `order`).
-  const place = (r, c) => {
+  const place = (r, c, scroll = true) => {
     const game = rows[r]?.games[c]
     if (!game) return
     const card = $self(`[data-slug="${game.slug}"]`)
@@ -76,7 +76,7 @@
     actionFocus = null
     inDrawer = false
     // Once the panel is in the page and done unfolding (240ms), bring all of it into view.
-    setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
+    if (scroll) setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
   // A game's panel's enabled buttons, in order: the main action, then Quitar datos.
   const actionsOf = (game) => {
@@ -103,16 +103,14 @@
     $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     return true
   }
-  const closePanel = () => { details = null; actionFocus = null; inDrawer = false }
   // The drawer hands the keys back at its edges.
   const leaveDrawer = () => { inDrawer = false }
   const drawerNext = () => { inDrawer = false; move(1, 0) }
 
-  // A click selects the tile and opens its panel; on the open one, it closes it.
+  // A click selects the tile, and the selected tile always has its panel open.
   const tap = (game, r, c) => {
     select(r, c)
-    if (details?.slug === game.slug) closePanel()
-    else place(r, c)
+    if (details?.slug !== game.slug) place(r, c)
   }
 
   // A game's main button: play (the page asks for the files if needed), or the notice.
@@ -168,7 +166,7 @@
       else if (action === 'right') actionFocus = Math.min(count - 1, actionFocus + 1)
       else if (action === 'up') actionFocus = null
       else if (action === 'down') { actionFocus = null; move(1, 0) }
-      else if (action === 'back') closePanel()
+      else if (action === 'back') actionFocus = null
       else if (action === 'accept') press(detailsGame, actionFocus)
       return
     }
@@ -178,10 +176,8 @@
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
     else if (action === 'right') move(0, 1)
-    else if (action === 'back') closePanel()
     else if (action === 'accept' && current) {
-      if (details?.slug !== current.slug) place(focus.row, focus.col)
-      else if (current.kind === 'emulator') enterPanel()
+      if (current.kind === 'emulator') enterPanel()
       else open(current)
     }
   })
@@ -210,13 +206,15 @@
   await refresh()
   for (const system of rows.flatMap((r) => r.games).filter((g) => g.system)) romLibrary.load(system.system)
   await $mounted()
+  // The selected tile's panel is open from the start — scrolled into view only when coming
+  // back from a page (?focus=), so a plain load stays at the top.
+  requestAnimationFrame(() => place(focus.row, focus.col, new URLSearchParams(location.search).has('focus')))
 
-  // What Enter does now: open the panel, then its main action.
+  // What Enter does now: the focused button, a ROM in the drawer, or the tile's main action.
   $: hintAccept = !current ? ''
     : actionFocus !== null && detailsGame ? actionsOf(detailsGame)[actionFocus] ?? ''
     : inDrawer ? 'Jugar'
     : current.kind === 'emulator' ? 'Abrir'
-    : details?.slug !== current.slug ? 'Detalles'
     : current.status !== 'ready' ? 'Próximamente'
     : isInstalled(current) ? 'Jugar' : 'Instalar'
 
@@ -288,7 +286,7 @@
           <!-- Keyed by console: another console's drawer is a new one (its engines, its ROMs). -->
           <RomDrawer :each="g in drawerGames" :key="g.slug" :game="g" :roms :library="romLibrary" :onAction
                      :active="inDrawer" :edges="true"
-                     @play="playRom" @close="closePanel" @leave="leaveDrawer" @next="drawerNext" />
+                     @play="playRom" @close="leaveDrawer" @leave="leaveDrawer" @next="drawerNext" />
           <Hero :if="detailsGame.kind !== 'emulator'" :game="detailsGame" :installed="isInstalled(detailsGame)" :roms :focusAction="actionFocus" @open="open(detailsGame)"
                 @uninstall="uninstall(detailsGame)" />
         </li>
@@ -299,7 +297,7 @@
   <footer class="hintbar">
     <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ hintAccept }}</span>
     <span :if="inDrawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
-    <span class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> {{ details ? 'Cerrar' : 'Atrás' }}</span>
+    <span :if="inDrawer || actionFocus !== null" class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> Atrás</span>
     <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
   </footer>
 
