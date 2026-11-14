@@ -1,6 +1,6 @@
 {
   "name": "play-germade",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "type": "module",
   "description": "Netflix-style launcher for the wasm-gaming engines: a PWA built with jq79 and Vite that drives every engine through @wasm-gaming/engine-specs.",
