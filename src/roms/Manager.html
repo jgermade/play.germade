@@ -95,6 +95,7 @@
         const owner = m.gameId ? view.games.find((g) => g.id === m.gameId)?.title : null
         parts.push(owner ? `mod «${m.name}» → ${owner}${m.status === 'verified' ? ' ✓' : ''}` : `mod «${m.name}» sin asignar`)
       }
+      if (r.bios) parts.push({ aes: 'BIOS de AES añadida', unibios: 'BIOS añadida (Universe BIOS en modo consola)', mvs: 'BIOS añadida, pero sin AES ni Universe BIOS: no arrancará como consola' }[r.bios])
       if (r.duplicates.length) parts.push(`${r.duplicates.length} ya estaba${r.duplicates.length > 1 ? 'n' : ''}`)
       if (r.rejected.length) parts.push(`no reconocido: ${r.rejected.join(', ')}`)
       say(parts.join(' · ') || 'Nada que añadir')

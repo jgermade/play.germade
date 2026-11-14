@@ -13,12 +13,31 @@
 
 import { $reactive } from 'jq79';
 import * as megaDrive from '../data/systems/mega-drive.js';
+import * as neoGeo from '../data/systems/neo-geo.js';
 import { readZip } from './zip.js';
 import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from './patch.js';
 import * as dat from './dat.service.js';
 import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
 
-const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive };
+const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive, [neoGeo.SYSTEM.id]: neoGeo };
+
+/**
+ * Systems whose games are whole archives (arcade-style sets) are identified against the
+ * engine's own ROM-set dataset, shipped with it under public/engines/<engine>/romsets/.
+ */
+const SET_DATASETS = { neogeo: '/engines/fbneo/romsets/neogeo.json' };
+const setDatasets = new Map();
+const setDataset = (system) => {
+  if (!setDatasets.has(system)) {
+    setDatasets.set(
+      system,
+      fetch(SET_DATASETS[system])
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+    );
+  }
+  return setDatasets.get(system);
+};
 const GENERIC_NAMES = /^(rom|game|cart|image)$/i;
 
 /**
@@ -88,6 +107,7 @@ function publish(system, index) {
     unassigned: mods
       .filter(([, mod]) => !mod.gameId || !index.games[mod.gameId])
       .map(([sha1, mod]) => modView(sha1, mod, null)),
+    bios: index.bios ?? null,
   };
 }
 
@@ -114,10 +134,13 @@ async function sha1(bytes) {
 const extOf = (name) => (/\.[^.\\/]+$/.exec(name)?.[0] ?? '').toLowerCase();
 
 /** Expand picked files: ROMs and mods as they are, and the ones inside any .zip. */
-async function* candidates(files, extensions) {
+async function* candidates(files, extensions, whole = false) {
   for (const file of files) {
     const ext = extOf(file.name);
-    if (ext === '.zip') {
+    if (whole && extensions.includes(ext)) {
+      // The archive is the game (an arcade set): kept as it is.
+      yield { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+    } else if (ext === '.zip') {
       const archive = file.name.replace(/\.zip$/i, '');
       for (const entry of readZip(await file.arrayBuffer())) {
         const innerExt = extOf(entry.name);
@@ -194,10 +217,16 @@ export async function importFiles(system, files, { gameId = null } = {}) {
   index.mods ??= {};
   await ensureCrcs(system, index);
   const known = new Set(Object.values(index.games).flatMap((g) => g.versions.map((v) => v.sha1)));
-  const result = { added: [], mods: [], duplicates: [], rejected: [] };
+  const result = { added: [], mods: [], duplicates: [], rejected: [], bios: null };
   const pendingMods = [];
 
-  for await (const { name, bytes, archive } of candidates(files, spec.SYSTEM.extensions)) {
+  const whole = !!spec.SYSTEM.whole;
+  const sets = whole ? await setDataset(system) : null;
+  for await (const { name, bytes, archive } of candidates(files, spec.SYSTEM.extensions, whole)) {
+    if (whole && bytes) {
+      await importSet(system, index, { name, bytes, sets, known, result });
+      continue;
+    }
     if (bytes && formatOf(bytes)) {
       pendingMods.push({ name, bytes, archive });
       continue;
@@ -274,6 +303,64 @@ export async function importFiles(system, files, { gameId = null } = {}) {
   await requestPersistence();
   publish(system, index);
   return result;
+}
+
+/**
+ * One whole archive (a Neo Geo set): the BIOS goes apart (one per system, the last one
+ * added wins); a game is stored as it came, identified by the CRCs of its chips.
+ */
+async function importSet(system, index, { name, bytes, sets, known, result }) {
+  const spec = SYSTEMS[system];
+  let entries = [];
+  if (extOf(name) === '.zip') {
+    try {
+      entries = readZip(bytes);
+    } catch {
+      result.rejected.push(name);
+      return;
+    }
+  }
+  const id = spec.identify(entries, name, sets);
+  const hash = await sha1(bytes);
+  if (id.bios) {
+    if (index.bios?.sha1 === hash) {
+      result.duplicates.push(name);
+      return;
+    }
+    await writeFile(`${dirOf(system)}/bios`, `${spec.BIOS_DRIVER}.zip`, new Blob([bytes]));
+    index.bios = { sha1: hash, kind: id.bios, size: bytes.length, name, addedAt: Date.now() };
+    result.bios = id.bios;
+    return;
+  }
+  if (known.has(hash)) {
+    result.duplicates.push(name);
+    return;
+  }
+  const file = `${hash}${extOf(name)}`;
+  await writeFile(`${dirOf(system)}/roms`, file, new Blob([bytes]));
+  const game = (index.games[id.gameId] ??= { title: id.title, core: null, versions: [] });
+  game.versions.push({
+    sha1: hash,
+    file,
+    name: id.name,
+    size: bytes.length,
+    crc32: crc32(bytes),
+    year: id.year,
+    maker: id.maker,
+    matched: id.matched,
+    dat: null,
+    addedAt: Date.now(),
+  });
+  known.add(hash);
+  result.added.push(game.title);
+}
+
+/** The system's BIOS (Neo Geo: neogeo.zip), or null. */
+export async function readBios(system) {
+  const spec = SYSTEMS[system];
+  if (!spec?.BIOS_DRIVER) return null;
+  const file = await readFile(`${dirOf(system)}/bios`, `${spec.BIOS_DRIVER}.zip`);
+  return file ? new Uint8Array(await file.arrayBuffer()) : null;
 }
 
 /** Give a mod to a game (or take it back to "sin asignar" with null). */

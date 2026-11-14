@@ -60,6 +60,8 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
     game: { slug, title, accent: entry.accent, art: art ?? entry.cover ?? entry.tileArt ?? entry.art },
     storage: { namespace },
     assets,
+    // Engine options a catalog entry sets for its apps (Neo Geo: `{ neogeo: 'aes' }`).
+    options,
     input,
     exit,
   };
@@ -131,13 +133,21 @@ async function startRom(gameId) {
   } catch (error) {
     return fail(mod ? `No se pudo aplicar «${mod.name}»: ${error.message}` : error.message);
   }
+  // A system with a BIOS (Neo Geo): the engine gets it next to the game, or the player
+  // is told what is missing instead of a black screen.
+  let bios = null;
+  if (entry.bios) {
+    bios = await romLibrary.readBios(entry.system);
+    if (!bios) return fail(`Falta la BIOS ${entry.bios.file}: añádela a la biblioteca de ${entry.title}.`);
+  }
   // The box from ROM Manager's catalogue, when the game is in it: the engine app's boot screen.
   const box = await romLibrary.coverOf(entry.system, game, localStorage.getItem('roms-region') || 'EU').catch(() => null);
   await launch({
     art: box?.url ?? null,
     engineId: romLibrary.coreFor(index, game, entry.engine),
     title: mod ? `${game.title} · ${mod.name}` : game.title,
-    assets: { rom: () => rom },
+    options: entry.options ?? {},
+    assets: { rom: () => rom, ...(bios ? { bios: () => bios } : {}) },
     // A mod is another game as far as saves go: its own folder.
     namespace: mod ? `${gameId}+${mod.sha1.slice(0, 8)}` : gameId,
   });

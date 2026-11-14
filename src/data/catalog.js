@@ -111,13 +111,19 @@ export const GAMES = [
     category: 'emuladores',
     kind: 'emulator',
     title: 'Neo Geo',
-    description: 'Arcade y AES/MVS con FinalBurn Neo. ROMs en .zip y BIOS neogeo.zip.',
+    description:
+      'La Neo Geo AES, la consola doméstica de SNK, con FinalBurn Neo: tus juegos en .zip (sets de FBNeo) y la BIOS neogeo.zip. Partidas en tarjeta de memoria, una por juego.',
+    system: 'neogeo',
     engine: 'fbneo',
-    status: 'soon',
+    // The AES, not the arcade board: the engine boots the console BIOS and a memory card.
+    options: { neogeo: 'aes' },
+    bios: { file: 'neogeo.zip', label: 'BIOS de Neo Geo (neogeo.zip)' },
+    accept: ['.zip', '.neo'],
+    status: 'ready',
     accent: '#b45309',
     art: '/art/systems/arcade.svg',
     tileArt: '/art/systems/tiles/arcade.svg',
-    kicker: 'Arcade · SNK',
+    kicker: 'SNK · AES',
     boxart: '3 / 4', // the box's aspect ratio (width / height), as ROM Manager's systemAspectRatio()
   },
   {
