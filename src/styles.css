@@ -85,7 +85,7 @@ kbd {
 .clock { margin-left: 18px; font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
 
 /* The scroll area holds the hero and the rows together, so the folder can push them up. */
-.launcher > .hero, .launcher > .rows { grid-column: 1; }
+.launcher > .hero-slot, .launcher > .rows { grid-column: 1; }
 .launcher { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 
 /* ---------- Hero ---------- */
@@ -386,4 +386,68 @@ kbd {
   .hintbar .is-nav { display: none; }
   .hintbar { justify-content: center; gap: 1rem; }
   .drawer-panel { margin: 0 8px; padding: 18px 14px; }
+
+  /* A phone gets a grid: no hero (the details open under the tapped game), every row wraps. */
+  .hero-slot { display: none; }
+  .rows { padding-bottom: 48px; mask-image: none; }
+  .row-title { margin-top: 10px; }
+  .cards {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px;
+    overflow: visible; padding: 14px var(--gutter) 8px;
+  }
+  .tile { min-width: 0; }
+  .tile-caption { margin-top: 8px; }
+  .tile.is-focused .tile-caption { transform: none; }
+  .card.is-focused, .card.is-open { transform: none; }
+
+  .tile-details { grid-column: 1 / -1; position: relative; margin-top: 4px; animation: drawer-open 240ms var(--ease); transform-origin: top; }
+  .tile-details::before {
+    content: ""; position: absolute; top: -12px; left: calc(var(--notch) - 13px - var(--gutter)); z-index: 1;
+    border: 13px solid transparent; border-top: 0; border-bottom-color: rgb(24 27 37 / 0.92);
+  }
+  .tile-details .hero {
+    display: block; min-height: 0; padding: 18px 16px 20px; border-radius: 22px;
+    background: rgb(24 27 37 / 0.82); backdrop-filter: blur(26px) saturate(1.5);
+    border: 1px solid var(--line-strong); box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.9);
+  }
+  .tile-details .hero-title { font-size: 1.45rem; }
+  .tile-details .hero-details { max-width: none; padding: 0; animation: none; }
+  .tile-details .hero-chips { margin-top: 0.8rem; }
+  .tile-details .hero-desc { margin: 0.8rem 0 1.1rem; }
 }
+@media (max-width: 360px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keyboard and pad hints mean nothing to a finger, and cover the last tiles. */
+@media (pointer: coarse) {
+  .hintbar { display: none; }
+}
+
+/* ---------- Mobile: a console, full screen ---------- */
+
+.sheet {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; overscroll-behavior: contain;
+  padding: max(14px, env(safe-area-inset-top)) var(--gutter) 40px;
+  background: radial-gradient(120% 60% at 20% 0%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%), rgb(8 10 16 / 0.94);
+  backdrop-filter: blur(24px);
+  animation: sheet-in 260ms var(--ease);
+}
+.sheet-top { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: start; }
+.sheet-side { display: grid; gap: 10px; }
+.sheet-back {
+  display: inline-flex; align-items: center; gap: 4px; justify-self: start; height: 34px; padding: 0 12px 0 6px;
+  border-radius: 999px; border: 1px solid var(--line-strong); background: rgb(255 255 255 / 0.05);
+  color: var(--soft); font: 600 0.88rem var(--ui);
+}
+.sheet-back svg { width: 18px; }
+.sheet-icon { width: 104px; }
+.sheet .hero { display: block; min-height: 0; padding: 0; }
+.sheet .hero-details { max-width: none; padding: 0; }
+.sheet .hero-title { font-size: 1.4rem; }
+.sheet .hero-chips { margin-top: 0.7rem; }
+.sheet .hero-desc { margin: 0.7rem 0 0; font-size: 0.88rem; }
+.sheet .hero-actions { display: none; }
+.sheet-games { margin-top: 20px; }
+.sheet-games .drawer-panel { margin: 0; }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
