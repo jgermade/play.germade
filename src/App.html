@@ -105,10 +105,12 @@
       ? card.getBoundingClientRect().left - cards.getBoundingClientRect().left + card.offsetWidth / 2
       : 60
     details = { slug: game.slug, row: r, after, notch }
-    requestAnimationFrame(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+    // Once the panel is in the page and done unfolding (240ms), bring all of it into view.
+    setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
   $: detailsGame = details ? rows[details.row]?.games.find((g) => g.slug === details.slug) ?? null : null
   $: sheetGame = drawer?.sheet ? rows[drawer.row]?.games.find((g) => g.slug === drawer.slug) ?? null : null
+  $: document.body.classList.toggle('has-sheet', !!sheetGame)
 
   const tap = (game, r, c) => {
     select(r, c)

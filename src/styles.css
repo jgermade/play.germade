@@ -389,7 +389,12 @@ kbd {
 
   /* A phone gets a grid: no hero (the details open under the tapped game), every row wraps. */
   .hero-slot { display: none; }
-  .rows { padding-bottom: 48px; mask-image: none; }
+  /* The document scrolls, as any page on a phone: the browser's pull-to-refresh needs it. */
+  html, body { height: auto; }
+  body { overflow: visible; }
+  body.has-sheet { overflow: hidden; }
+  .launcher { height: auto; min-height: 100dvh; }
+  .rows { overflow: visible; padding-bottom: 48px; mask-image: none; }
   .row-title { margin-top: 10px; }
   .cards {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px;
