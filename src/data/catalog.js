@@ -80,10 +80,14 @@ export const GAMES = [
     kind: 'game',
     title: 'Sonic Mania',
     year: 2017,
-    description: 'RSDKv5U. Llega cuando rsdkv5-wasm pase al contrato 1.0.',
+    description:
+      'La decompilación de RSDKv5U, con la pantalla de partidas de siempre: ocho huecos, tu personaje y donde lo dejaste. El Data.rsdk lo aportas tú.',
     engine: 'rsdkv5',
-    status: 'soon',
+    status: 'ready',
     accent: '#db2777',
+    install: {
+      data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic Mania' },
+    },
   },
   {
     slug: 'celeste',

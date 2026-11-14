@@ -15,5 +15,13 @@
     "path": "blastem/blastem",
     "entry": "blastem.sdk.js",
     "app": "app/app.js"
+  },
+  "rsdkv5": {
+    "repo": "wasm-gaming/rsdkv5-wasm",
+    "version": "0.2.0",
+    "asset": "rsdkv5.tar.gz",
+    "path": "rsdkv5/rsdkv5",
+    "entry": "rsdkv5.sdk.js",
+    "app": "app/app.js"
   }
 }
