@@ -18,6 +18,7 @@
   const onNarrow = (event) => {
     mobile = event.matches
     details = null
+    requestAnimationFrame(() => measure())
     if (drawer?.sheet) drawer = null
   }
   narrow.addEventListener('change', onNarrow)
@@ -163,14 +164,61 @@
   for (const system of rows.flatMap((r) => r.games).filter((g) => g.system)) romLibrary.load(system.system)
   await $mounted()
 
+  // The header's height: the page's scroll padding (rows snap right under it) and the
+  // line rows fade out at.
+  let headerH = 0
+  const head = $self('.head')
+  const measure = () => {
+    const before = headerH
+    headerH = mobile ? 0 : head?.offsetHeight ?? 0
+    document.documentElement.style.setProperty('--header-h', `${headerH}px`)
+    // The header grows or shrinks (a folder opens, a longer title): the active row follows it.
+    if (before && headerH !== before) alignActive('auto')
+    markUnder()
+  }
+  const headObserver = new ResizeObserver(measure)
+  if (head) headObserver.observe(head)
+  $destroyed(() => headObserver.disconnect())
+
+  // Rows that went under the header are hidden; the one under it is where the wheel left us.
+  const markUnder = () => {
+    for (const row of $$self('.row')) row.classList.toggle('is-under', !mobile && row.getBoundingClientRect().top < headerH - 8)
+  }
+  let scrolling = false     // our own smooth scroll, after a focus move: the wheel rule waits
+  let settle = null
+  const onScroll = () => {
+    requestAnimationFrame(markUnder)
+    clearTimeout(settle)
+    settle = setTimeout(() => {
+      // Desktop: scrolling with the wheel changes category — the row that settled under
+      // the header takes the focus, same column as the arrows would keep.
+      if (scrolling) { scrolling = false; return }
+      if (mobile || drawer || dialog) return
+      const tops = Array.from($$self('.row'), (row) => Math.abs(row.getBoundingClientRect().top - headerH))
+      const r = tops.indexOf(Math.min(...tops))
+      if (r >= 0 && r !== focus.row) focus = { row: r, col: Math.min(focus.col, rows[r].games.length - 1) }
+    }, 160)
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  $destroyed(() => { window.removeEventListener('scroll', onScroll); clearTimeout(settle) })
+  measure()
+
   // Keep the focused card in view whenever the focus moves.
-  // The active row slides to the top of the rows area (console-style), and the
+  // The active row slides up under the header (console-style), and the
   // focused tile into the middle of its row.
-  $: focus, requestAnimationFrame(() => {
+  function alignActive(behavior = 'smooth') {
     if (mobile) return // a grid on a phone: the page scrolls itself, by touch
     const row = $self('.row.is-active')
-    const rowsBox = row?.parentElement
-    if (row && rowsBox) rowsBox.scrollTo({ top: row.offsetTop, behavior: 'smooth' })
+    if (!row) return
+    const top = row.getBoundingClientRect().top + scrollY - headerH
+    if (Math.abs(top - scrollY) > 2) {
+      scrolling = true
+      window.scrollTo({ top, behavior })
+    }
+  }
+  $: focus, requestAnimationFrame(() => {
+    alignActive()
+    if (mobile) return
     const card = $self('.card.is-focused')
     const strip = card?.closest('.cards')
     if (card && strip) {
@@ -187,6 +235,7 @@
 </div>
 
 <div class="launcher" :class.has-drawer="drawer && !drawer.sheet">
+  <div class="head">
   <header class="topbar">
     <span class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -205,6 +254,7 @@
   <div class="hero-slot">
     <Hero :game="current" :installed="current && isInstalled(current)" :roms @open="open(current)"
           @uninstall="uninstall(current)" />
+  </div>
   </div>
 
   <section class="rows">
