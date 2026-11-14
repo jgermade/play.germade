@@ -112,6 +112,16 @@
   }
 
   const setConsoleCore = (event) => library.setCore(game.system, event.target.value)
+
+  // Mobile: the engine and the manager live in a menu by the console's name.
+  let menu = false
+  const chooseCore = (id) => {
+    library.setCore(game.system, id)
+    menu = false
+  }
+  const onMenuFocusOut = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) menu = false
+  }
   const setGameCore = (g, event) => library.setCore(game.system, event.target.value || null, g.id)
 
   // Grid columns, measured: tiles on the same row share an offsetTop.
@@ -123,6 +133,10 @@
   }
 
   const off = onAction((action) => {
+    if (menu) {
+      if (action === 'back') menu = false
+      return
+    }
     if (picker) {
       const rows = pickerRows
       if (action === 'back' || action === 'more') picker = null
@@ -151,6 +165,23 @@
          @dragover.prevent="dragging = true" @dragleave="onDragLeave" @drop.prevent="onDrop">
   <header class="drawer-head">
     <h3>{{ game.title }}</h3>
+    <span class="drawer-menu" @focusout="onMenuFocusOut">
+      <button type="button" class="drawer-menu-button" :aria-expanded="menu ? 'true' : 'false'" aria-haspopup="menu"
+              aria-label="Motor y gestión de ROMs" @click="menu = !menu">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div :if="menu" class="drawer-menu-list" role="menu">
+        <p class="drawer-menu-title">Motor</p>
+        <button :each="core in cores" :key="core.id" type="button" role="menuitemradio"
+                :aria-checked="core.id === consoleCore ? 'true' : 'false'" :class.is-current="core.id === consoleCore"
+                :disabled="core.available === false" @click="chooseCore(core.id)">
+          <svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.9 2.8 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {{ core.label }}<small :if="core.available === false">próximamente</small>
+        </button>
+        <hr />
+        <button type="button" role="menuitem" @click="manage()">Gestionar ROMs</button>
+      </div>
+    </span>
     <span class="drawer-meta">{{ games.length }} juego{{ games.length === 1 ? '' : 's' }}</span>
     <label class="core-select">
       motor

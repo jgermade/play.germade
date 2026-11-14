@@ -9,8 +9,8 @@
   }
   let focus = focusOf(new URLSearchParams(location.search).get('focus'))
   let dialog = null        // { type: 'notice', game }
-  let drawer = null        // { slug, row, notch, sheet } — an emulator's ROM folder, open under its row (sheet: full screen, mobile)
-  let details = null       // { slug, row, after, notch } — mobile: a game's details, open under its grid line
+  let drawer = null        // { slug, row, notch } — desktop: an emulator's ROM folder, open under its row
+  let details = null       // { slug, row, after, notch } — mobile: a game's details or a console's ROM drawer, under its grid line
 
   // Phones get a grid: a tap opens a game's details below it, a console full screen.
   const narrow = matchMedia('(max-width: 760px)')
@@ -18,8 +18,8 @@
   const onNarrow = (event) => {
     mobile = event.matches
     details = null
+    drawer = null
     requestAnimationFrame(() => measure())
-    if (drawer?.sheet) drawer = null
   }
   narrow.addEventListener('change', onNarrow)
   $destroyed(() => narrow.removeEventListener('change', onNarrow))
@@ -79,23 +79,9 @@
     drawer = { slug: game.slug, row: focus.row, notch }
   }
 
-  // Mobile: a console takes the whole view, with an entry in the history so the phone's
-  // own back gesture closes it.
-  const openSheet = (game, row) => {
-    details = null
-    drawer = { slug: game.slug, row, notch: 0, sheet: true }
-    history.pushState({ sheet: game.slug }, '')
-  }
-  const closeDrawer = () => {
-    if (drawer?.sheet) history.back()
-    else drawer = null
-  }
-  const onPopState = () => { if (drawer?.sheet) drawer = null }
-  window.addEventListener('popstate', onPopState)
-  $destroyed(() => window.removeEventListener('popstate', onPopState))
-
-  // Mobile: a game's details open under the grid line that holds it, the notch pointing
-  // at its tile. The panel is the last item of the grid, placed with `order`.
+  // Mobile: a game's details — or a console's ROM drawer — open under the grid line that
+  // holds it, the notch pointing at its tile. The panel is the last item of the grid,
+  // placed with `order`.
   const toggleDetails = (game, r, c) => {
     if (details?.slug === game.slug) { details = null; return }
     const card = $self(`[data-slug="${game.slug}"]`)
@@ -110,13 +96,10 @@
     setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
   $: detailsGame = details ? rows[details.row]?.games.find((g) => g.slug === details.slug) ?? null : null
-  $: sheetGame = drawer?.sheet ? rows[drawer.row]?.games.find((g) => g.slug === drawer.slug) ?? null : null
-  $: document.body.classList.toggle('has-sheet', !!sheetGame)
 
   const tap = (game, r, c) => {
     select(r, c)
     if (!mobile) open(game)
-    else if (game.kind === 'emulator') openSheet(game, r)
     else toggleDetails(game, r, c)
   }
 
@@ -144,7 +127,7 @@
       return
     }
     // An open folder takes the input (RomDrawer has its own grid); it says when to close.
-    if (drawer) return
+    if (drawer || detailsGame?.kind === 'emulator') return
     if (action === 'up') move(-1, 0)
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
@@ -234,7 +217,7 @@
   <div class="backdrop-tint"></div>
 </div>
 
-<div class="launcher" :class.has-drawer="drawer && !drawer.sheet">
+<div class="launcher" :class.has-drawer="drawer">
   <div class="head">
   <header class="topbar">
     <span class="brand">
@@ -259,7 +242,7 @@
 
   <section class="rows">
     <div class="row" :each="row, r in rows" :key="row.id"
-         :class.is-dimmed="drawer && !drawer.sheet && drawer.row !== r" :class.is-active="focus.row === r">
+         :class.is-dimmed="drawer && drawer.row !== r" :class.is-active="focus.row === r">
       <h2 class="row-title">{{ row.title }}<span class="row-count">{{ row.games.length }}</span></h2>
       <ul class="cards">
         <li :each="game, c in row.games" :key="game.slug" class="tile" :style="`order: ${c * 2}`"
@@ -296,13 +279,15 @@
         </li>
         <li :if="detailsGame && details.row === r" class="tile-details"
             :style="`order: ${details.after * 2 + 1}; --notch: ${details.notch}px`">
-          <Hero :game="detailsGame" :installed="isInstalled(detailsGame)" :roms @open="open(detailsGame)"
+          <RomDrawer :if="detailsGame.kind === 'emulator'" :game="detailsGame" :roms :library="romLibrary" :onAction
+                     @play="playRom" @close="details = null" />
+          <Hero :else :game="detailsGame" :installed="isInstalled(detailsGame)" :roms @open="open(detailsGame)"
                 @uninstall="uninstall(detailsGame)" />
         </li>
       </ul>
-      <div :if="drawer && !drawer.sheet && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
+      <div :if="drawer && drawer.row === r" class="drawer" :style="`--notch: ${drawer.notch}px`">
         <RomDrawer :game="row.games.find(g => g.slug === drawer.slug)" :roms :library="romLibrary" :onAction
-                   @play="playRom" @close="closeDrawer()" />
+                   @play="playRom" @close="drawer = null" />
       </div>
     </div>
   </section>
@@ -313,28 +298,6 @@
     <span class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> Atrás</span>
     <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
   </footer>
-
-  <!-- Mobile: a console, full screen. Back and its icon on the left, its details on the
-       right, its games below. -->
-  <div :if="sheetGame" class="sheet" :style="`--accent: ${sheetGame.accent ?? '#334155'}`">
-    <div class="sheet-top">
-      <div class="sheet-side">
-        <button class="sheet-back" @click="closeDrawer()">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Atrás
-        </button>
-        <span class="card sheet-icon" :class.is-system="!sheetGame.cover && !sheetGame.tileArt && sheetGame.art">
-          <img :if="sheetGame.cover" class="card-cover" :src="sheetGame.cover" alt="" />
-          <img :elseif="sheetGame.tileArt" class="card-cover" :src="sheetGame.tileArt" alt="" />
-          <img :elseif="sheetGame.art" class="card-art" :src="sheetGame.art" alt="" />
-        </span>
-      </div>
-      <Hero :game="sheetGame" :installed="false" :roms />
-    </div>
-    <div class="sheet-games">
-      <RomDrawer :game="sheetGame" :roms :library="romLibrary" :onAction @play="playRom" @close="closeDrawer()" />
-    </div>
-  </div>
 
   <div :if="dialog" class="dialog-backdrop" @click.self="dialog = null">
     <Notice :if="dialog.type === 'notice'" :game="dialog.game" @close="dialog = null" />
