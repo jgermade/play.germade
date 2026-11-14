@@ -256,6 +256,15 @@ kbd {
 .tile-details .hero-title { font-size: clamp(1.6rem, 2.6vw, 2.5rem); }
 .tile-details .hero-desc { margin-bottom: 1.2rem; }
 .tile-details .drawer-panel { margin: 0; }
+/* Desktop, a game: the description under the title; chips and actions on the right. */
+@media (min-width: 761px) {
+  .tile-details .hero.is-game { grid-template-rows: auto 1fr; row-gap: 0.9rem; }
+  .tile-details .hero.is-game .hero-details { display: contents; }
+  .tile-details .hero.is-game .hero-body { grid-area: 1 / 1; }
+  .tile-details .hero.is-game .hero-desc { grid-area: 2 / 1; margin: 0; animation: rise 560ms var(--ease) both; }
+  .tile-details .hero.is-game .hero-chips { grid-area: 1 / 2; align-self: start; }
+  .tile-details .hero.is-game .hero-actions { grid-area: 2 / 2; align-self: start; }
+}
 .tile-title { font: 650 0.84rem var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-meta { font: 500 0.7rem var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
