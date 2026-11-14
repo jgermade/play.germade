@@ -366,8 +366,27 @@ kbd {
 }
 .dialog h2 { margin: 0 0 0.6rem; font: 700 1.3rem var(--display); letter-spacing: -0.02em; }
 .dialog p { color: var(--soft); }
-.dialog .file { display: grid; gap: 0.5rem; margin: 1rem 0; padding: 14px; border-radius: 16px; background: rgb(255 255 255 / 0.04); border: 1px dashed var(--line-strong); }
-.dialog .file span { font-weight: 650; }
+.dialog .file {
+  position: relative; display: grid; gap: 0.6rem; margin: 1rem 0; padding: 14px; border-radius: 16px; cursor: pointer;
+  background: rgb(255 255 255 / 0.04); border: 1px dashed var(--line-strong); transition: border-color 160ms var(--ease), background 160ms var(--ease);
+}
+.dialog .file:hover { background: rgb(255 255 255 / 0.07); }
+.dialog .file:has(.file-input:focus-visible) { outline: 2px solid #fff; outline-offset: 3px; }
+.dialog .file.is-picked { border-style: solid; border-color: rgb(74 222 128 / 0.45); }
+.file-label { font-weight: 650; }
+.file-row { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.file-icon { flex: none; width: 26px; height: 26px; color: var(--muted); }
+.file.is-picked .file-icon { color: var(--ok); }
+.file-name { flex: 1; min-width: 0; color: var(--soft); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file.is-picked .file-name { color: var(--text); }
+.file-name small { margin-left: 0.4rem; color: var(--muted); font-size: 0.78rem; }
+.file-button {
+  flex: none; height: 32px; padding: 0 0.95rem; display: inline-grid; place-items: center; border-radius: 999px;
+  background: #fff; color: #0a0b10; font: 650 0.82rem var(--ui);
+}
+.file.is-picked .file-button { background: rgb(255 255 255 / 0.1); color: var(--text); border: 1px solid var(--line-strong); }
+/* Hidden but present: the label opens it, the keyboard and screen readers still reach it. */
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip-path: inset(50%); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.7rem; margin-top: 1.2rem; }
 .dialog-actions button { height: 44px; padding: 0 1.3rem; border-radius: 999px; font-weight: 700; }
 .dialog-actions .primary { background: #fff; color: #0a0b10; border: 0; }
