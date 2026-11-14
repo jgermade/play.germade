@@ -32,7 +32,6 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { -webkit-font-smoothing: antialiased; }
-body.has-sheet { overflow: hidden; }
 /* The document scrolls. On a desktop it settles with a row right under the header, as a
    console's menu does; `proximity`, so an open ROM folder still scrolls freely. */
 @media (min-width: 761px) {
@@ -280,6 +279,30 @@ kbd {
 .drawer-head { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
 .drawer-head h3 { margin: 0; font: 700 1.1rem var(--display); letter-spacing: -0.02em; }
 .drawer-meta { color: var(--muted); font-size: 0.8rem; }
+/* Mobile: the engine and the manager in a menu by the console's name (desktop keeps the select). */
+.drawer-menu { position: relative; display: none; align-self: center; }
+.drawer-menu-button {
+  width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 999px;
+  background: rgb(255 255 255 / 0.07); border: 1px solid var(--line-strong); color: var(--soft);
+}
+.drawer-menu-button svg { width: 16px; transition: transform 180ms var(--ease); }
+.drawer-menu-button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.drawer-menu-list {
+  position: absolute; z-index: 5; top: calc(100% + 8px); left: -8px; min-width: 210px; padding: 6px;
+  border-radius: 16px; background: #222633; border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 50px -16px rgb(0 0 0 / 0.9); animation: drawer-open 160ms var(--ease); transform-origin: top left;
+}
+.drawer-menu-title { margin: 6px 10px 4px; font: 650 0.68rem var(--ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.drawer-menu-list button {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px; border: 0; border-radius: 10px;
+  background: none; text-align: left; font: 600 0.9rem var(--ui); color: var(--text);
+}
+.drawer-menu-list button:hover:not(:disabled) { background: rgb(255 255 255 / 0.07); }
+.drawer-menu-list button:disabled { color: var(--muted); cursor: default; }
+.drawer-menu-list button small { margin-left: auto; font-size: 0.72rem; color: var(--muted); }
+.drawer-menu-list .tick { width: 15px; flex: none; opacity: 0; color: var(--ok); }
+.drawer-menu-list .is-current .tick { opacity: 1; }
+.drawer-menu-list hr { margin: 6px 4px; border: 0; border-top: 1px solid var(--line); }
 .core-select { margin-left: auto; color: var(--muted); font-size: 0.78rem; display: flex; gap: 0.5rem; align-items: center; }
 .core-select select {
   font: 600 0.82rem var(--ui); color: var(--text); background: rgb(255 255 255 / 0.07);
@@ -449,6 +472,9 @@ kbd {
   .tile-details .hero-details { max-width: none; padding: 0; animation: none; }
   .tile-details .hero-chips { margin-top: 0.8rem; }
   .tile-details .hero-desc { margin: 0.8rem 0 1.1rem; }
+  .tile-details .drawer-panel { margin: 0; }
+  .drawer-menu { display: block; }
+  .drawer-head .core-select, .drawer-head .drawer-manage { display: none; }
 }
 @media (max-width: 360px) {
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -459,30 +485,3 @@ kbd {
   .hintbar { display: none; }
 }
 
-/* ---------- Mobile: a console, full screen ---------- */
-
-.sheet {
-  position: fixed; inset: 0; z-index: 20; overflow-y: auto; overscroll-behavior: contain;
-  padding: max(14px, env(safe-area-inset-top)) var(--gutter) 40px;
-  background: radial-gradient(120% 60% at 20% 0%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%), rgb(8 10 16 / 0.94);
-  backdrop-filter: blur(24px);
-  animation: sheet-in 260ms var(--ease);
-}
-.sheet-top { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: start; }
-.sheet-side { display: grid; gap: 10px; }
-.sheet-back {
-  display: inline-flex; align-items: center; gap: 4px; justify-self: start; height: 34px; padding: 0 12px 0 6px;
-  border-radius: 999px; border: 1px solid var(--line-strong); background: rgb(255 255 255 / 0.05);
-  color: var(--soft); font: 600 0.88rem var(--ui);
-}
-.sheet-back svg { width: 18px; }
-.sheet-icon { width: 104px; }
-.sheet .hero { display: block; min-height: 0; padding: 0; }
-.sheet .hero-details { max-width: none; padding: 0; }
-.sheet .hero-title { font-size: 1.4rem; }
-.sheet .hero-chips { margin-top: 0.7rem; }
-.sheet .hero-desc { margin: 0.7rem 0 0; font-size: 0.88rem; }
-.sheet .hero-actions { display: none; }
-.sheet-games { margin-top: 20px; }
-.sheet-games .drawer-panel { margin: 0; }
-@keyframes sheet-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
