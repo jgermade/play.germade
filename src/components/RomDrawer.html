@@ -166,6 +166,9 @@
     else if (action === 'accept') focus < games.length ? play(games[focus]) : pickFiles()
   })
   $destroyed(off)
+  // A drawer taller than the screen: the focused ROM is kept in view while the keys are here.
+  $: focus, picker, edges && active && requestAnimationFrame(() =>
+    $self('.rom-tile.is-focused')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 </script>
 
 <section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}; --box-w: ${box.w}px; --box-h: ${box.h}px`"
