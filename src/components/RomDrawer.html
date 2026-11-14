@@ -1,4 +1,4 @@
-<script :setup="{ game, roms, library, onAction }">
+<script :setup="{ game, roms, library, onAction, active, edges }">
   // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
   // greys the files out. There, every file is shown and the import checks the extension.
   const coarse = matchMedia('(pointer: coarse)').matches
@@ -132,7 +132,11 @@
     return Math.max(1, tiles.filter((t) => t.offsetTop === top).length)
   }
 
+  // Inside the launcher's grid the drawer takes the keys only once the arrows go into it
+  // (`active`), and hands them back at its edges (`edges`): ↑ from the first line, ↓ from the last.
+  const isActive = () => active !== false
   const off = onAction((action) => {
+    if (!isActive()) return
     if (menu) {
       if (action === 'back') menu = false
       return
@@ -151,10 +155,13 @@
     else if (action === 'left') focus = Math.max(0, focus - 1)
     else if (action === 'right') focus = Math.min(count - 1, focus + 1)
     else if (action === 'up') {
-      if (focus < cols) $emit('close')
-      else focus = focus - cols
+      if (focus >= cols) focus = focus - cols
+      else $emit(edges ? 'leave' : 'close')
     }
-    else if (action === 'down') focus = Math.min(count - 1, focus + cols)
+    else if (action === 'down') {
+      if (edges && Math.floor(focus / cols) === Math.floor((count - 1) / cols)) $emit('next')
+      else focus = Math.min(count - 1, focus + cols)
+    }
     else if (action === 'more') openPicker(games[focus])
     else if (action === 'accept') focus < games.length ? play(games[focus]) : pickFiles()
   })
@@ -197,7 +204,7 @@
 
   <ul class="rom-grid">
     <li :each="g, i in games" :key="g.id" class="rom">
-      <button class="rom-tile" :class.is-focused="!picker && focus === i" :title="g.title"
+      <button class="rom-tile" :class.is-focused="active !== false && !picker && focus === i" :title="g.title"
               @mouseenter="focus = i" @click="play(g)">
         <span :if="covers[g.id]" class="rom-art is-cover"><img :src="covers[g.id]" alt="" /></span>
         <span :else class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
@@ -209,7 +216,7 @@
       <button class="rom-more" title="Versiones" @click="openPicker(g)">⋯</button>
     </li>
     <li class="rom">
-      <button class="rom-tile is-add" :class.is-focused="!picker && focus === games.length"
+      <button class="rom-tile is-add" :class.is-focused="active !== false && !picker && focus === games.length"
               @mouseenter="focus = games.length" @click="pickFiles" :disabled="busy">
         <span class="rom-art">{{ busy ? '…' : '+' }}</span>
         <span class="rom-title">Añadir ROMs</span>

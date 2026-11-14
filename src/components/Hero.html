@@ -1,4 +1,4 @@
-<script :setup="{ game, installed, roms }">
+<script :setup="{ game, installed, roms, focusAction }">
   $: action = !game ? ''
     : game.kind === 'emulator' ? 'Abrir biblioteca'
     : game.status !== 'ready' ? 'Próximamente'
@@ -30,13 +30,13 @@
     </ul>
     <p class="hero-desc">{{ game.description }}</p>
     <div class="hero-actions">
-      <button class="cta" :disabled="disabled" @click="$emit('open')">
+      <button class="cta" :class.is-focused="focusAction === 0" :disabled="disabled" @click="$emit('open')">
         <svg :if="action === 'Jugar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.2v11.6L15.6 10z"/></svg>
         <svg :elseif="action === 'Instalar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0l-3.6-3.6M10 12l3.6-3.6M4 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <svg :elseif="action === 'Abrir biblioteca'" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
         {{ action }}
       </button>
-      <button :if="installed && game.kind === 'game'" class="cta is-ghost" @click="$emit('uninstall')">
+      <button :if="installed && game.kind === 'game'" class="cta is-ghost" :class.is-focused="focusAction === 1" @click="$emit('uninstall')">
         Quitar datos
       </button>
     </div>
