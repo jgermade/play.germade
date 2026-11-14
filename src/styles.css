@@ -279,8 +279,8 @@ kbd {
 .drawer-head { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
 .drawer-head h3 { margin: 0; font: 700 1.1rem var(--display); letter-spacing: -0.02em; }
 .drawer-meta { color: var(--muted); font-size: 0.8rem; }
-/* Mobile: the engine and the manager in a menu by the console's name (desktop keeps the select). */
-.drawer-menu { position: relative; display: none; align-self: center; }
+/* Mobile: the engine and the manager in a menu at the header's right end (desktop keeps the select). */
+.drawer-menu { position: relative; display: none; order: 9; margin-left: auto; align-self: center; }
 .drawer-menu-button {
   width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 999px;
   background: rgb(255 255 255 / 0.07); border: 1px solid var(--line-strong); color: var(--soft);
@@ -288,9 +288,9 @@ kbd {
 .drawer-menu-button svg { width: 16px; transition: transform 180ms var(--ease); }
 .drawer-menu-button[aria-expanded="true"] svg { transform: rotate(180deg); }
 .drawer-menu-list {
-  position: absolute; z-index: 5; top: calc(100% + 8px); left: -8px; min-width: 210px; padding: 6px;
+  position: absolute; z-index: 5; top: calc(100% + 8px); right: -6px; min-width: 210px; padding: 6px;
   border-radius: 16px; background: #222633; border: 1px solid var(--line-strong);
-  box-shadow: 0 24px 50px -16px rgb(0 0 0 / 0.9); animation: drawer-open 160ms var(--ease); transform-origin: top left;
+  box-shadow: 0 24px 50px -16px rgb(0 0 0 / 0.9); animation: drawer-open 160ms var(--ease); transform-origin: top right;
 }
 .drawer-menu-title { margin: 6px 10px 4px; font: 650 0.68rem var(--ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .drawer-menu-list button {
@@ -311,7 +311,8 @@ kbd {
 
 .rom-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 18px 14px; }
 .rom { position: relative; }
-.rom-tile { width: 100%; display: grid; justify-items: center; gap: 8px; padding: 8px 4px; background: none; border: 0; border-radius: 18px; }
+/* Art and title start at the left edge, so the first tile lines up with the drawer's header and text. */
+.rom-tile { width: 100%; display: grid; justify-items: start; gap: 8px; padding: 8px 0; background: none; border: 0; border-radius: 18px; }
 .rom-art {
   position: relative; width: 78px; height: 78px; border-radius: 20px; display: grid; place-items: center; overflow: hidden;
   font: 800 1.45rem var(--display); letter-spacing: -0.04em; color: #fff;
@@ -332,10 +333,10 @@ kbd {
 .rom-art.is-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .rom-tile.is-add .rom-art { background: rgb(255 255 255 / 0.05); border: 2px dashed rgb(255 255 255 / 0.25); box-shadow: none; color: var(--muted); font-size: 1.8rem; }
 .rom-tile.is-add .rom-art::after { display: none; }
-.rom-title { font: 600 0.78rem var(--ui); text-align: center; line-height: 1.25; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.rom-title { font: 600 0.78rem var(--ui); text-align: left; line-height: 1.25; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .rom-core { font-size: 0.66rem; color: var(--muted); }
 .rom-badge {
-  position: absolute; top: 0; left: calc(50% + 26px); z-index: 1;
+  position: absolute; top: 0; left: calc(var(--box-w, 78px) - 16px); z-index: 1;
   min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
   background: linear-gradient(#ef4444, #b91c1c); border: 2px solid #fff; color: #fff;
   font: 800 0.72rem/20px var(--ui); text-align: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.6);
