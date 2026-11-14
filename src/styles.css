@@ -32,12 +32,6 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { -webkit-font-smoothing: antialiased; }
-/* The document scrolls. On a desktop it settles with a row right under the header, as a
-   console's menu does; `proximity`, so an open ROM folder still scrolls freely. */
-@media (min-width: 761px) {
-  html { scroll-snap-type: y proximity; scroll-padding-top: var(--header-h, 0px); scrollbar-width: none; }
-  html::-webkit-scrollbar { display: none; }
-}
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 0.9em; color: var(--soft); }
@@ -71,8 +65,6 @@ kbd {
 .launcher {
   position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh;
 }
-/* Top bar and hero stay put while the rows go under them. */
-.head { position: sticky; top: 0; z-index: 3; }
 .launcher.is-playing { visibility: hidden; }
 
 .topbar {
@@ -90,7 +82,6 @@ kbd {
 }
 .topbar-link svg { width: 15px; fill: currentColor; }
 .topbar-link:hover { color: var(--text); border-color: #fff; }
-.clock { margin-left: 18px; font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
 
 
 /* ---------- Hero ---------- */
@@ -135,12 +126,10 @@ kbd {
 
 /* ---------- Rows and square tiles ---------- */
 
-.rows { position: relative; overflow-x: hidden; padding: 6px 0 calc(100vh - var(--header-h, 0px) - 40px); }
-.row { margin-bottom: 8px; scroll-snap-align: start; transition: opacity 260ms var(--ease); }
-/* A row that has gone under the header: hidden, as the old frame's fade did (the header has
-   no background of its own — behind it is the blurred art). */
-.rows .row.is-under { opacity: 0; pointer-events: none; }
-.row.is-dimmed { opacity: 0.28; }
+/* The same layout on every size: each row is a grid, and a tile's details open under its
+   grid line. The page scrolls; the bottom padding keeps the last line clear of the hint bar. */
+.rows { position: relative; overflow-x: hidden; padding: 18px 0 96px; }
+.row { margin-bottom: 18px; }
 .row-title {
   display: flex; align-items: center; gap: 0.6rem; margin: 0 var(--gutter);
   font: 650 1rem var(--ui); letter-spacing: 0.01em; color: var(--soft);
@@ -150,9 +139,11 @@ kbd {
 
 .cards {
   list-style: none; margin: 0; padding: 18px var(--gutter) 10px;
-  display: flex; gap: clamp(14px, 1.6vw, 24px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+  display: grid; grid-template-columns: repeat(auto-fill, var(--tile)); justify-content: start;
+  gap: clamp(22px, 2.2vw, 34px) clamp(14px, 1.6vw, 24px);
 }
-.tile { flex: 0 0 var(--tile); scroll-snap-align: center; scroll-margin-inline: var(--gutter); }
+/* Scrolled into view clear of the hint bar (and of the focused tile's lift). */
+.tile { min-width: 0; scroll-margin: 24px 0 88px; }
 
 .card {
   position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0;
@@ -233,6 +224,49 @@ kbd {
 
 .tile-caption { display: grid; gap: 2px; margin-top: 12px; padding: 0 2px; opacity: 0.62; transition: opacity 200ms var(--ease), transform 240ms var(--ease); }
 .tile.is-focused .tile-caption { opacity: 1; transform: translateY(5px); }
+
+/* The mouse only hovers; a click selects. */
+@media (hover: hover) {
+  .card:hover:not(.is-focused):not(.is-open) {
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.45), 0 18px 36px -16px rgb(0 0 0 / 0.9);
+  }
+  .card:hover .card-shine { opacity: 0.7; }
+  .tile:hover .tile-caption { opacity: 0.9; }
+}
+
+/* ---------- The panel under a tile's grid line ---------- */
+
+.tile-details {
+  grid-column: 1 / -1; position: relative; margin-top: 4px; scroll-margin: 24px 0 88px;
+  animation: drawer-open 240ms var(--ease); transform-origin: top;
+}
+/* The notch is part of the panel: a square turned 45°, the panel's fill and border on its top
+   sides, half over the panel's edge so the line under it disappears. */
+.tile-details::before {
+  content: ""; position: absolute; top: -10px; left: calc(var(--notch) - 10px - var(--gutter)); z-index: 2;
+  width: 20px; height: 20px; transform: rotate(45deg); border-radius: 4px 0 0 0;
+  background: var(--panel); border: 1px solid var(--line-strong); border-right: 0; border-bottom: 0;
+}
+.tile-details .hero {
+  min-height: 0; padding: 24px; border-radius: 26px; gap: 1.2rem 3rem;
+  background: var(--panel);
+  border: 1px solid var(--line-strong); box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.9);
+}
+.tile-details .hero-title { font-size: clamp(1.6rem, 2.6vw, 2.5rem); }
+.tile-details .hero-desc { margin-bottom: 1.2rem; }
+.tile-details .drawer-panel { margin: 0; }
+/* Desktop: the description under the title; chips and actions on the right. */
+@media (min-width: 761px) {
+  /* kicker; title | chips (their tops level); description | actions */
+  .tile-details .hero { grid-template-rows: auto auto 1fr; row-gap: 0.9rem; }
+  .tile-details .hero .hero-body, .tile-details .hero .hero-details { display: contents; }
+  .tile-details .hero .hero-kicker { grid-area: 1 / 1; margin: 0; animation: rise 500ms var(--ease) both; }
+  .tile-details .hero .hero-title { grid-area: 2 / 1; animation: rise 500ms var(--ease) both; }
+  .tile-details .hero .hero-desc { grid-area: 3 / 1; margin: 0; animation: rise 560ms var(--ease) both; }
+  .tile-details .hero .hero-chips { grid-area: 2 / 2; align-self: start; }
+  .tile-details .hero .hero-actions { grid-area: 3 / 2; align-self: start; }
+}
 .tile-title { font: 650 0.84rem var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-meta { font: 500 0.7rem var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -254,21 +288,10 @@ kbd {
 .key.is-b { background: #f87171; }
 .key.is-y { background: #facc15; }
 
-/* ---------- The iOS 6 folder ---------- */
+/* ---------- A console's ROM drawer (the iOS 6 folder) ---------- */
 
-.launcher.has-drawer .hero { min-height: 0; }
-.launcher.has-drawer .hero-desc, .launcher.has-drawer .hero-actions { display: none; }
-
-.drawer { position: relative; margin: 10px 0 14px; animation: drawer-open 280ms var(--ease); transform-origin: top; }
-.drawer::before {
-  /* The notch is part of the panel: a square turned 45°, the panel's fill and border on its top
-     sides, half over the panel's edge so the line under it disappears. */
-  content: ""; position: absolute; top: -10px; left: calc(var(--notch) - 10px); z-index: 1;
-  width: 20px; height: 20px; transform: rotate(45deg); border-radius: 4px 0 0 0;
-  background: var(--panel); border: 1px solid var(--line-strong); border-right: 0; border-bottom: 0;
-}
 .drawer-panel {
-  position: relative; margin: 0 calc(var(--gutter) * 0.5);
+  position: relative; margin: 0;
   border-radius: 26px; padding: 24px; /* the same on every side */
   background: var(--panel);
   border: 1px solid var(--line-strong);
@@ -441,43 +464,26 @@ kbd {
 }
 
 @media (max-width: 760px) {
-  .hero { grid-template-columns: 1fr; min-height: 0; padding-top: 18px; padding-bottom: 18px; }
   .hero-desc { font-size: 0.92rem; margin-bottom: 1.1rem; }
   .hintbar .is-nav { display: none; }
   .hintbar { justify-content: center; gap: 1rem; }
-  .drawer-panel { margin: 0 8px; padding: 16px; }
+  .drawer-panel { padding: 16px; }
 
-  /* A phone gets a grid: no hero (the details open under the tapped game), every row wraps. */
-  .hero-slot { display: none; }
-  /* A plain page on a phone: no sticky header, no snap (pull-to-refresh needs the page). */
-  .head { position: static; }
-  .rows { padding-bottom: 48px; }
+  /* A phone: three columns that fill the width, no lift on the focused tile (it would cover
+     its neighbours). */
+  .rows { padding: 6px 0 48px; }
+  .row { margin-bottom: 8px; }
   .row-title { margin-top: 10px; }
-  .cards {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px;
-    overflow: visible; padding: 14px var(--gutter) 8px;
-  }
-  .tile { min-width: 0; }
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; padding: 14px var(--gutter) 8px; }
   .tile-caption { margin-top: 8px; }
   .tile.is-focused .tile-caption { transform: none; }
   .card.is-focused, .card.is-open { transform: none; }
 
-  .tile-details { grid-column: 1 / -1; position: relative; margin-top: 4px; animation: drawer-open 240ms var(--ease); transform-origin: top; }
-  .tile-details::before {
-    content: ""; position: absolute; top: -10px; left: calc(var(--notch) - 10px - var(--gutter)); z-index: 2;
-    width: 20px; height: 20px; transform: rotate(45deg); border-radius: 4px 0 0 0;
-    background: var(--panel); border: 1px solid var(--line-strong); border-right: 0; border-bottom: 0;
-  }
-  .tile-details .hero {
-    display: block; min-height: 0; padding: 18px 16px 20px; border-radius: 22px;
-    background: var(--panel);
-    border: 1px solid var(--line-strong); box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.9);
-  }
+  .tile-details .hero { display: block; padding: 18px 16px 20px; border-radius: 22px; box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.9); }
   .tile-details .hero-title { font-size: 1.45rem; }
   .tile-details .hero-details { max-width: none; padding: 0; animation: none; }
   .tile-details .hero-chips { margin-top: 0.8rem; }
   .tile-details .hero-desc { margin: 0.8rem 0 1.1rem; }
-  .tile-details .drawer-panel { margin: 0; }
   .drawer-menu { display: block; }
   .drawer-head .core-select, .drawer-head .drawer-manage { display: none; }
 }
