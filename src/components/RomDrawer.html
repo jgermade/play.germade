@@ -1,4 +1,7 @@
 <script :setup="{ game, roms, library, onAction }">
+  // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
+  // greys the files out. There, every file is shown and the import checks the extension.
+  const coarse = matchMedia('(pointer: coarse)').matches
   // The folder of iOS 6: it opens inside the grid, under the row of the card that owns
   // it, with a notch pointing back at that card. One tile per game; the versions of
   // that game (revisions, regions, homebrew builds) are grouped behind it — the red
@@ -154,7 +157,7 @@
       </select>
     </label>
     <button class="ghost drawer-manage" @click="manage()">Gestionar</button>
-    <input type="file" multiple hidden :accept="(game.accept ?? []).join(',')" @change="onPicked" />
+    <input type="file" multiple hidden :accept="coarse ? '' : (game.accept ?? []).join(',')" @change="onPicked" />
   </header>
 
   <ul class="rom-grid">

@@ -1,4 +1,7 @@
 <script :setup="{ systems, initialSystem, initialGame, roms, library, input, persistent, requestPersistence, exit }">
+  // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
+  // greys the files out. There, every file is shown and the import checks the extension.
+  const coarse = matchMedia('(pointer: coarse)').matches
   // The ROM manager, in ROM Manager's own look (wasm-gaming/rom-manager): a header,
   // the LIBRARY tree on the left (systems as folders, games inside, mods waiting for
   // a game), and a details pane with one card for what the tree has selected.
@@ -339,7 +342,7 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
         <span class="label">{{ busy ? 'Añadiendo…' : 'Añadir ROMs y mods' }}</span>
       </button>
-      <input class="pick-any" type="file" multiple hidden :accept="[...(system?.accept ?? []), '.ips', '.bps', '.ups'].join(',')" @change="onPicked" />
+      <input class="pick-any" type="file" multiple hidden :accept="coarse ? '' : [...(system?.accept ?? []), '.ips', '.bps', '.ups'].join(',')" @change="onPicked" />
     </div>
   </header>
 

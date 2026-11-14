@@ -1,4 +1,7 @@
 <script :setup="{ game, install }">
+  // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
+  // greys the files out. There, every file is shown and the import checks the extension.
+  const coarse = matchMedia('(pointer: coarse)').matches
   let files = {}
   let busy = false
   let error = null
@@ -36,7 +39,7 @@
   </p>
   <label :each="entry in entries" :key="entry[0]" class="file">
     <span>{{ entry[1].label ?? entry[1].file }}</span>
-    <input type="file" :accept="(entry[1].accept ?? []).join(',')" @change="pick(entry[0], $event)" />
+    <input type="file" :accept="coarse ? '' : (entry[1].accept ?? []).join(',')" @change="pick(entry[0], $event)" />
   </label>
   <p :if="error" class="error">{{ error }}</p>
   <div class="dialog-actions">
