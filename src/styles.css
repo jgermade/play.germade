@@ -9,6 +9,7 @@
   --surface: rgb(18 20 28 / 0.72);
   --line: rgb(255 255 255 / 0.09);
   --line-strong: rgb(255 255 255 / 0.16);
+  --panel: #181b25; /* opaque, so a panel's notch is the same colour as the panel */
   --text: #f4f6fb;
   --soft: #cdd3df;
   --muted: #8e97a9;
@@ -261,15 +262,18 @@ kbd {
 
 .drawer { position: relative; margin: 10px 0 14px; animation: drawer-open 280ms var(--ease); transform-origin: top; }
 .drawer::before {
-  content: ""; position: absolute; top: -13px; left: calc(var(--notch) - 14px); z-index: 1;
-  border: 14px solid transparent; border-top: 0; border-bottom-color: rgb(24 27 37 / 0.92);
+  /* The notch is part of the panel: a square turned 45°, the panel's fill and border on its top
+     sides, half over the panel's edge so the line under it disappears. */
+  content: ""; position: absolute; top: -10px; left: calc(var(--notch) - 10px); z-index: 1;
+  width: 20px; height: 20px; transform: rotate(45deg); border-radius: 4px 0 0 0;
+  background: var(--panel); border: 1px solid var(--line-strong); border-right: 0; border-bottom: 0;
 }
 .drawer-panel {
   position: relative; margin: 0 calc(var(--gutter) * 0.5);
   border-radius: 26px; padding: 22px calc(var(--gutter) * 0.5 + 6px) 24px;
-  background: rgb(24 27 37 / 0.78); backdrop-filter: blur(26px) saturate(1.5);
+  background: var(--panel);
   border: 1px solid var(--line-strong);
-  box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.9), inset 0 1px 0 rgb(255 255 255 / 0.08);
+  box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.9);
   transition: box-shadow 150ms var(--ease);
 }
 .drawer-panel.is-dragging { box-shadow: 0 0 0 3px #fff, 0 30px 80px -30px rgb(0 0 0 / 0.9); }
@@ -412,12 +416,13 @@ kbd {
 
   .tile-details { grid-column: 1 / -1; position: relative; margin-top: 4px; animation: drawer-open 240ms var(--ease); transform-origin: top; }
   .tile-details::before {
-    content: ""; position: absolute; top: -12px; left: calc(var(--notch) - 13px - var(--gutter)); z-index: 1;
-    border: 13px solid transparent; border-top: 0; border-bottom-color: rgb(24 27 37 / 0.92);
+    content: ""; position: absolute; top: -10px; left: calc(var(--notch) - 10px - var(--gutter)); z-index: 2;
+    width: 20px; height: 20px; transform: rotate(45deg); border-radius: 4px 0 0 0;
+    background: var(--panel); border: 1px solid var(--line-strong); border-right: 0; border-bottom: 0;
   }
   .tile-details .hero {
     display: block; min-height: 0; padding: 18px 16px 20px; border-radius: 22px;
-    background: rgb(24 27 37 / 0.82); backdrop-filter: blur(26px) saturate(1.5);
+    background: var(--panel);
     border: 1px solid var(--line-strong); box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.9);
   }
   .tile-details .hero-title { font-size: 1.45rem; }
