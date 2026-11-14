@@ -91,8 +91,8 @@ kbd {
 /* ---------- Hero ---------- */
 
 .hero {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end;
-  gap: 2rem 3rem; padding: 8px var(--gutter) 1.6rem; min-height: min(34vh, 320px);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start;
+  gap: 2rem 3rem; padding: 18px var(--gutter) 2.25rem; min-height: min(34vh, 320px);
   transition: min-height 300ms var(--ease);
 }
 .hero-body { max-width: 680px; animation: rise 500ms var(--ease) both; }
