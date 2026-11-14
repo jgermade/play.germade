@@ -104,7 +104,7 @@ export const GAMES = [
     description: 'Celeste sobre el runtime .NET WebAssembly, con Everest. Llega tras los motores RSDK.',
     engine: 'celeste',
     status: 'soon',
-    cover: '/assets/covers/celeste_vertical.png',
+    cover: '/assets/covers/celeste_cover.jpg',
     banner: '/assets/covers/celeste_bg.png',
     accent: '#be185d',
   },
