@@ -2,7 +2,7 @@
   "$comment": "Engines the launcher plays, pinned. scripts/fetch-engines.mjs downloads each release asset and copies `path` (inside the archive) to public/engines/<id>/. For local development, ENGINE_SRC_<ID>=<dir> copies a local build instead (e.g. ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4).",
   "rsdkv4": {
     "repo": "wasm-gaming/rsdkv4-wasm",
-    "version": "0.3.1",
+    "version": "0.3.3",
     "asset": "rsdkv4.tar.gz",
     "path": "rsdkv4/rsdkv4",
     "entry": "rsdkv4.sdk.js",
@@ -10,7 +10,7 @@
   },
   "rsdkv3": {
     "repo": "wasm-gaming/rsdkv3-wasm",
-    "version": "0.2.0",
+    "version": "0.2.2",
     "asset": "rsdkv3.tar.gz",
     "path": "rsdkv3/rsdkv3",
     "entry": "rsdkv3.sdk.js",
@@ -18,7 +18,7 @@
   },
   "blastem": {
     "repo": "wasm-gaming/blastem-wasm",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "asset": "blastem.tar.gz",
     "path": "blastem/blastem",
     "entry": "blastem.sdk.js",
@@ -26,7 +26,7 @@
   },
   "rsdkv5": {
     "repo": "wasm-gaming/rsdkv5-wasm",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "asset": "rsdkv5.tar.gz",
     "path": "rsdkv5/rsdkv5",
     "entry": "rsdkv5.sdk.js",
@@ -34,7 +34,7 @@
   },
   "fbneo": {
     "repo": "wasm-gaming/fbneo-wasm",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "asset": "fbneo.tar.gz",
     "path": "fbneo/fbneo",
     "entry": "fbneo.sdk.js",
