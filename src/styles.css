@@ -82,7 +82,6 @@ kbd {
 }
 .topbar-link svg { width: 15px; fill: currentColor; }
 .topbar-link:hover { color: var(--text); border-color: #fff; }
-.clock { margin-left: 18px; font: 500 1rem var(--display); letter-spacing: 0.02em; color: var(--soft); font-variant-numeric: tabular-nums; }
 
 
 /* ---------- Hero ---------- */
