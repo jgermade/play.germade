@@ -41,7 +41,7 @@ export const GAMES = [
       'La decompilación de RSDKv4 de la versión de 2013. Un único motor para Sonic 1 y Sonic 2: lo que elige el juego es el Data.rsdk que aportas.',
     engine: 'rsdkv4',
     status: 'ready',
-    cover: '/assets/covers/sonic_cover.png',
+    cover: '/assets/covers/sonic_cover.jpg',
     accent: '#1d4ed8',
     install: {
       data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic 1' },
@@ -57,7 +57,7 @@ export const GAMES = [
       'Mismo motor RSDKv4 que Sonic 1, otro Data.rsdk. Partidas guardadas por separado en su propia carpeta.',
     engine: 'rsdkv4',
     status: 'ready',
-    cover: '/assets/covers/sonic2_cover.png',
+    cover: '/assets/covers/sonic2_cover.jpg',
     accent: '#0e7490',
     install: {
       data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic 2' },
@@ -73,6 +73,7 @@ export const GAMES = [
       'La decompilación de RSDKv3 de la versión de 2011, con sus propios menús y su Stage Select a mano desde la pausa. El Data.rsdk lo aportas tú.',
     engine: 'rsdkv3',
     status: 'ready',
+    cover: '/assets/covers/soniccd_cover.jpg',
     accent: '#7c3aed',
     install: {
       data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic CD' },
@@ -85,9 +86,10 @@ export const GAMES = [
     title: 'Sonic Mania',
     year: 2017,
     description:
-      'La decompilación de RSDKv5U, con la pantalla de partidas de siempre: ocho huecos, tu personaje y donde lo dejaste. El Data.rsdk lo aportas tú.',
+      'La decompilación de RSDKv5U, con sus propios menús: partidas, personaje y modos como siempre, y el Stage Select desde la pausa. El Data.rsdk lo aportas tú.',
     engine: 'rsdkv5',
     status: 'ready',
+    cover: '/assets/covers/sonicmania_cover.jpg',
     accent: '#db2777',
     install: {
       data: { file: 'Data.rsdk', accept: ['.rsdk'], label: 'Data.rsdk de Sonic Mania' },
@@ -102,7 +104,7 @@ export const GAMES = [
     description: 'Celeste sobre el runtime .NET WebAssembly, con Everest. Llega tras los motores RSDK.',
     engine: 'celeste',
     status: 'soon',
-    cover: '/assets/covers/celeste_vertical.png',
+    cover: '/assets/covers/celeste_cover.jpg',
     banner: '/assets/covers/celeste_bg.png',
     accent: '#be185d',
   },
