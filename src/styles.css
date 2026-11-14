@@ -269,7 +269,7 @@ kbd {
 }
 .drawer-panel {
   position: relative; margin: 0 calc(var(--gutter) * 0.5);
-  border-radius: 26px; padding: 22px calc(var(--gutter) * 0.5 + 6px) 24px;
+  border-radius: 26px; padding: 24px; /* the same on every side */
   background: var(--panel);
   border: 1px solid var(--line-strong);
   box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.9);
@@ -309,7 +309,11 @@ kbd {
   border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.35rem 0.8rem;
 }
 
-.rom-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 18px 14px; }
+/* Fixed-width columns packed to the left: games and the add tile one gap apart, whatever the width. */
+.rom-grid {
+  list-style: none; margin: 14px 0 0; padding: 0; display: grid; justify-content: start; gap: 18px 14px;
+  grid-template-columns: repeat(auto-fill, var(--box-w, 78px));
+}
 .rom { position: relative; }
 /* Art and title start at the left edge, so the first tile lines up with the drawer's header and text. */
 .rom-tile { width: 100%; display: grid; justify-items: start; gap: 8px; padding: 8px 0; background: none; border: 0; border-radius: 18px; }
@@ -326,7 +330,7 @@ kbd {
 .rom-tile.is-focused .rom-art { transform: scale(1.1); box-shadow: 0 0 0 3px #fff, 0 16px 30px -10px rgb(0 0 0 / 0.9); }
 /* A game is drawn the shape of its box: portrait on Mega Drive, landscape on Super
    Nintendo (the system's `boxart`). Same area either way, so rows stay even. */
-.drawer-panel .rom-tile:not(.is-add) .rom-art {
+.drawer-panel .rom-tile .rom-art {
   width: var(--box-w, 78px); height: var(--box-h, 78px); border-radius: 10px;
 }
 .rom-art.is-cover { background: #111; }
@@ -441,7 +445,7 @@ kbd {
   .hero-desc { font-size: 0.92rem; margin-bottom: 1.1rem; }
   .hintbar .is-nav { display: none; }
   .hintbar { justify-content: center; gap: 1rem; }
-  .drawer-panel { margin: 0 8px; padding: 18px 14px; }
+  .drawer-panel { margin: 0 8px; padding: 16px; }
 
   /* A phone gets a grid: no hero (the details open under the tapped game), every row wraps. */
   .hero-slot { display: none; }
