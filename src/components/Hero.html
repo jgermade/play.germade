@@ -15,7 +15,7 @@
     ].filter(Boolean)
 </script>
 
-<section class="hero" :if="game" :class.is-game="game.kind !== 'emulator'" :style="`--accent: ${game.accent ?? '#334155'}`">
+<section class="hero" :if="game" :style="`--accent: ${game.accent ?? '#334155'}`">
   <div class="hero-body">
     <p class="hero-kicker"><span class="dot"></span>{{ kicker }}</p>
     <h1 class="hero-title">{{ game.title }}</h1>
