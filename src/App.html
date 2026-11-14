@@ -107,10 +107,12 @@
   const leaveDrawer = () => { inDrawer = false }
   const drawerNext = () => { inDrawer = false; move(1, 0) }
 
-  // A click selects the tile, and the selected tile always has its panel open.
+  const closePanel = () => { details = null; actionFocus = null; inDrawer = false }
+  // A click selects the tile and opens its panel; on the selected one, it closes it.
   const tap = (game, r, c) => {
     select(r, c)
-    if (details?.slug !== game.slug) place(r, c)
+    if (details?.slug === game.slug) closePanel()
+    else place(r, c)
   }
 
   // A game's main button: play (the page asks for the files if needed), or the notice.
@@ -176,8 +178,10 @@
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
     else if (action === 'right') move(0, 1)
+    else if (action === 'back') closePanel()
     else if (action === 'accept' && current) {
-      if (current.kind === 'emulator') enterPanel()
+      if (details?.slug !== current.slug) place(focus.row, focus.col)
+      else if (current.kind === 'emulator') enterPanel()
       else open(current)
     }
   })
@@ -215,6 +219,7 @@
     : actionFocus !== null && detailsGame ? actionsOf(detailsGame)[actionFocus] ?? ''
     : inDrawer ? 'Jugar'
     : current.kind === 'emulator' ? 'Abrir'
+    : details?.slug !== current.slug ? 'Detalles'
     : current.status !== 'ready' ? 'Próximamente'
     : isInstalled(current) ? 'Jugar' : 'Instalar'
 
@@ -297,7 +302,7 @@
   <footer class="hintbar">
     <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ hintAccept }}</span>
     <span :if="inDrawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
-    <span :if="inDrawer || actionFocus !== null" class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> Atrás</span>
+    <span :if="details" class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> {{ inDrawer || actionFocus !== null ? 'Atrás' : 'Cerrar' }}</span>
     <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
   </footer>
 
