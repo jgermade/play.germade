@@ -14,12 +14,13 @@
 import { $reactive } from 'jq79';
 import * as megaDrive from '../data/systems/mega-drive.js';
 import * as neoGeo from '../data/systems/neo-geo.js';
+import * as snes from '../data/systems/snes.js';
 import { readZip } from './zip.js';
 import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from './patch.js';
 import * as dat from './dat.service.js';
 import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
 
-const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive, [neoGeo.SYSTEM.id]: neoGeo };
+const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive, [neoGeo.SYSTEM.id]: neoGeo, [snes.SYSTEM.id]: snes };
 
 /**
  * Systems whose games are whole archives (arcade-style sets) are identified against the
