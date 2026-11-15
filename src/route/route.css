@@ -29,7 +29,10 @@ body { background: radial-gradient(80% 60% at 70% 10%, color-mix(in srgb, var(--
 .library-hero img { width: 100%; height: 100%; object-fit: cover; }
 .route-library .drawer-panel { margin: 0 var(--gutter); }
 
-#app { position: fixed; inset: 0; background: #000; }
+/* manipulation: no double-tap zoom on the game. With the touch pad (touch.service.js) the box is
+   moved into what the pad leaves: the top half in portrait, between the sides in landscape. */
+#app { position: fixed; inset: 0; background: #000; touch-action: manipulation; }
+.has-touch-pad body { background: #000; }
 #app.is-hidden { display: none; }
 .app-stage { position: absolute; inset: 0; display: grid; place-items: center; }
 .app-stage canvas { outline: none; }

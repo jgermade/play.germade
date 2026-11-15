@@ -22,6 +22,7 @@ import * as romLibrary from '../services/rom-library.service.js';
 import { input } from '../services/input.service.js';
 import { readFile, storagePath } from '../services/storage.js';
 import { guardFileDrops } from '../services/drop-guard.js';
+import { attachTouchPad } from '../services/touch.service.js';
 
 guardFileDrops();
 
@@ -39,9 +40,11 @@ const cameFromLauncher = () => {
 };
 
 let handle = null;
+let detachTouchPad = () => {};
 const exit = async () => {
   await handle?.unmount?.().catch(() => {});
   handle = null;
+  detachTouchPad();
   if (entry?.system && params.get('game') && !cameFromLauncher()) location.assign(`/${slug}/`);
   else if (cameFromLauncher() && history.length > 1) history.back();
   else location.assign(`/?focus=${encodeURIComponent(slug)}`);
@@ -70,6 +73,8 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
   };
   const target = document.querySelector('#app');
   try {
+    // Emulators on a phone or a tablet: the on-screen pad, exposed before the engine starts.
+    if (entry.kind === 'emulator') detachTouchPad = attachTouchPad({ system: entry.system, target, input });
     let app = genericApp;
     if (engine.app) app = await import(/* @vite-ignore */ `${base}${engine.app}`);
     const mountApp = () =>
@@ -82,6 +87,7 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
     if (view.notice) setTimeout(() => { view.notice = null }, 6000);
   } catch (error) {
     console.error('[route]', error);
+    detachTouchPad();
     fail(error.message ?? String(error));
   }
 }
