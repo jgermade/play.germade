@@ -96,6 +96,19 @@ export const GAMES = [
     },
   },
   {
+    slug: 'sonic3air',
+    category: 'retro-moderno',
+    kind: 'game',
+    title: 'Sonic 3 A.I.R.',
+    year: 1994,
+    description:
+      'Sonic 3 & Knuckles en Angel Island Revisited, el remaster de Eukaryot: pantalla ancha, todos los personajes y sus mods. La ROM de Sonic 3 & Knuckles la aportas tú. Llega cuando tenga su paquete de motor.',
+    engine: 'sonic3air',
+    status: 'soon',
+    cover: '/assets/covers/sonic3air_cover.jpg',
+    accent: '#2563eb',
+  },
+  {
     slug: 'celeste',
     category: 'retro-moderno',
     kind: 'game',
