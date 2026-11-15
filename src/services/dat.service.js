@@ -14,7 +14,14 @@ import { readFile, writeFile } from './storage.js';
 
 export const REGIONS = ['EU', 'US', 'JP'];
 
-const loaded = new Map(); // system → Promise<{ byCrc, covers, boxarts } | null>
+const loaded = new Map(); // dataset → Promise<{ byCrc, covers, boxarts } | null>
+
+/**
+ * A library that holds several of ROM Manager's systems reads all their datasets: the
+ * GBA library also takes Game Boy and Game Boy Color carts (mGBA plays the three).
+ */
+const DATASETS = { gba: ['gba', 'gbc', 'gb'] };
+export const datasetsOf = (system) => DATASETS[system] ?? [system];
 
 /** The system's dataset, or null when there is none (identification falls back to headers). */
 export function dataset(system) {
@@ -48,10 +55,13 @@ const hex8 = (crc) => (crc >>> 0).toString(16).toUpperCase().padStart(8, '0');
  * (homebrew, hacks, bad dumps).
  */
 export async function match(system, crc, size) {
-  const data = await dataset(system);
-  const list = data?.byCrc.get(hex8(crc));
-  const entry = list?.find((e) => !e.size || !size || e.size === size);
-  return entry ? describe(entry, data) : null;
+  for (const name of datasetsOf(system)) {
+    const data = await dataset(name);
+    const list = data?.byCrc.get(hex8(crc));
+    const entry = list?.find((e) => !e.size || !size || e.size === size);
+    if (entry) return describe(entry, data);
+  }
+  return null;
 }
 
 /** A DAT entry read with ROM Manager's rules: title, variant key, regions. */
@@ -81,9 +91,12 @@ export async function coversOf(system, game) {
     if (!dat?.boxart) continue;
     for (const region of dat.regions?.length ? dat.regions : REGIONS) byRegion[region] ??= dat.boxart;
   }
-  const title = game.versions.find((v) => v.dat)?.dat.title ?? game.title;
-  const level = data?.covers[normalizeGameName(title)] ?? {};
-  for (const region of REGIONS) if (level[region]) byRegion[region] ??= data.boxarts + level[region];
+  const title = normalizeGameName(game.versions.find((v) => v.dat)?.dat.title ?? game.title);
+  for (const name of datasetsOf(system)) {
+    const data = await dataset(name);
+    const level = data?.covers[title] ?? {};
+    for (const region of REGIONS) if (level[region]) byRegion[region] ??= data.boxarts + level[region];
+  }
   return byRegion;
 }
 

@@ -5,6 +5,8 @@
   "systems": {
     "megadrive": "MegaDrive",
     "snes": "SNES",
-    "gba": "GBA"
+    "gba": "GBA",
+    "gb": "GAMEBOY",
+    "gbc": "GBC"
   }
 }
