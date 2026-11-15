@@ -153,8 +153,15 @@ export const GAMES = [
     category: 'emuladores',
     kind: 'emulator',
     title: 'Super Nintendo',
-    description: 'Super Nintendo / Super Famicom.',
-    engine: 'jgenesis',
+    description: 'Super Nintendo / Super Famicom. Tu biblioteca de ROMs, agrupada por juego y versión.',
+    system: 'snes',
+    engine: 'snes9x', // default core; jgenesis joins when it has the engine app
+    cores: [
+      { id: 'snes9x', label: 'Snes9x' },
+      { id: 'jgenesis', label: 'jgenesis', available: false },
+    ],
+    accept: ['.sfc', '.smc', '.fig', '.swc', '.zip'],
+    // 'ready' with snes9x-wasm 0.2.0 released and pinned in engines.json (RECORD/2026-11-15.snes-on-snes9x).
     status: 'soon',
     accent: '#4c1d95',
     art: '/art/systems/snes.svg',
