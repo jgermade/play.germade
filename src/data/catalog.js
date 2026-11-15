@@ -174,8 +174,12 @@ export const GAMES = [
     category: 'emuladores',
     kind: 'emulator',
     title: 'Game Boy Advance',
-    description: 'GBA, Game Boy Color y Game Boy con mGBA.',
+    description: 'GBA, Game Boy Color y Game Boy con mGBA. Tu biblioteca de ROMs, agrupada por juego y versión.',
+    system: 'gba', // one library for the three handhelds; each cart gets its own on-screen pad
     engine: 'mgba',
+    cores: [{ id: 'mgba', label: 'mGBA' }],
+    accept: ['.gba', '.agb', '.gb', '.gbc', '.sgb', '.cgb', '.zip'],
+    // 'ready' with mGBA-wasm 0.2.0 released and pinned in engines.json (RECORD/2026-11-15.gba-on-mgba).
     status: 'soon',
     accent: '#3730a3',
     art: '/art/systems/gba.svg',
