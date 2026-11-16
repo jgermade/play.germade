@@ -40,12 +40,24 @@
   }
   loadCovers()
 
-  // The tiles take the shape of the system's boxes, with the area a square tile had.
-  const box = (() => {
+  // Each tile takes the shape of its own box: the cover's proportions once it has loaded
+  // (they vary by region and release), the system's usual box before. Same area for all, and
+  // the slot is as wide and as tall as the drawer's widest and tallest box.
+  const { BOX_RATIO, boxShape } = await import('../helpers/systems.js')
+  const systemRatio = (() => {
     const [w, h] = (game.boxart ?? '1 / 1').split('/').map(Number)
-    const side = Math.sqrt((78 * 78 * w) / h)
-    return { w: Math.round(side), h: Math.round((side * h) / w) }
+    return w / h
   })()
+  let ratios = {}
+  const ratioOf = (g) => ratios[g.key] ?? BOX_RATIO[g.system] ?? systemRatio
+  const onCoverLoad = (g, event) => {
+    const { naturalWidth: w, naturalHeight: h } = event.target
+    if (w && h && ratios[g.key] !== w / h) ratios = { ...ratios, [g.key]: w / h }
+  }
+  $: shapes = Object.fromEntries(games.map((g) => [g.key, boxShape(ratioOf(g))]))
+  $: addShape = boxShape(games[0] ? ratioOf(games[0]) : systemRatio)
+  $: slot = Object.values(shapes).concat(addShape).reduce((s, b) => ({ w: Math.max(s.w, b.w), h: Math.max(s.h, b.h) }), { w: 0, h: 0 })
+  const tileStyle = (b) => `--box-w: ${b.w}px; --box-h: ${b.h}px`
 
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
@@ -175,7 +187,7 @@
     $self('.rom-tile.is-focused')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 </script>
 
-<section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}; --box-w: ${box.w}px; --box-h: ${box.h}px`"
+<section class="drawer-panel" :class.is-dragging="dragging" :style="`--accent: ${game.accent ?? '#334155'}; --slot-w: ${slot.w}px; --slot-h: ${slot.h}px`"
          @dragover.prevent="dragging = true" @dragleave="onDragLeave" @drop.prevent="onDrop">
   <header class="drawer-head">
     <h3>{{ game.title }}</h3>
@@ -210,10 +222,10 @@
   </header>
 
   <ul class="rom-grid">
-    <li :each="g, i in games" :key="g.key" class="rom">
+    <li :each="g, i in games" :key="g.key" class="rom" :style="tileStyle(shapes[g.key])">
       <button class="rom-tile" :class.is-focused="active !== false && !picker && focus === i" :title="g.title"
               @mouseenter="focus = i" @click="play(g)">
-        <span :if="covers[g.key]" class="rom-art is-cover"><img :src="covers[g.key]" alt="" /></span>
+        <span :if="covers[g.key]" class="rom-art is-cover"><img :src="covers[g.key]" alt="" @load="onCoverLoad(g, $event)" /></span>
         <span :else class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
         <span :if="g.versions.length > 1" class="rom-badge">{{ g.versions.length }}</span>
         <span :if="g.mods?.length" class="rom-mods">{{ g.mods.length }} mod{{ g.mods.length === 1 ? '' : 's' }}</span>
@@ -222,7 +234,7 @@
       </button>
       <button class="rom-more" title="Versiones" @click="openPicker(g)">⋯</button>
     </li>
-    <li class="rom">
+    <li class="rom" :style="tileStyle(addShape)">
       <button class="rom-tile is-add" :class.is-focused="active !== false && !picker && focus === games.length"
               @mouseenter="focus = games.length" @click="pickFiles" :disabled="busy">
         <span class="rom-art">{{ busy ? '…' : '+' }}</span>
