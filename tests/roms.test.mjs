@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
-import { identify, sortVersions, stripVersion } from '../src/data/systems/mega-drive.js';
-import { readZip } from '../src/services/zip.js';
+import { identify, sortVersions, stripVersion } from '../src/helpers/systems/mega-drive.js';
+import { readZip } from '../src/helpers/zip.js';
 
 /** A blank cartridge with a Mega Drive header. */
 function cart({ system = 'SEGA MEGA DRIVE ', overseas = '', domestic = '', serial = 'GM 00000000-00', size = 0x8000 } = {}) {
@@ -119,7 +119,7 @@ test('not a zip is said plainly', () => {
 });
 
 // ---- Neo Geo: whole sets, identified by the CRCs inside, and the BIOS apart --------
-import { identify as identifyNeo, biosKind, cleanTitle, bestSet } from '../src/data/systems/neo-geo.js';
+import { identify as identifyNeo, biosKind, cleanTitle, bestSet } from '../src/helpers/systems/neo-geo.js';
 
 const neoDataset = {
   games: {

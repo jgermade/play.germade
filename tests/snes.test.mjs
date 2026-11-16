@@ -1,7 +1,7 @@
-// Super Nintendo identification from the internal header (src/data/systems/snes.js).
+// Super Nintendo identification from the internal header (src/helpers/systems/snes.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { identify, findHeader, SYSTEM } from '../src/data/systems/snes.js';
+import { identify, findHeader, SYSTEM } from '../src/helpers/systems/snes.js';
 
 /** A cartridge image with a valid header at `at`: title, map mode, size, version, checksum. */
 function cart({ size = 0x20000, at = 0x7fc0, mode = 0x20, title = 'SUPER TEST GAME', version = 0, copier = false } = {}) {

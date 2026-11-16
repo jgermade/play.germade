@@ -1,7 +1,7 @@
 // Game Boy Advance, Game Boy and Game Boy Color ROM identification — pure functions, no I/O.
 //
 // One library for the three handhelds (mGBA plays all of them). ROM Manager's DATs come
-// first (by checksum, src/services/dat.service.js); the cartridge header is the fallback
+// first (by checksum, src/lib/dat.service.js); the cartridge header is the fallback
 // for what the catalogue does not know (homebrew, hacks):
 //
 //   GBA  0xA0 title (12) · 0xAC game code (4) · 0xB0 maker (2) · 0xB2 fixed 0x96

@@ -13,7 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const config = JSON.parse(readFileSync(join(root, 'src/data/datasets.json'), 'utf8'));
+const config = JSON.parse(readFileSync(join(root, 'src/lib/datasets.json'), 'utf8'));
 const out = join(root, 'public/datasets');
 const local = process.env.DATASETS_SRC;
 mkdirSync(out, { recursive: true });

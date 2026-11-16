@@ -12,12 +12,12 @@
 // Saves stay with the engine that wrote them: <engine>/<gameId>/.
 
 import { $reactive } from 'jq79';
-import * as megaDrive from '../data/systems/mega-drive.js';
-import * as neoGeo from '../data/systems/neo-geo.js';
-import * as snes from '../data/systems/snes.js';
-import * as gba from '../data/systems/gba.js';
-import { readZip } from './zip.js';
-import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from './patch.js';
+import * as megaDrive from '../helpers/systems/mega-drive.js';
+import * as neoGeo from '../helpers/systems/neo-geo.js';
+import * as snes from '../helpers/systems/snes.js';
+import * as gba from '../helpers/systems/gba.js';
+import { readZip } from '../helpers/zip.js';
+import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from '../helpers/patch.js';
 import * as dat from './dat.service.js';
 import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
 

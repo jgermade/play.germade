@@ -2,7 +2,7 @@
 // that follow the specs, so no third-party patch is committed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPatch, crc32, formatOf, parsePatch, PatchError } from '../src/services/patch.js';
+import { applyPatch, crc32, formatOf, parsePatch, PatchError } from '../src/helpers/patch.js';
 
 const bytes = (...parts) => new Uint8Array(parts.flatMap((p) => (typeof p === 'string' ? [...p].map((c) => c.charCodeAt(0)) : [...p])));
 const u32 = (n) => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];

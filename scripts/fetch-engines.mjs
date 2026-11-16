@@ -7,7 +7,7 @@
 // Emscripten glue and wasm — so the launcher serves them same-origin, which the
 // service worker can cache and cross-origin isolation requires.
 //
-//   node scripts/fetch-engines.mjs                 # all engines in src/data/engines.json
+//   node scripts/fetch-engines.mjs                 # all engines in src/lib/engines.json
 //   ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdkv4 node scripts/fetch-engines.mjs
 //
 // A folder already holding the pinned version (public/engines/<id>/.version) is
@@ -19,7 +19,7 @@ import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
-const engines = JSON.parse(readFileSync(join(root, 'src/data/engines.json'), 'utf8'));
+const engines = JSON.parse(readFileSync(join(root, 'src/lib/engines.json'), 'utf8'));
 const out = join(root, 'public/engines');
 
 const die = (message) => {

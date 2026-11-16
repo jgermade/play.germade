@@ -4,10 +4,10 @@
 
 
 import Manager from './Manager.html';
-import { GAMES } from '../data/catalog.js';
-import * as romLibrary from '../services/rom-library.service.js';
-import { input } from '../services/input.service.js';
-import { requestPersistence } from '../services/storage.js';
+import { GAMES } from '../lib/catalog.js';
+import * as romLibrary from '../lib/rom-library.service.js';
+import { input } from '../lib/input.service.js';
+import { requestPersistence } from '../lib/storage.js';
 
 const params = new URLSearchParams(location.search);
 

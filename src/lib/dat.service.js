@@ -3,13 +3,13 @@
 //
 // The data is ROM Manager's own dataset, slimmed at build time into
 // /datasets/<system>.json (scripts/fetch-datasets.mjs); names are read with ROM
-// Manager's own rules (src/vendor/rom-manager/), so a game is called and grouped
+// Manager's own rules (src/helpers/rom-manager/), so a game is called and grouped
 // here exactly as it is there.
 //
 // Boxarts are fetched once and kept in OPFS: library/<system>/covers/<gameId>.<region>.png
 
-import { normalizeGameName, parseGameName, variantKey } from '../vendor/rom-manager/rom-grouping.js';
-import { regionsOf, videoStandardsOf } from '../vendor/rom-manager/rom-regions.js';
+import { normalizeGameName, parseGameName, variantKey } from '../helpers/rom-manager/rom-grouping.js';
+import { regionsOf, videoStandardsOf } from '../helpers/rom-manager/rom-regions.js';
 import { readFile, writeFile } from './storage.js';
 
 export const REGIONS = ['EU', 'US', 'JP'];

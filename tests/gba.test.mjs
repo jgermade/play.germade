@@ -1,7 +1,7 @@
-// Game Boy Advance / Game Boy / Color identification from the header (src/data/systems/gba.js).
+// Game Boy Advance / Game Boy / Color identification from the header (src/helpers/systems/gba.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { identify, platformOf, touchSystemOf, gbaHeader, gbHeader, SYSTEM } from '../src/data/systems/gba.js';
+import { identify, platformOf, touchSystemOf, gbaHeader, gbHeader, SYSTEM } from '../src/helpers/systems/gba.js';
 
 /** A GBA cart with a valid header: title, game code, version, complement. */
 function gbaCart({ title = 'TEST GAME', code = 'BTSE', version = 0 } = {}) {

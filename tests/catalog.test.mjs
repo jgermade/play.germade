@@ -2,9 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CATEGORIES, GAMES, rows } from '../src/data/catalog.js';
+import { CATEGORIES, GAMES, rows } from '../src/lib/catalog.js';
 
-const engines = JSON.parse(readFileSync(new URL('../src/data/engines.json', import.meta.url), 'utf8'));
+const engines = JSON.parse(readFileSync(new URL('../src/lib/engines.json', import.meta.url), 'utf8'));
 
 test('slugs are unique and usable as a storage namespace', () => {
   const slugs = GAMES.map((g) => g.slug);

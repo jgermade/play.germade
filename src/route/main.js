@@ -10,19 +10,19 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/unbounded';
 import { $reactive } from 'jq79';
 
-import Route from './Route.html';
+import Route from '../views/Route.html';
 import InstallDialog from '../components/InstallDialog.html';
-import RomDrawer from '../components/RomDrawer.html';
-import * as genericApp from './generic-app.js';
+import RomDrawer from '../views/RomDrawer.html';
+import * as genericApp from '../views/generic-app.js';
 
-import { gameBySlug } from '../data/catalog.js';
-import engines from '../data/engines.json';
-import { library, refresh, install } from '../services/library.service.js';
-import * as romLibrary from '../services/rom-library.service.js';
-import { input } from '../services/input.service.js';
-import { readFile, storagePath } from '../services/storage.js';
-import { guardFileDrops } from '../services/drop-guard.js';
-import { attachTouchPad } from '../services/touch.service.js';
+import { gameBySlug } from '../lib/catalog.js';
+import engines from '../lib/engines.json';
+import { library, refresh, install } from '../lib/library.service.js';
+import * as romLibrary from '../lib/rom-library.service.js';
+import { input } from '../lib/input.service.js';
+import { readFile, storagePath } from '../lib/storage.js';
+import { guardFileDrops } from '../lib/drop-guard.js';
+import { attachTouchPad } from '../lib/touch.service.js';
 
 guardFileDrops();
 

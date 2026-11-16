@@ -5,7 +5,7 @@
 // side files, no localStorage, so deleting the folder uninstalls the game.
 
 import { $reactive } from 'jq79';
-import { GAMES } from '../data/catalog.js';
+import { GAMES } from './catalog.js';
 import { hasFile, removeFile, requestPersistence, storagePath, writeFile } from './storage.js';
 
 export const library = $reactive({
