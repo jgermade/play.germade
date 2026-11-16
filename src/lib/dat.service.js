@@ -12,7 +12,9 @@ import { normalizeGameName, parseGameName, variantKey } from '../helpers/rom-man
 import { regionsOf, videoStandardsOf } from '../helpers/rom-manager/rom-regions.js';
 import { readFile, writeFile } from './storage.js';
 
-export const REGIONS = ['EU', 'US', 'JP'];
+import { REGIONS, coverCandidates, regionOrder } from '../helpers/covers.js';
+
+export { REGIONS };
 
 const loaded = new Map(); // dataset → Promise<{ byCrc, covers, boxarts } | null>
 
@@ -86,6 +88,7 @@ export function describe(entry, data) {
 export async function coversOf(system, game) {
   const data = await dataset(system);
   const byRegion = {};
+  let world = null;
   for (const version of game.versions) {
     const dat = version.dat;
     if (!dat?.boxart) continue;
@@ -96,12 +99,13 @@ export async function coversOf(system, game) {
     const data = await dataset(name);
     const level = data?.covers[title] ?? {};
     for (const region of REGIONS) if (level[region]) byRegion[region] ??= data.boxarts + level[region];
+    // The World box (`*`): no region, tried last.
+    if (level['*']) world ??= data.boxarts + level['*'];
   }
-  return byRegion;
+  return { byRegion, world };
 }
 
-/** The regions to try, preferred first: ROM Manager's EU / US / JP switch. */
-export const regionOrder = (preferred = 'EU') => [preferred, ...REGIONS.filter((r) => r !== preferred)];
+export { regionOrder };
 
 const pending = new Map();
 
@@ -110,15 +114,12 @@ const pending = new Map();
  * from OPFS when it was fetched before, else downloaded once and kept.
  */
 export async function cover(system, game, preferred = 'EU') {
-  const covers = await coversOf(system, game);
-  const owned = new Set(game.versions.flatMap((v) => v.dat?.regions ?? []));
-  const order = regionOrder(preferred);
-  // The player's own regions first, in the preferred order; then the rest.
-  const regions = [...order.filter((r) => owned.has(r)), ...order.filter((r) => !owned.has(r))];
-  for (const region of regions) {
-    if (!covers[region]) continue;
+  const { byRegion, world } = await coversOf(system, game);
+  const owned = game.versions.flatMap((v) => v.dat?.regions ?? []);
+  // The player's own regions first, in the preferred order; then the rest; the World box last.
+  for (const { region, url } of coverCandidates(byRegion, world, owned, preferred)) {
     // By its key (rom-manager system + gameId): Tetris on Game Boy and on GBA are two games.
-    const blob = await stored(system, (game.key ?? game.id).replace(':', '.'), region, covers[region]);
+    const blob = await stored(system, (game.key ?? game.id).replace(':', '.'), region ?? 'world', url);
     if (blob) return { url: URL.createObjectURL(blob), region };
   }
   return null;
