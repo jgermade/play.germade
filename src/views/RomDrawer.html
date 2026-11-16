@@ -81,18 +81,22 @@
   // rom-manager, at /roms/: where the library is named, organized and its mods managed.
   const manage = () => location.assign('/roms/')
 
+  /** What an import did, in one line. */
+  const said = ({ added, duplicates, rejected, bios }) => {
+    const parts = []
+    if (bios) parts.push(BIOS_SAID[bios])
+    if (added.length) parts.push(`${added.length} ROM${added.length > 1 ? 's' : ''} añadida${added.length > 1 ? 's' : ''}`)
+    if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
+    if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
+    return parts.join(' · ') || 'Nada que añadir'
+  }
+
   const addFiles = async (files) => {
     if (!files?.length) return
     busy = true
     message = null
     try {
-      const { added, duplicates, rejected, bios, mods } = await library.importFiles(game.system, [...files])
-      const parts = []
-      if (bios) parts.push(BIOS_SAID[bios])
-      if (added.length) parts.push(`${added.length} ROM${added.length > 1 ? 's' : ''} añadida${added.length > 1 ? 's' : ''}`)
-      if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
-      if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
-      message = parts.join(' · ') || 'Nada que añadir'
+      message = said(await library.importFiles(game.system, [...files]))
       loadCovers()
     } catch (e) {
       message = e.message ?? String(e)
@@ -101,7 +105,25 @@
     }
   }
 
-  const pickFiles = () => $self('input[type=file]')?.click()
+  // "Añadir ROMs": rom-manager's add dialog (it says what each file is before adding), or the
+  // native picker while the launcher's input cannot be muted (engine-specs before 0.6.0).
+  const pickFiles = async () => {
+    if (!library.canOpenAdd()) return $self('input[type=file]')?.click()
+    if (busy) return
+    busy = true
+    message = null
+    try {
+      const result = await library.openAdd(game.system)
+      if (result) {
+        message = said(result)
+        loadCovers()
+      }
+    } catch (e) {
+      message = e.message ?? String(e)
+    } finally {
+      busy = false
+    }
+  }
   const onPicked = (event) => {
     addFiles(event.target.files)
     event.target.value = ''

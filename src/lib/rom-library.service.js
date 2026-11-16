@@ -17,6 +17,7 @@ import { $reactive } from 'jq79';
 import { SYSTEMS, touchSystemFor as padFor } from '../helpers/systems.js';
 import { crcNumber, extensionSystemOf, gamesOf, launcherSystemsOf, versionForMod as pickVersionForMod } from '../helpers/library-view.js';
 import * as dat from './dat.service.js';
+import { canMuteInput, muteInput } from './input.service.js';
 import { opfsAvailable, readFile, removeDirectory, requestPersistence, writeFile } from './storage.js';
 
 export { modStatus, playQuery } from '../helpers/library-view.js';
@@ -148,6 +149,40 @@ export async function readBios(system) {
 export async function importFiles(system, files, { gameId = null } = {}) {
   const lib = await sdk();
   const result = await lib.addFiles([...files], { system: (name) => extensionSystemOf(system, name), gameId: gameId ?? undefined });
+  await requestPersistence();
+  await reload(system);
+  return {
+    added: result.added,
+    duplicates: result.already,
+    rejected: result.refused.map((r) => r.name).concat(result.mods.rejected.map((r) => r.name)),
+    mods: result.mods.added,
+    bios: result.added.some((path) => /\/neogeo\.zip$/i.test(path)) ? 'aes' : null,
+  };
+}
+
+/** Whether "Añadir ROMs" can open rom-manager's add dialog (it needs the input muted). */
+export const canOpenAdd = () => canMuteInput();
+
+/**
+ * "Añadir ROMs" as rom-manager's add dialog (`openAddDialog`, rom-manager 0.5.0): drop or pick,
+ * see what each file is, add. The launcher's input is muted while it is open. Resolves with the
+ * same shape as `importFiles`, or null when the player closed it without adding.
+ */
+export async function openAdd(system, { gameId = null } = {}) {
+  const lib = await sdk();
+  const unmute = muteInput();
+  let result;
+  try {
+    result = await lib.openAddDialog({
+      system: (name) => extensionSystemOf(system, name),
+      gameId: gameId ?? undefined,
+      locale: 'es',
+      theme: 'dark',
+    });
+  } finally {
+    unmute?.();
+  }
+  if (!result) return null;
   await requestPersistence();
   await reload(system);
   return {
