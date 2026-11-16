@@ -6,7 +6,7 @@
 // Manager's own rules (src/helpers/rom-manager/), so a game is called and grouped
 // here exactly as it is there.
 //
-// Boxarts are fetched once and kept in OPFS: library/<system>/covers/<gameId>.<region>.png
+// Boxarts are fetched once and kept in OPFS: launcher/covers/<system>/<game>.<region>.png
 
 import { normalizeGameName, parseGameName, variantKey } from '../helpers/rom-manager/rom-grouping.js';
 import { regionsOf, videoStandardsOf } from '../helpers/rom-manager/rom-regions.js';
@@ -117,14 +117,30 @@ export async function cover(system, game, preferred = 'EU') {
   const regions = [...order.filter((r) => owned.has(r)), ...order.filter((r) => !owned.has(r))];
   for (const region of regions) {
     if (!covers[region]) continue;
-    const blob = await stored(system, game.id, region, covers[region]);
+    // By its key (rom-manager system + gameId): Tetris on Game Boy and on GBA are two games.
+    const blob = await stored(system, (game.key ?? game.id).replace(':', '.'), region, covers[region]);
     if (blob) return { url: URL.createObjectURL(blob), region };
   }
   return null;
 }
 
+/**
+ * A boxart, following libretro-thumbnails' symlinks: a box shared by several releases is a
+ * git symlink there, which raw.githubusercontent.com serves as a short text body holding the
+ * target's file name. Followed once, never twice.
+ */
+async function fetchImage(url, hops = 1) {
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  if (blob.type.startsWith('image/') || blob.size > 512) return blob;
+  const target = (await blob.text()).trim();
+  if (hops <= 0 || !/^[^/\\]+\.(png|jpe?g)$/i.test(target)) return null;
+  return fetchImage(new URL(encodeURIComponent(target), url).href, hops - 1);
+}
+
 async function stored(system, gameId, region, url) {
-  const dir = `library/${system}/covers`;
+  const dir = `launcher/covers/${system}`;
   const name = `${gameId}.${region}.png`;
   const file = await readFile(dir, name);
   if (file && file.size) return file;
@@ -132,8 +148,7 @@ async function stored(system, gameId, region, url) {
   if (!pending.has(key)) {
     pending.set(
       key,
-      fetch(url, { mode: 'cors' })
-        .then((res) => (res.ok ? res.blob() : null))
+      fetchImage(url)
         .then(async (blob) => {
           if (blob) await writeFile(dir, name, blob).catch(() => {});
           return blob;

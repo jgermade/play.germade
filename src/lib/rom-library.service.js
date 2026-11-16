@@ -1,495 +1,246 @@
-// The per-system ROM library: what the emulator drawers show.
+// The emulators' ROM library: what the drawers show and the routes play.
 //
-// ROMs belong to the system, not to an engine — two cores play the same Mega Drive
-// ROMs — so they live in the launcher's own OPFS folder:
+// The library is rom-manager's — served by this site at /roms/ — and this file reads it
+// through rom-manager's own module, `/roms/roms-sdk.js`, loaded at run time the way the
+// routes load engine apps. Nothing about ROMs is re-implemented here: the intake, the
+// DATs, the mods and the index are rom-manager's. What stays here is what the launcher
+// adds on top: the reactive view per launcher system, the engine chosen per system and
+// per game (`launcher/library-prefs.json`), and the covers (dat.service.js).
 //
-//   library/<system>/roms/<sha1>.<ext>      each file once, content-addressed
-//   library/<system>/patches/<sha1>.<ext>   each mod (IPS / BPS / UPS) once
-//   library/<system>/index.json             games → versions (+ the chosen core), mods
+//   rom-manager/library/<System>/…                   the ROMs (rom-manager's layout)
+//   rom-manager/library/.meta/<System>/index.json    games → versions (by CRC32), mods
 //
-// Mods are never applied in place: the player applies one in memory while loading.
-//
-// Saves stay with the engine that wrote them: <engine>/<gameId>/.
+// Saves stay with the engine that wrote them: <engine>/<gameId>/ (and
+// <engine>/<gameId>+<mod sha1:8>/ with a mod).
 
 import { $reactive } from 'jq79';
-import * as megaDrive from '../helpers/systems/mega-drive.js';
-import * as neoGeo from '../helpers/systems/neo-geo.js';
-import * as snes from '../helpers/systems/snes.js';
-import * as gba from '../helpers/systems/gba.js';
-import { readZip } from '../helpers/zip.js';
-import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from '../helpers/patch.js';
+import { SYSTEMS, touchSystemFor as padFor } from '../helpers/systems.js';
+import { crcNumber, extensionSystemOf, gamesOf, launcherSystemsOf, versionForMod as pickVersionForMod } from '../helpers/library-view.js';
 import * as dat from './dat.service.js';
-import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
+import { opfsAvailable, readFile, removeDirectory, requestPersistence, writeFile } from './storage.js';
 
-const SYSTEMS = {
-  [megaDrive.SYSTEM.id]: megaDrive,
-  [neoGeo.SYSTEM.id]: neoGeo,
-  [snes.SYSTEM.id]: snes,
-  [gba.SYSTEM.id]: gba,
-};
+export { modStatus, playQuery } from '../helpers/library-view.js';
 
-/**
- * Systems whose games are whole archives (arcade-style sets) are identified against the
- * engine's own ROM-set dataset, shipped with it under public/engines/<engine>/romsets/.
- */
-const SET_DATASETS = { neogeo: '/engines/fbneo/romsets/neogeo.json' };
-const setDatasets = new Map();
-const setDataset = (system) => {
-  if (!setDatasets.has(system)) {
-    setDatasets.set(
-      system,
-      fetch(SET_DATASETS[system])
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null),
-    );
-  }
-  return setDatasets.get(system);
-};
-const GENERIC_NAMES = /^(rom|game|cart|image)$/i;
+// Not exported: this module is handed to views as a namespace, and jq79 proxies it (plain
+// arrays and objects on it break the proxy; functions and $reactive stores are fine).
+const OLD_SYSTEMS = Object.keys(SYSTEMS);
 
 /**
- * system id → { loaded, core, games: [{ id, title, core, versions: [...], mods: [...] }],
- *               unassigned: [mod…] }
+ * launcher system id → { loaded, core, games: [{ id, key, system, title, core, versions, mods }],
+ *                        unassigned: [mod…], bios }
  */
 export const roms = $reactive({});
 
-export const systems = () => Object.values(SYSTEMS).map((spec) => spec.SYSTEM);
+/** The move of the old library (`library/<system>/`) into rom-manager's, once. */
+export const moving = $reactive({ running: false, report: null, error: null });
 
-const dirOf = (system) => `library/${system}`;
-const empty = () => ({ core: null, games: {}, mods: {} });
+export const systems = () => Object.values(SYSTEMS);
 
-async function readIndex(system) {
-  const file = await readFile(dirOf(system), 'index.json');
-  if (!file) return empty();
+// ── rom-manager's module ────────────────────────────────────────────────────────
+
+// A URL in a variable: the module is the deployed /roms/ build's, never bundled here.
+const SDK_URL = '/roms/roms-sdk.js';
+let sdkPromise = null;
+/** `/roms/roms-sdk.js`, imported once. */
+export function sdk() {
+  sdkPromise ??= import(/* @vite-ignore */ SDK_URL).catch((error) => {
+    sdkPromise = null;
+    throw error;
+  });
+  return sdkPromise;
+}
+
+// ── The engine chosen per system and per game ───────────────────────────────────
+
+const PREFS_DIR = 'launcher';
+const PREFS_FILE = 'library-prefs.json';
+let prefsCache = null;
+
+async function readPrefs() {
+  if (prefsCache) return prefsCache;
+  const file = await readFile(PREFS_DIR, PREFS_FILE);
   try {
-    return { ...empty(), ...JSON.parse(await file.text()) };
+    prefsCache = file ? JSON.parse(await file.text()) : {};
   } catch {
-    return empty();
+    prefsCache = {};
   }
+  prefsCache.systems ??= {};
+  prefsCache.games ??= {};
+  return prefsCache;
 }
 
-async function writeIndex(system, index) {
-  await writeFile(dirOf(system), 'index.json', new Blob([JSON.stringify(index, null, 2)], { type: 'application/json' }));
+async function writePrefs(prefs) {
+  prefsCache = prefs;
+  await writeFile(PREFS_DIR, PREFS_FILE, new Blob([JSON.stringify(prefs, null, 2)], { type: 'application/json' }));
 }
 
-/**
- * How a mod stands against a game's versions:
- *   'verified'   BPS / UPS whose source CRC is one of the game's versions (→ `target`)
- *   'mismatch'   BPS / UPS for none of them
- *   'unverified' IPS (no checksum): it applies to the version picked
- */
-export function modStatus(mod, game) {
-  if (mod.format === 'ips' || mod.sourceCrc == null) return 'unverified';
-  return game?.versions.some((v) => v.crc32 === mod.sourceCrc) ? 'verified' : 'mismatch';
-}
+// ── The view ────────────────────────────────────────────────────────────────────
 
-/** The version a mod is played on: the one it was made for, else the chosen / newest. */
-export function versionForMod(mod, game) {
-  return (
-    game.versions.find((v) => mod.sourceCrc != null && v.crc32 === mod.sourceCrc) ??
-    game.versions.find((v) => v.sha1 === mod.target) ??
-    game.versions[0]
-  );
-}
+const empty = (system) => ({ loaded: true, core: null, games: [], unassigned: [], bios: null, system });
 
-const modView = (sha1, mod, game) => ({ sha1, ...mod, status: modStatus(mod, game) });
-
-/** The reactive view of an index: games as a sorted list, versions newest first. */
-function publish(system, index) {
-  const mods = Object.entries(index.mods ?? {});
-  roms[system] = {
-    loaded: true,
-    core: index.core ?? null,
-    games: Object.entries(index.games)
-      .map(([id, game]) => {
-        const view = { id, ...game, versions: megaDrive.sortVersions(game.versions) };
-        view.mods = mods
-          .filter(([, mod]) => mod.gameId === id)
-          .map(([sha1, mod]) => modView(sha1, mod, view))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        return view;
-      })
-      .filter((game) => game.versions.length > 0)
-      .sort((a, b) => a.title.localeCompare(b.title)),
-    unassigned: mods
-      .filter(([, mod]) => !mod.gameId || !index.games[mod.gameId])
-      .map(([sha1, mod]) => modView(sha1, mod, null)),
-    bios: index.bios ?? null,
-  };
+/** Reads a launcher system's games from rom-manager's indexes (several for /gba/). */
+async function build(system) {
+  const lib = await sdk();
+  const indexes = (await lib.readIndexes()).filter((index) => launcherSystemsOf(index.system).includes(system));
+  const prefs = await readPrefs();
+  const view = gamesOf(system, indexes, prefs);
+  // The DAT entry of each version (its release key and its boxart), from the slim dataset.
+  for (const game of view.games) {
+    for (const version of game.versions) version.dat = await dat.match(system, crcNumber(version.crc), version.size);
+  }
+  return view;
 }
 
 export async function load(system) {
   if (!opfsAvailable()) {
-    publish(system, empty());
+    roms[system] = empty(system);
     return roms[system];
   }
-  const index = await readIndex(system);
-  publish(system, index);
-  // Libraries from before CRC32 was recorded: fill it in, so mods can be matched.
-  if (await ensureCrcs(system, index)) {
-    await writeIndex(system, index);
-    publish(system, index);
+  await migrateOnce();
+  try {
+    roms[system] = { loaded: true, system, ...(await build(system)) };
+  } catch (error) {
+    // /roms/ not deployed (a dev server without it), or a storage error: an empty library
+    // that says why, never a broken page.
+    roms[system] = { ...empty(system), error: error.message ?? String(error) };
   }
   return roms[system];
 }
 
-async function sha1(bytes) {
-  const digest = await crypto.subtle.digest('SHA-1', bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const reload = (system) => load(system);
+
+/** The game (and the launcher-side view of it) a route plays. `rmSystem` picks it inside /gba/. */
+export async function findGame(system, gameId, rmSystem = null) {
+  const view = roms[system]?.loaded ? roms[system] : await load(system);
+  const game =
+    view.games.find((g) => g.id === gameId && (!rmSystem || g.system === rmSystem)) ??
+    view.games.find((g) => g.id === gameId) ??
+    null;
+  return game ? { index: { core: view.core }, game } : null;
 }
 
-const extOf = (name) => (/\.[^.\\/]+$/.exec(name)?.[0] ?? '').toLowerCase();
-
-/** Expand picked files: ROMs and mods as they are, and the ones inside any .zip. */
-async function* candidates(files, extensions, whole = false) {
-  for (const file of files) {
-    const ext = extOf(file.name);
-    if (whole && extensions.includes(ext)) {
-      // The archive is the game (an arcade set): kept as it is.
-      yield { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
-    } else if (ext === '.zip') {
-      const archive = file.name.replace(/\.zip$/i, '');
-      for (const entry of readZip(await file.arrayBuffer())) {
-        const innerExt = extOf(entry.name);
-        if (PATCH_EXTENSIONS.includes(innerExt)) {
-          yield { name: entry.name.replace(/^.*\//, ''), bytes: await entry.bytes(), archive };
-          continue;
-        }
-        if (!extensions.includes(innerExt)) continue;
-        const inner = entry.name.replace(/^.*\//, '');
-        const base = inner.replace(/\.[^.]+$/, '');
-        // "rom.bin" inside "FFMD_095b.zip" is better known by the archive's name.
-        const name = GENERIC_NAMES.test(base) ? `${archive}${extOf(inner)}` : inner;
-        yield { name, bytes: await entry.bytes() };
-      }
-    } else if (extensions.includes(ext) || PATCH_EXTENSIONS.includes(ext)) {
-      yield { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
-    } else {
-      yield { name: file.name, bytes: null };
-    }
-  }
-}
-
-/** A readable mod name: "Sonic_Hack_v2.bps" → "Sonic Hack v2". */
-const modName = (fileName, archive) => {
-  const base = fileName.replace(/\.[^.]+$/, '');
-  const named = /^(patch|mod|hack)$/i.test(base) && archive ? archive : base;
-  return named.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
-};
+/** The version a mod is played on: the one it fits, else the newest. */
+export const versionForMod = pickVersionForMod;
 
 /**
- * Fill in what older libraries lack: the CRC32 of each version (BPS / UPS match by
- * it) and its DAT entry (ROM Manager's dataset). A game keeps its id — its saves
- * hang off it — but takes the DAT's title unless the player renamed it.
+ * The bytes to play: a version, with a mod applied in memory when asked. Throws the
+ * patcher's own reason when the mod does not fit — never a silent unpatched ROM.
  */
-async function ensureCrcs(system, index) {
-  let changed = false;
-  for (const game of Object.values(index.games)) {
-    for (const version of game.versions) {
-      if (version.crc32 == null) {
-        const file = await readFile(`${dirOf(system)}/roms`, version.file);
-        if (!file) continue;
-        version.crc32 = crc32(new Uint8Array(await file.arrayBuffer()));
-        changed = true;
-      }
-      if (version.dat === undefined) {
-        version.dat = await dat.match(system, version.crc32, version.size);
-        changed = true;
-      }
-    }
-    const known = game.versions.find((v) => v.dat)?.dat;
-    if (known && !game.renamed && game.title !== known.title) {
-      game.title = known.title;
-      changed = true;
-    }
-  }
-  return changed;
-}
-
-/** The game whose versions include a ROM with this CRC32. */
-const gameByCrc = (index, crc) =>
-  Object.entries(index.games).find(([, game]) => game.versions.some((v) => v.crc32 === crc))?.[0] ?? null;
-
-/**
- * Add ROMs and mods to a system's library — one door for both, zips included. A mod
- * made for a known version (BPS / UPS name it by CRC32) attaches to that game; any
- * other attaches to `gameId` when given (the game open in the manager), else waits in
- * "sin asignar". Returns what happened, for the UI to say:
- * `{ added: [titles], mods: [{ name, gameId, status }], duplicates, rejected }`.
- */
-export async function importFiles(system, files, { gameId = null } = {}) {
-  const spec = SYSTEMS[system];
-  if (!spec) throw new Error(`Sistema desconocido: ${system}`);
-  const index = await readIndex(system);
-  index.mods ??= {};
-  await ensureCrcs(system, index);
-  const known = new Set(Object.values(index.games).flatMap((g) => g.versions.map((v) => v.sha1)));
-  const result = { added: [], mods: [], duplicates: [], rejected: [], bios: null };
-  const pendingMods = [];
-
-  const whole = !!spec.SYSTEM.whole;
-  const sets = whole ? await setDataset(system) : null;
-  for await (const { name, bytes, archive } of candidates(files, spec.SYSTEM.extensions, whole)) {
-    if (whole && bytes) {
-      await importSet(system, index, { name, bytes, sets, known, result });
-      continue;
-    }
-    if (bytes && formatOf(bytes)) {
-      pendingMods.push({ name, bytes, archive });
-      continue;
-    }
-    if (!bytes || bytes.length < 0x200 || PATCH_EXTENSIONS.includes(extOf(name))) {
-      result.rejected.push(name);
-      continue;
-    }
-    const hash = await sha1(bytes);
-    if (known.has(hash)) {
-      result.duplicates.push(name);
-      continue;
-    }
-    // The DAT first (ROM Manager's dataset, by checksum); the cartridge header when
-    // the catalogue does not know the ROM (homebrew, hacks).
-    const crc = crc32(bytes);
-    const inDat = await dat.match(system, crc, bytes.length);
-    const id = spec.identify(bytes, name);
-    const gameId = inDat ? megaDrive.slug(inDat.title) : id.gameId;
-    const file = `${hash}${extOf(name) || '.bin'}`;
-    await writeFile(`${dirOf(system)}/roms`, file, new Blob([bytes]));
-    const game = (index.games[gameId] ??= { title: inDat?.title ?? id.title, core: null, versions: [] });
-    game.versions.push({
-      sha1: hash,
-      file,
-      name: inDat?.key ?? id.name,
-      size: bytes.length,
-      crc32: crc,
-      serial: id.serial,
-      // One library, several handhelds (GBA / Game Boy / Color): which one this cart is for.
-      ...(id.platform ? { platform: id.platform } : {}),
-      revision: inDat?.revision ?? id.revision,
-      dat: inDat,
-      addedAt: Date.now(),
-    });
-    known.add(hash);
-    result.added.push(game.title);
-  }
-
-  // Mods after ROMs, so a ROM and its mod dropped together find each other.
-  for (const { name, bytes, archive } of pendingMods) {
-    const hash = await sha1(bytes);
-    if (index.mods[hash]) {
-      result.duplicates.push(name);
-      continue;
-    }
-    let info;
-    try {
-      info = parsePatch(bytes);
-    } catch {
-      result.rejected.push(name);
-      continue;
-    }
-    if (!info.valid) {
-      result.rejected.push(`${name} (dañado)`);
-      continue;
-    }
-    const owner = (info.sourceCrc != null && gameByCrc(index, info.sourceCrc)) || (gameId && index.games[gameId] ? gameId : null);
-    const file = `${hash}.${info.format}`;
-    await writeFile(`${dirOf(system)}/patches`, file, new Blob([bytes]));
-    index.mods[hash] = {
-      name: modName(name, archive),
-      file,
-      format: info.format,
-      size: bytes.length,
-      gameId: owner,
-      target: null,
-      sourceCrc: info.sourceCrc,
-      targetCrc: info.targetCrc,
-      addedAt: Date.now(),
-    };
-    result.mods.push({ name: index.mods[hash].name, gameId: owner, status: modStatus(index.mods[hash], owner ? index.games[owner] : null) });
-  }
-
-  await writeIndex(system, index);
-  await requestPersistence();
-  publish(system, index);
-  return result;
-}
-
-/**
- * One whole archive (a Neo Geo set): the BIOS goes apart (one per system, the last one
- * added wins); a game is stored as it came, identified by the CRCs of its chips.
- */
-async function importSet(system, index, { name, bytes, sets, known, result }) {
-  const spec = SYSTEMS[system];
-  let entries = [];
-  if (extOf(name) === '.zip') {
-    try {
-      entries = readZip(bytes);
-    } catch {
-      result.rejected.push(name);
-      return;
-    }
-  }
-  const id = spec.identify(entries, name, sets);
-  const hash = await sha1(bytes);
-  if (id.bios) {
-    if (index.bios?.sha1 === hash) {
-      result.duplicates.push(name);
-      return;
-    }
-    await writeFile(`${dirOf(system)}/bios`, `${spec.BIOS_DRIVER}.zip`, new Blob([bytes]));
-    index.bios = { sha1: hash, kind: id.bios, size: bytes.length, name, addedAt: Date.now() };
-    result.bios = id.bios;
-    return;
-  }
-  if (known.has(hash)) {
-    result.duplicates.push(name);
-    return;
-  }
-  const file = `${hash}${extOf(name)}`;
-  await writeFile(`${dirOf(system)}/roms`, file, new Blob([bytes]));
-  const game = (index.games[id.gameId] ??= { title: id.title, core: null, versions: [] });
-  game.versions.push({
-    sha1: hash,
-    file,
-    name: id.name,
-    size: bytes.length,
-    crc32: crc32(bytes),
-    year: id.year,
-    maker: id.maker,
-    matched: id.matched,
-    dat: null,
-    addedAt: Date.now(),
-  });
-  known.add(hash);
-  result.added.push(game.title);
+export async function readRomWithMod(system, version, mod) {
+  const lib = await sdk();
+  const { rom } = await lib.readRomWithMod(version.path, mod?.path);
+  return rom;
 }
 
 /** The system's BIOS (Neo Geo: neogeo.zip), or null. */
 export async function readBios(system) {
-  const spec = SYSTEMS[system];
-  if (!spec?.BIOS_DRIVER) return null;
-  const file = await readFile(`${dirOf(system)}/bios`, `${spec.BIOS_DRIVER}.zip`);
-  return file ? new Uint8Array(await file.arrayBuffer()) : null;
+  const driver = SYSTEMS[system]?.biosDriver;
+  if (!driver) return null;
+  const path = roms[system]?.bios?.path ?? `NEOGEO/${driver}.zip`;
+  try {
+    return await (await sdk()).readFile(path);
+  } catch {
+    return null;
+  }
 }
 
-/** Give a mod to a game (or take it back to "sin asignar" with null). */
-export async function assignMod(system, modSha1, gameId) {
-  const index = await readIndex(system);
-  const mod = index.mods?.[modSha1];
-  if (!mod) return;
-  mod.gameId = gameId && index.games[gameId] ? gameId : null;
-  await writeIndex(system, index);
-  publish(system, index);
-}
-
-export async function renameMod(system, modSha1, name) {
-  const index = await readIndex(system);
-  const mod = index.mods?.[modSha1];
-  if (!mod || !name?.trim()) return;
-  mod.name = name.trim();
-  await writeIndex(system, index);
-  publish(system, index);
-}
-
-/** Remove a mod's file. Saves made with it stay in the engine's `<game>+<mod>` folder. */
-export async function removeMod(system, modSha1) {
-  const index = await readIndex(system);
-  const mod = index.mods?.[modSha1];
-  if (!mod) return;
-  delete index.mods[modSha1];
-  await removeFile(`${dirOf(system)}/patches`, mod.file);
-  await writeIndex(system, index);
-  publish(system, index);
-}
-
-/** Rename a game (the title the library shows; its id — and so its saves — stay). */
-export async function renameGame(system, gameId, title) {
-  const index = await readIndex(system);
-  if (!index.games[gameId] || !title?.trim()) return;
-  index.games[gameId].title = title.trim();
-  index.games[gameId].renamed = true; // the DAT's title no longer overrides it
-  await writeIndex(system, index);
-  publish(system, index);
-}
-
-/**
- * The bytes to play: a version, with a mod applied in memory when asked. Throws the
- * patcher's own message when the mod does not fit — never a silent unpatched ROM.
- */
-export async function readRomWithMod(system, version, mod) {
-  const rom = await readRom(system, version);
-  if (!mod) return rom;
-  const file = await readFile(`${dirOf(system)}/patches`, mod.file);
-  if (!file) throw new Error(`Falta el mod ${mod.name} en la biblioteca`);
-  return applyPatch(rom, new Uint8Array(await file.arrayBuffer()));
-}
-
-/** Library totals for the manager's footer. */
-export function totals(system) {
-  const view = roms[system];
-  if (!view) return { games: 0, versions: 0, mods: 0, bytes: 0 };
-  const versions = view.games.flatMap((g) => g.versions);
-  const mods = view.games.flatMap((g) => g.mods).concat(view.unassigned);
+/** Add ROMs and mods: rom-manager's intake (DATs, zips, mods), through its module. */
+export async function importFiles(system, files, { gameId = null } = {}) {
+  const lib = await sdk();
+  const result = await lib.addFiles([...files], { system: (name) => extensionSystemOf(system, name), gameId: gameId ?? undefined });
+  await requestPersistence();
+  await reload(system);
   return {
-    games: view.games.length,
-    versions: versions.length,
-    mods: mods.length,
-    bytes: versions.reduce((n, v) => n + v.size, 0) + mods.reduce((n, m) => n + m.size, 0),
+    added: result.added,
+    duplicates: result.already,
+    rejected: result.refused.map((r) => r.name).concat(result.mods.rejected.map((r) => r.name)),
+    mods: result.mods.added,
+    bios: result.added.some((path) => /\/neogeo\.zip$/i.test(path)) ? 'aes' : null,
   };
 }
 
-export { hex };
+/** Remove one version's file. The game's saves (in the engine's folder) are kept. */
+export async function removeVersion(system, version) {
+  await (await sdk()).removeVersion(version.path);
+  await reload(system);
+}
+
+/** Remove a mod. Saves made with it stay in the engine's `<game>+<mod>` folder. */
+export async function removeMod(system, mod) {
+  await (await sdk()).removeMod(mod.system, mod.sha1);
+  await reload(system);
+}
 
 /** A game's cover (blob URL + region), from OPFS or fetched once: see dat.service.js. */
 export const coverOf = (system, game, region) => dat.cover(system, game, region);
 
 /** The on-screen pad a version wants: the system's own, unless its module says otherwise. */
-export const touchSystemFor = (system, version) => SYSTEMS[system]?.touchSystemOf?.(version) ?? system;
-
-/** Remove one version's file. The game's saves (in the engine's folder) are kept. */
-export async function removeVersion(system, gameId, hash) {
-  const index = await readIndex(system);
-  const game = index.games[gameId];
-  if (!game) return;
-  const version = game.versions.find((v) => v.sha1 === hash);
-  game.versions = game.versions.filter((v) => v.sha1 !== hash);
-  if (game.versions.length === 0) delete index.games[gameId];
-  if (version) await removeFile(`${dirOf(system)}/roms`, version.file);
-  await writeIndex(system, index);
-  publish(system, index);
-}
+export const touchSystemFor = padFor;
 
 /** The console's core (gameId omitted) or one game's (null = follow the console). */
 export async function setCore(system, core, gameId = null) {
-  const index = await readIndex(system);
+  const prefs = { ...(await readPrefs()) };
   if (gameId) {
-    if (!index.games[gameId]) return;
-    index.games[gameId].core = core;
+    const games = { ...prefs.games };
+    if (core) games[`${system}/${gameId}`] = core;
+    else delete games[`${system}/${gameId}`];
+    prefs.games = games;
   } else {
-    index.core = core;
+    prefs.systems = { ...prefs.systems, [system]: core };
   }
-  await writeIndex(system, index);
-  publish(system, index);
+  await writePrefs(prefs);
+  await reload(system);
 }
 
 /** Which core plays a game: the game's choice, then the console's, then the default. */
 export const coreFor = (entry, game, fallback) => game?.core ?? entry?.core ?? fallback;
 
-/** One version's bytes, for the player. */
-export async function readRom(system, version) {
-  const file = await readFile(`${dirOf(system)}/roms`, version.file);
-  if (!file) throw new Error(`Falta la ROM ${version.name} en la biblioteca`);
-  return new Uint8Array(await file.arrayBuffer());
-}
+// ── The old library, moved in once ──────────────────────────────────────────────
 
-/** The raw index entry for one game (the player reads it without the reactive view). */
-export async function findGame(system, gameId) {
-  const index = await readIndex(system);
-  const game = index.games[gameId];
-  if (!game) return null;
-  const view = { id: gameId, ...game, versions: megaDrive.sortVersions(game.versions) };
-  view.mods = Object.entries(index.mods ?? {})
-    .filter(([, mod]) => mod.gameId === gameId)
-    .map(([sha1, mod]) => modView(sha1, mod, view));
-  return { index, game: view };
+let migration = null;
+
+/**
+ * play.germade's own library (`library/<system>/`, before rom-manager was its /roms/):
+ * rom-manager moves it in (ROMs through its intake, mods, renamed titles), the engine
+ * choices are kept here, and the old folder is deleted.
+ */
+export function migrateOnce() {
+  migration ??= (async () => {
+    if (!opfsAvailable()) return;
+    const old = [];
+    for (const system of OLD_SYSTEMS) {
+      const file = await readFile(`library/${system}`, 'index.json');
+      if (!file) continue;
+      try {
+        old.push({ system, index: JSON.parse(await file.text()) });
+      } catch {
+        old.push({ system, index: null });
+      }
+    }
+    if (old.length === 0) return;
+    moving.running = true;
+    try {
+      const lib = await sdk();
+      if (!(await lib.migrated())) moving.report = (await lib.migrateFromPlayGermade()) ?? null;
+      // The engine choices of the old index, before it goes.
+      const prefs = { ...(await readPrefs()) };
+      for (const { system, index } of old) {
+        if (!index) continue;
+        if (index.core && !prefs.systems[system]) prefs.systems = { ...prefs.systems, [system]: index.core };
+        for (const [gameId, game] of Object.entries(index.games ?? {})) {
+          const key = `${system}/${gameId}`;
+          if (game?.core && !prefs.games[key]) prefs.games = { ...prefs.games, [key]: game.core };
+        }
+      }
+      await writePrefs(prefs);
+      if (await lib.migrated()) await removeDirectory('library');
+    } catch (error) {
+      // Nothing is deleted when anything failed: the next start tries again.
+      moving.error = error.message ?? String(error);
+      migration = null;
+    } finally {
+      moving.running = false;
+    }
+  })();
+  return migration;
 }

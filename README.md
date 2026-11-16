@@ -51,7 +51,7 @@ ENGINE_SPECS_SRC=../engine-specs/dist ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdk
 - **ROM libraries** (emulators) — ROMs belong to the system, saves to the engine:
   `library/<system>/roms/<sha1>.<ext>` + `library/<system>/index.json` (games → versions, chosen
   core). Import from the drawer (pick or drop, `.zip` opened in the browser), header-based
-  identification groups versions of one game (`src/helpers/systems/mega-drive.js`); the drawer opens
+  identification groups versions of one game (rom-manager's DATs, through `/roms/roms-sdk.js`); the drawer opens
   like an iOS 6 folder with a version badge per game; Enter plays the newest, Y/V lists versions.
   Core: the game's choice → the console's → the catalog default. Saves in `<engine>/<gameId>/`.
 - **Legacy** — the first proof of concept (Astro, per-game pages, engine build scripts) lives in

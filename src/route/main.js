@@ -115,8 +115,18 @@ async function startGame() {
 }
 
 /** /megadrive/?game=…&version=…&patch=…: a ROM from the system's library. */
+/** Why a mod did not apply, by the code rom-manager's patcher gives. */
+const PATCH_REASONS = {
+  'not-a-patch': 'no es un parche IPS, BPS ni UPS',
+  truncated: 'el parche se corta antes de tiempo',
+  damaged: 'el parche está dañado (su CRC no cuadra)',
+  'wrong-source': 'este mod es para otra versión de la ROM',
+  'wrong-result': 'el resultado no coincide con el que el mod promete',
+  'out-of-bounds': 'el parche lee o escribe fuera de la ROM',
+};
+
 async function startRom(gameId) {
-  const found = await romLibrary.findGame(entry.system, gameId);
+  const found = await romLibrary.findGame(entry.system, gameId, params.get('system'));
   if (!found) {
     view.notice = `"${gameId}" no está en tu biblioteca de ${entry.title}.`;
     return showLibrary();
@@ -130,7 +140,7 @@ async function startRom(gameId) {
     return showLibrary();
   }
   const wanted = (params.get('version') ?? '').toLowerCase();
-  let version = (wanted && game.versions.find((v) => v.sha1.startsWith(wanted))) || null;
+  let version = (wanted && game.versions.find((v) => v.key.startsWith(wanted))) || null;
   if (!version) {
     version = mod ? romLibrary.versionForMod(mod, game) : game.versions[0];
     if (wanted) view.notice = 'Esa versión no está en la biblioteca: se carga la más reciente.';
@@ -140,7 +150,7 @@ async function startRom(gameId) {
     // Patched up front: a mod that does not fit fails here, with its own reason.
     rom = await romLibrary.readRomWithMod(entry.system, version, mod);
   } catch (error) {
-    return fail(mod ? `No se pudo aplicar «${mod.name}»: ${error.message}` : error.message);
+    return fail(mod ? `No se pudo aplicar «${mod.name}»: ${PATCH_REASONS[error.code] ?? error.message}` : error.message);
   }
   // A system with a BIOS (Neo Geo): the engine gets it next to the game, or the player
   // is told what is missing instead of a black screen.
@@ -171,9 +181,7 @@ async function showLibrary() {
 
 // A ROM chosen in the library: same page, new query — a navigation the view transition covers.
 const openRom = ({ detail }) => {
-  const q = new URLSearchParams({ game: detail.gameId, version: detail.sha1.slice(0, 8) });
-  if (detail.patch) q.set('patch', detail.patch.slice(0, 8));
-  location.assign(`/${slug}/?${q}`);
+  location.assign(`/${slug}/?${romLibrary.playQuery(detail)}`);
 };
 
 const onInstalled = () => startGame();

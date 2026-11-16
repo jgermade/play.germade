@@ -67,3 +67,16 @@ export async function usage() {
   const { usage = 0, quota = 0 } = await navigator.storage.estimate();
   return { usage, quota };
 }
+
+/** Remove a folder (and everything in it) at `path`. Nothing happens when it is not there. */
+export async function removeDirectory(path) {
+  if (!opfsAvailable()) return;
+  const segments = path.split('/').filter(Boolean);
+  const name = segments.pop();
+  try {
+    const parent = await dirFor(segments.join('/'), false);
+    await parent.removeEntry(name, { recursive: true });
+  } catch {
+    /* already gone */
+  }
+}
