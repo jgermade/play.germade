@@ -14,12 +14,19 @@
 import { $reactive } from 'jq79';
 import * as megaDrive from '../data/systems/mega-drive.js';
 import * as neoGeo from '../data/systems/neo-geo.js';
+import * as snes from '../data/systems/snes.js';
+import * as gba from '../data/systems/gba.js';
 import { readZip } from './zip.js';
 import { PATCH_EXTENSIONS, applyPatch, crc32, formatOf, hex, parsePatch } from './patch.js';
 import * as dat from './dat.service.js';
 import { opfsAvailable, readFile, removeFile, requestPersistence, writeFile } from './storage.js';
 
-const SYSTEMS = { [megaDrive.SYSTEM.id]: megaDrive, [neoGeo.SYSTEM.id]: neoGeo };
+const SYSTEMS = {
+  [megaDrive.SYSTEM.id]: megaDrive,
+  [neoGeo.SYSTEM.id]: neoGeo,
+  [snes.SYSTEM.id]: snes,
+  [gba.SYSTEM.id]: gba,
+};
 
 /**
  * Systems whose games are whole archives (arcade-style sets) are identified against the
@@ -256,6 +263,8 @@ export async function importFiles(system, files, { gameId = null } = {}) {
       size: bytes.length,
       crc32: crc,
       serial: id.serial,
+      // One library, several handhelds (GBA / Game Boy / Color): which one this cart is for.
+      ...(id.platform ? { platform: id.platform } : {}),
       revision: inDat?.revision ?? id.revision,
       dat: inDat,
       addedAt: Date.now(),
@@ -433,6 +442,9 @@ export { hex };
 
 /** A game's cover (blob URL + region), from OPFS or fetched once: see dat.service.js. */
 export const coverOf = (system, game, region) => dat.cover(system, game, region);
+
+/** The on-screen pad a version wants: the system's own, unless its module says otherwise. */
+export const touchSystemFor = (system, version) => SYSTEMS[system]?.touchSystemOf?.(version) ?? system;
 
 /** Remove one version's file. The game's saves (in the engine's folder) are kept. */
 export async function removeVersion(system, gameId, hash) {

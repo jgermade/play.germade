@@ -56,7 +56,7 @@ const fail = (message) => {
 };
 
 /** Mount the engine's app (or the generic one) with everything resolved. */
-async function launch({ engineId, title, assets, namespace, art = null, init = {}, options = {} }) {
+async function launch({ engineId, title, assets, namespace, art = null, init = {}, options = {}, touch = entry.system }) {
   const engine = engines[engineId];
   if (!engine) return fail(`El motor "${engineId}" no está disponible en este lanzador.`);
   view.title = title;
@@ -74,7 +74,7 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
   const target = document.querySelector('#app');
   try {
     // Emulators on a phone or a tablet: the on-screen pad, exposed before the engine starts.
-    if (entry.kind === 'emulator') detachTouchPad = attachTouchPad({ system: entry.system, target, input });
+    if (entry.kind === 'emulator') detachTouchPad = attachTouchPad({ system: touch, target, input });
     let app = genericApp;
     if (engine.app) app = await import(/* @vite-ignore */ `${base}${engine.app}`);
     const mountApp = () =>
@@ -159,6 +159,8 @@ async function startRom(gameId) {
     assets: { rom: () => rom, ...(bios ? { bios: () => bios } : {}) },
     // A mod is another game as far as saves go: its own folder.
     namespace: mod ? `${gameId}+${mod.sha1.slice(0, 8)}` : gameId,
+    // A Game Boy cart in the GBA library gets the Game Boy's pad.
+    touch: romLibrary.touchSystemFor(entry.system, version),
   });
 }
 
