@@ -55,5 +55,13 @@
     "path": "mgba-wasm/mgba",
     "entry": "mgba.sdk.js",
     "app": "app/app.js"
+  },
+  "sonic3air": {
+    "repo": "wasm-gaming/sonic3air-wasm",
+    "version": "0.0.1",
+    "asset": "sonic3air.tar.gz",
+    "path": "sonic3air/sonic3air",
+    "entry": "sonic3air.sdk.js",
+    "app": "app/app.js"
   }
 }

@@ -101,8 +101,13 @@ async function startGame() {
     return;
   }
   const path = storagePath(entry.engine, slug);
+  // An optional file the player did not give (Sonic 3 A.I.R.'s soundtrack) is left out.
+  const given = [];
+  for (const [key, spec] of Object.entries(entry.install ?? {})) {
+    if (!spec.optional || (await readFile(path, spec.file))) given.push([key, spec]);
+  }
   const assets = Object.fromEntries(
-    Object.entries(entry.install ?? {}).map(([key, spec]) => [
+    given.map(([key, spec]) => [
       key,
       async () => {
         const file = await readFile(path, spec.file);

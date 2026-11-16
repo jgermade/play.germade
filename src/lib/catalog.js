@@ -102,9 +102,15 @@ export const GAMES = [
     title: 'Sonic 3 A.I.R.',
     year: 1994,
     description:
-      'Sonic 3 & Knuckles en Angel Island Revisited, el remaster de Eukaryot: pantalla ancha, todos los personajes y sus mods. La ROM de Sonic 3 & Knuckles la aportas tú. Llega cuando tenga su paquete de motor.',
+      'Sonic 3 & Knuckles en Angel Island Revisited, el remaster de Eukaryot: pantalla ancha, todos los personajes y sus mods. La ROM de Sonic 3 & Knuckles la aportas tú.',
     engine: 'sonic3air',
-    status: 'soon',
+    status: 'ready',
+    // The ROM of the Steam release (or a Mega Drive dump of the lock-on), and optionally the
+    // remastered soundtrack: the engine's `rom` and `audioremaster` assets.
+    install: {
+      rom: { file: 'Sonic_Knuckles_wSonic3.bin', accept: ['.bin'], label: 'ROM de Sonic & Knuckles + Sonic 3' },
+      audioremaster: { file: 'audioremaster.bin', accept: ['.bin'], label: 'Banda sonora remasterizada', optional: true },
+    },
     cover: '/assets/covers/sonic3air_cover.jpg',
     accent: '#2563eb',
   },
