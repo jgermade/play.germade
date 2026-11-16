@@ -8,6 +8,8 @@ dev-dist/
 
 # Engines fetched at build time from each engine's GitHub Release (scripts/fetch-engines.mjs)
 public/engines/
+# rom-manager at /roms/, fetched by scripts/fetch-engines.mjs (src/lib/tools.json)
+public/roms/
 
 # ROM Manager datasets, slimmed at build time (scripts/fetch-datasets.mjs)
 public/datasets/

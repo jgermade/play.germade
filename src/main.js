@@ -3,16 +3,16 @@ import '@fontsource-variable/unbounded';
 import { registerSW } from 'virtual:pwa-register';
 import { $reactive } from 'jq79';
 
-import App from './App.html';
+import App from './views/App.html';
 import Hero from './components/Hero.html';
 import Notice from './components/Notice.html';
-import RomDrawer from './components/RomDrawer.html';
+import RomDrawer from './views/RomDrawer.html';
 
-import { rows } from './data/catalog.js';
-import { library, refresh, uninstall } from './services/library.service.js';
-import { onAction } from './services/input.service.js';
-import * as romLibrary from './services/rom-library.service.js';
-import { guardFileDrops } from './services/drop-guard.js';
+import { rows } from './lib/catalog.js';
+import { library, refresh, uninstall } from './lib/library.service.js';
+import { onAction } from './lib/input.service.js';
+import * as romLibrary from './lib/rom-library.service.js';
+import { guardFileDrops } from './lib/drop-guard.js';
 
 guardFileDrops();
 

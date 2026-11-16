@@ -5,7 +5,7 @@
 // side files, no localStorage, so deleting the folder uninstalls the game.
 
 import { $reactive } from 'jq79';
-import { GAMES } from '../data/catalog.js';
+import { GAMES } from './catalog.js';
 import { hasFile, removeFile, requestPersistence, storagePath, writeFile } from './storage.js';
 
 export const library = $reactive({
@@ -15,13 +15,15 @@ export const library = $reactive({
 });
 
 const filesOf = (game) => Object.values(game.install ?? {});
+/** What a game needs to be playable: its files, minus the optional ones. */
+const requiredOf = (game) => filesOf(game).filter((f) => !f.optional);
 
 export async function refresh(slug) {
   const games = slug ? GAMES.filter((g) => g.slug === slug) : GAMES;
   for (const game of games) {
     if (game.status !== 'ready' || !game.install) continue;
     const path = storagePath(game.engine, game.slug);
-    const present = await Promise.all(filesOf(game).map((f) => hasFile(path, f.file)));
+    const present = await Promise.all(requiredOf(game).map((f) => hasFile(path, f.file)));
     library.installed[game.slug] = present.every(Boolean);
   }
 }
@@ -34,6 +36,7 @@ export async function install(game, files) {
   const path = storagePath(game.engine, game.slug);
   for (const [key, spec] of Object.entries(game.install ?? {})) {
     const file = files[key];
+    if (!file && spec.optional) continue;
     if (!file) throw new Error(`Falta ${spec.label ?? spec.file}`);
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (spec.accept && !spec.accept.includes(ext)) {

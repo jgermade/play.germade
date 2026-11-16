@@ -51,9 +51,7 @@
   // A ROM from the drawer: the system's page with the game (and version) in the query.
   const playRom = ({ detail }) => {
     const system = rows.flatMap((r) => r.games).find((g) => g.system === detail.system)
-    const q = new URLSearchParams({ game: detail.gameId, version: detail.sha1.slice(0, 8) })
-    if (detail.patch) q.set('patch', detail.patch.slice(0, 8))
-    go(system, `/${system.slug}/?${q}`)
+    go(system, `/${system.slug}/?${romLibrary.playQuery(detail)}`)
   }
 
   // Every row is a grid; its column count is whatever the CSS fitted in.

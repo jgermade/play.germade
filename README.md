@@ -22,13 +22,13 @@ ENGINE_SPECS_SRC=../engine-specs/dist ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdk
 
 ## Project Specs
 
-- **UI with jq79 + Vite** (see [STACK.md](STACK.md)): `src/App.html` (hero + category rows,
+- **UI with jq79 + Vite** (see [STACK.md](STACK.md)): `src/views/App.html` (hero + category rows,
   keyboard and gamepad navigation), `src/components/` (`Hero`, `InstallDialog`, `Notice`),
-  `src/services/` (`storage`, `library`, `input`).
-- **Categories** (`src/data/catalog.js`): *Retro moderno* (decompiled/ported games: RSDK,
+  `src/lib/` (`storage`, `library`, `input`).
+- **Categories** (`src/lib/catalog.js`): *Retro moderno* (decompiled/ported games: RSDK,
   Celeste…) and *Emuladores* (systems, each with its own ROM library). A game is a data entry
   with `engine`, `kind`, `status` and the files it `install`s — never a page.
-- **Engines** pinned in `src/data/engines.json`, fetched from GitHub Releases at build time
+- **Engines** pinned in `src/lib/engines.json`, fetched from GitHub Releases at build time
   (`scripts/fetch-engines.mjs`), served same-origin from `/engines/<id>/`. The npm packages carry
   the SDK but not the wasm; the release asset carries both.
 - **Storage** — OPFS `<engine-id>/<slug>/`: the engine owns `<engine-id>/`, the launcher passes
@@ -51,7 +51,7 @@ ENGINE_SPECS_SRC=../engine-specs/dist ENGINE_SRC_RSDKV4=../rsdkv4-wasm/dist/rsdk
 - **ROM libraries** (emulators) — ROMs belong to the system, saves to the engine:
   `library/<system>/roms/<sha1>.<ext>` + `library/<system>/index.json` (games → versions, chosen
   core). Import from the drawer (pick or drop, `.zip` opened in the browser), header-based
-  identification groups versions of one game (`src/data/systems/mega-drive.js`); the drawer opens
+  identification groups versions of one game (rom-manager's DATs, through `/roms/roms-sdk.js`); the drawer opens
   like an iOS 6 folder with a version badge per game; Enter plays the newest, Y/V lists versions.
   Core: the game's choice → the console's → the catalog default. Saves in `<engine>/<gameId>/`.
 - **Legacy** — the first proof of concept (Astro, per-game pages, engine build scripts) lives in

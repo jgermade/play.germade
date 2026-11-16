@@ -61,9 +61,9 @@ export default defineConfig({
     target: 'es2022',
     rollupOptions: {
       // plus one entry per catalog item, added by routesPlugin()
+      // /roms/ is rom-manager's own build (public/roms/, src/lib/tools.json), not an entry here.
       input: {
         main: 'index.html',
-        roms: 'roms/index.html',
       },
     },
   },

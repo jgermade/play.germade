@@ -7,7 +7,7 @@
 
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { GAMES } from '../src/data/catalog.js';
+import { GAMES } from '../src/lib/catalog.js';
 
 const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 

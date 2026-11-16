@@ -65,6 +65,13 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
+// /roms/ is rom-manager (public/roms/): its app, its chunks and roms-sdk.js are precached
+// with the shell; its own datasets are read like the launcher's, from the cache first.
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/roms/datasets/'),
+  new StaleWhileRevalidate({ cacheName: 'roms-datasets' }),
+);
+
 // ROM Manager's catalogue (scripts/fetch-datasets.mjs): served from the cache, refreshed
 // behind it, so identification works offline and a new build's data arrives next time.
 registerRoute(

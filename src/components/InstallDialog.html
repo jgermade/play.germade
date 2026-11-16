@@ -7,7 +7,8 @@
   let error = null
 
   $: entries = Object.entries(game.install ?? {})
-  $: ready = entries.every(([key]) => files[key])
+  // Optional files (Sonic 3 A.I.R.'s remastered soundtrack) do not hold the install back.
+  $: ready = entries.every(([key, spec]) => spec.optional || files[key])
 
   const size = (file) => file.size >= 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`
 
@@ -57,7 +58,7 @@
   <label :each="entry in entries" :key="entry[0]" class="file" :class.is-picked="files[entry[0]]"
          :class.is-dragging="dragging === entry[0]"
          @dragover.prevent="dragging = entry[0]" @dragleave="onDragLeave" @drop.prevent="onDrop(entry[0], $event)">
-    <span class="file-label">{{ entry[1].label ?? entry[1].file }}</span>
+    <span class="file-label">{{ entry[1].label ?? entry[1].file }}<small :if="entry[1].optional"> · opcional</small></span>
     <span class="file-row">
       <svg class="file-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
       <span class="file-name">

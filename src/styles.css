@@ -335,18 +335,22 @@ kbd {
 }
 
 /* Fixed-width columns packed to the left: games and the add tile one gap apart, whatever the width. */
-/* The box size: the system's box shape (--box-w/h, the area of a 78px square) scaled up. */
+/* Each box has its own shape (--box-w/h on the tile, the area of a 78px square, from its cover's
+   proportions) scaled up. The slot (--slot-w/h on the drawer) is the widest and the tallest box
+   in it: every column is that wide, and every box is centred in that height, so rows stay even. */
 .drawer-panel {
-  --rom-scale: 1.6; --rom-w: calc(var(--box-w, 78px) * var(--rom-scale)); --rom-h: calc(var(--box-h, 78px) * var(--rom-scale));
-  /* Every box in a slot as tall as the tallest shape (3:4, 90px before scaling): a landscape box
-     is centred in it, so drawers of portrait and landscape systems are the same height. */
-  --rom-slot: calc(90px * var(--rom-scale)); --rom-pad: calc((var(--rom-slot) - var(--rom-h)) / 2);
+  --rom-scale: 1.6;
+  --rom-col: calc(var(--slot-w, 78px) * var(--rom-scale)); --rom-slot: calc(var(--slot-h, 90px) * var(--rom-scale));
 }
 .rom-grid {
   list-style: none; margin: 18px 0 0; padding: 0; display: grid; justify-content: start; gap: 28px;
-  grid-template-columns: repeat(auto-fill, var(--rom-w, 78px));
+  grid-template-columns: repeat(auto-fill, var(--rom-col, 78px));
 }
-.rom { position: relative; }
+.rom {
+  position: relative;
+  --rom-w: calc(var(--box-w, 78px) * var(--rom-scale)); --rom-h: calc(var(--box-h, 78px) * var(--rom-scale));
+  --rom-pad: calc((var(--rom-slot) - var(--rom-h)) / 2);
+}
 /* Art and title start at the left edge, so the first tile lines up with the drawer's header and text. */
 .rom-tile { scroll-margin: 24px 0 88px; width: 100%; display: grid; justify-items: start; gap: 8px; padding: 8px 0; background: none; border: 0; border-radius: 18px; }
 .rom-art {
@@ -360,13 +364,13 @@ kbd {
 }
 .rom-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgb(255 255 255 / 0.28), transparent 45%); }
 .rom-tile.is-focused .rom-art { transform: scale(1.1); box-shadow: 0 0 0 3px #fff, 0 16px 30px -10px rgb(0 0 0 / 0.9); }
-/* A game is drawn the shape of its box: portrait on Mega Drive, landscape on Super
-   Nintendo (the system's `boxart`). Same area either way, so rows stay even. */
+/* A game is drawn the shape of its own box: portrait on Mega Drive and Super Famicom, square on
+   Game Boy, landscape on a US Super Nintendo. Same area either way. */
 .drawer-panel .rom-tile .rom-art {
   width: var(--rom-w, 78px); height: var(--rom-h, 78px); border-radius: 3px; margin: max(0px, var(--rom-pad, 0px)) 0;
 }
 .rom-art.is-cover { background: #111; }
-.rom-art.is-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rom-art.is-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .rom-tile.is-add .rom-art { background: rgb(255 255 255 / 0.05); border: 2px dashed rgb(255 255 255 / 0.25); box-shadow: none; color: var(--muted); font-size: 1.8rem; }
 .rom-tile.is-add .rom-art::after { display: none; }
 .rom-title { font: 600 0.78rem var(--ui); text-align: left; line-height: 1.25; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

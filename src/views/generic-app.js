@@ -6,7 +6,7 @@
 // engine is paused and the input switches to the menu; Continue / Restart / Exit.
 
 import { $reactive } from 'jq79';
-import PauseMenu from './PauseMenu.html';
+import PauseMenu from '../components/PauseMenu.html';
 
 const OWNER = 'app';
 
