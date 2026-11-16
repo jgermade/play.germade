@@ -174,8 +174,7 @@ export const GAMES = [
       { id: 'jgenesis', label: 'jgenesis', available: false },
     ],
     accept: ['.sfc', '.smc', '.fig', '.swc', '.zip'],
-    // 'ready' with snes9x-wasm 0.2.0 released and pinned in engines.json (RECORD/2026-11-15.snes-on-snes9x).
-    status: 'soon',
+    status: 'ready',
     accent: '#4c1d95',
     art: '/art/systems/snes.svg',
     tileArt: '/art/systems/tiles/snes.svg',
@@ -192,8 +191,7 @@ export const GAMES = [
     engine: 'mgba',
     cores: [{ id: 'mgba', label: 'mGBA' }],
     accept: ['.gba', '.agb', '.gb', '.gbc', '.sgb', '.cgb', '.zip'],
-    // 'ready' with mGBA-wasm 0.2.0 released and pinned in engines.json (RECORD/2026-11-15.gba-on-mgba).
-    status: 'soon',
+    status: 'ready',
     accent: '#3730a3',
     art: '/art/systems/gba.svg',
     tileArt: '/art/systems/tiles/gba.svg',

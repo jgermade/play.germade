@@ -18,7 +18,7 @@
   },
   "blastem": {
     "repo": "wasm-gaming/blastem-wasm",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "asset": "blastem.tar.gz",
     "path": "blastem/blastem",
     "entry": "blastem.sdk.js",
@@ -34,10 +34,26 @@
   },
   "fbneo": {
     "repo": "wasm-gaming/fbneo-wasm",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "asset": "fbneo.tar.gz",
     "path": "fbneo/fbneo",
     "entry": "fbneo.sdk.js",
+    "app": "app/app.js"
+  },
+  "snes9x": {
+    "repo": "wasm-gaming/snes9x-wasm",
+    "version": "0.2.0",
+    "asset": "snes9x-wasm.tar.gz",
+    "path": "snes9x-wasm/snes9x",
+    "entry": "snes9x.sdk.js",
+    "app": "app/app.js"
+  },
+  "mgba": {
+    "repo": "wasm-gaming/mGBA-wasm",
+    "version": "0.2.1",
+    "asset": "mgba-wasm.tar.gz",
+    "path": "mgba-wasm/mgba",
+    "entry": "mgba.sdk.js",
     "app": "app/app.js"
   }
 }
