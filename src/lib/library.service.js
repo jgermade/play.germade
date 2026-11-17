@@ -6,6 +6,7 @@
 
 import { $reactive } from 'jq79';
 import { GAMES } from './catalog.js';
+import { t, tx } from './i18n.service.js';
 import { hasFile, removeFile, requestPersistence, storagePath, writeFile } from './storage.js';
 
 export const library = $reactive({
@@ -37,10 +38,10 @@ export async function install(game, files) {
   for (const [key, spec] of Object.entries(game.install ?? {})) {
     const file = files[key];
     if (!file && spec.optional) continue;
-    if (!file) throw new Error(`Falta ${spec.label ?? spec.file}`);
+    if (!file) throw new Error(t('install.missing', { file: spec.label ? tx(spec.label) : spec.file }));
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (spec.accept && !spec.accept.includes(ext)) {
-      throw new Error(`${file.name}: se esperaba ${spec.accept.join(', ')}`);
+      throw new Error(t('install.expected', { name: file.name, accept: spec.accept.join(', ') }));
     }
     await writeFile(path, spec.file, file);
   }

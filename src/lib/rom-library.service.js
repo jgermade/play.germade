@@ -18,6 +18,7 @@ import { SYSTEMS, touchSystemFor as padFor } from '../helpers/systems.js';
 import { crcNumber, extensionSystemOf, gamesOf, launcherSystemsOf, versionForMod as pickVersionForMod } from '../helpers/library-view.js';
 import * as dat from './dat.service.js';
 import { canMuteInput, muteInput } from './input.service.js';
+import { currentLocale } from './i18n.service.js';
 import { opfsAvailable, readFile, removeDirectory, requestPersistence, writeFile } from './storage.js';
 
 export { modStatus, playQuery } from '../helpers/library-view.js';
@@ -176,7 +177,7 @@ export async function openAdd(system, { gameId = null } = {}) {
     result = await lib.openAddDialog({
       system: (name) => extensionSystemOf(system, name),
       gameId: gameId ?? undefined,
-      locale: 'es',
+      locale: currentLocale(),
       theme: 'dark',
     });
   } finally {

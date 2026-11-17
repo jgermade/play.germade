@@ -7,6 +7,7 @@
 
 import { $reactive } from 'jq79';
 import PauseMenu from '../components/PauseMenu.html';
+import { t } from '../lib/i18n.service.js';
 
 const OWNER = 'app';
 
@@ -23,7 +24,7 @@ export async function mount(target, host, { sdkUrl, engineId, init = {}, options
   const menu = PauseMenu;
   const view = { state: null };
 
-  const render = () => menu.mount(overlay, { state: view.state, title: host.game.title, choose });
+  const render = () => menu.mount(overlay, { state: view.state, title: host.game.title, choose, label: t });
   const close = () => {
     view.state.open = false;
     play?.resume?.(OWNER);
@@ -32,7 +33,7 @@ export async function mount(target, host, { sdkUrl, engineId, init = {}, options
   };
   const open = (error = null) => {
     view.state.error = error;
-    view.state.items = error ? ['Volver'] : ['Continuar', 'Reiniciar', 'Volver'];
+    view.state.items = error ? ['back'] : ['continue', 'restart', 'back'];
     view.state.focus = 0;
     view.state.open = true;
     play?.pause?.(OWNER); // before start() resolves there is nothing to pause yet
@@ -49,15 +50,15 @@ export async function mount(target, host, { sdkUrl, engineId, init = {}, options
     host.exit();
   };
   async function choose(item) {
-    if (item === 'Continuar') close();
-    else if (item === 'Reiniciar') {
+    if (item === 'continue') close();
+    else if (item === 'restart') {
       close();
       try {
         await play?.restart?.();
       } catch (e) {
         open(e.message ?? String(e));
       }
-    } else if (item === 'Volver') await exit();
+    } else if (item === 'back') await exit();
   }
 
   view.state = $reactive(state);
@@ -77,7 +78,7 @@ export async function mount(target, host, { sdkUrl, engineId, init = {}, options
 
   try {
     const { default: EngineSDK } = await import(/* @vite-ignore */ sdkUrl);
-    if (EngineSDK?.id !== engineId) throw new Error(`El SDK en ${sdkUrl} no es "${engineId}"`);
+    if (EngineSDK?.id !== engineId) throw new Error(t('pause.wrongSdk', { url: sdkUrl, engine: engineId }));
     // The game has the controls from the moment it boots (start() can take seconds):
     // only Select+Start / Escape still reach the menu.
     host.input.suspend();

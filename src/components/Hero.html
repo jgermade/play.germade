@@ -1,17 +1,19 @@
-<script :setup="{ game, installed, roms, focusAction }">
+<script :setup="{ game, installed, roms, focusAction, l10n }">
+  const { t, tx, plural } = l10n
+  // What the main button does (an id), shown through t().
   $: action = !game ? ''
-    : game.kind === 'emulator' ? 'Abrir biblioteca'
-    : game.status !== 'ready' ? 'Próximamente'
-    : installed ? 'Jugar' : 'Instalar'
+    : game.kind === 'emulator' ? 'openLibrary'
+    : game.status !== 'ready' ? 'soon'
+    : installed ? 'play' : 'install'
   $: disabled = game?.kind === 'game' && game.status !== 'ready'
   $: romGames = game?.system ? roms?.[game.system]?.games?.length ?? 0 : 0
   $: kicker = !game ? ''
-    : game.kind === 'emulator' ? (game.kicker ?? 'Emulador')
-    : 'Retro moderno'
+    : game.kind === 'emulator' ? (game.kicker ? tx(game.kicker) : t('hero.emulator'))
+    : t('hero.retroModern')
   $: chips = !game ? [] : [
       game.year ? String(game.year) : null,
-      game.kind === 'emulator' ? `${romGames} juego${romGames === 1 ? '' : 's'}` : null,
-      `motor ${game.engine}`,
+      game.kind === 'emulator' ? plural(romGames, 'games') : null,
+      t('hero.engine', { engine: game.engine }),
     ].filter(Boolean)
 </script>
 
@@ -25,19 +27,19 @@
   <div class="hero-details">
     <ul class="hero-chips">
       <li :each="chip in chips" :key="chip">{{ chip }}</li>
-      <li :if="installed && game.kind === 'game'" class="is-ok">Instalado</li>
-      <li :if="game.status !== 'ready'" class="is-soon">Próximamente</li>
+      <li :if="installed && game.kind === 'game'" class="is-ok">{{ t('hero.installed') }}</li>
+      <li :if="game.status !== 'ready'" class="is-soon">{{ t('home.soon') }}</li>
     </ul>
-    <p class="hero-desc">{{ game.description }}</p>
+    <p class="hero-desc">{{ tx(game.description) }}</p>
     <div class="hero-actions">
       <button class="cta" :class.is-focused="focusAction === 0" :disabled="disabled" @click="$emit('open')">
-        <svg :if="action === 'Jugar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.2v11.6L15.6 10z"/></svg>
-        <svg :elseif="action === 'Instalar'" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0l-3.6-3.6M10 12l3.6-3.6M4 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <svg :elseif="action === 'Abrir biblioteca'" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
-        {{ action }}
+        <svg :if="action === 'play'" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.2v11.6L15.6 10z"/></svg>
+        <svg :elseif="action === 'install'" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0l-3.6-3.6M10 12l3.6-3.6M4 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg :elseif="action === 'openLibrary'" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
+        {{ t(`home.${action}`) }}
       </button>
       <button :if="installed && game.kind === 'game'" class="cta is-ghost" :class.is-focused="focusAction === 1" @click="$emit('uninstall')">
-        Quitar datos
+        {{ t('home.uninstall') }}
       </button>
     </div>
   </div>

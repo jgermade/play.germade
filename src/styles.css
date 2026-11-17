@@ -510,3 +510,20 @@ kbd {
   .hintbar { display: none; }
 }
 
+
+/* The language switch (ES · EN): next to the library link, the language on screen bright. */
+.topbar-lang {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; margin-left: 10px; border-radius: 999px;
+  color: var(--soft); font: inherit; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.04em; cursor: pointer;
+  border: 1px solid var(--line-strong); background: rgb(255 255 255 / 0.04);
+}
+.topbar-lang span { opacity: 0.55; }
+.topbar-lang span.is-current { opacity: 1; color: var(--text); }
+.topbar-lang:hover, .topbar-lang.is-focused { color: var(--text); border-color: #fff; }
+.topbar-lang.is-focused { box-shadow: 0 0 0 3px #fff; }
+/* A phone: the library link keeps its icon, so the switch fits beside it. */
+@media (max-width: 480px) {
+  .topbar-link { padding: 0 10px; }
+  .topbar-link-text { display: none; }
+  .topbar-lang { margin-left: 8px; padding: 0 10px; }
+}

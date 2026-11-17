@@ -13,6 +13,7 @@ import { library, refresh, uninstall } from './lib/library.service.js';
 import { onAction } from './lib/input.service.js';
 import * as romLibrary from './lib/rom-library.service.js';
 import { guardFileDrops } from './lib/drop-guard.js';
+import { i18n, otherLanguage, plural, setLanguage, t, tx } from './lib/i18n.service.js';
 
 guardFileDrops();
 
@@ -36,8 +37,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
+// The language helpers, one object for the views and the components they pass it to.
+const l10n = { i18n, t, tx, plural, setLanguage, otherLanguage };
+
 App.mount('#app', {
   rows: rows(),
+  l10n,
   library,
   shell,
   refresh,
