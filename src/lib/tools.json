@@ -2,7 +2,7 @@
   "$comment": "Tools this site serves next to the engines, pinned. scripts/fetch-engines.mjs downloads each release asset and copies `path` (inside the archive) to public/<dest>/. ENGINE_SRC_<ID>=<dir> copies a local build instead (e.g. ENGINE_SRC_ROMS=../rom-manager/dist-roms).",
   "roms": {
     "repo": "wasm-gaming/rom-manager",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "asset": "rom-manager-roms.tar.gz",
     "path": "roms",
     "dest": "roms",
