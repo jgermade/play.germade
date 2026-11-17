@@ -63,5 +63,13 @@
     "path": "sonic3air/sonic3air",
     "entry": "sonic3air.sdk.js",
     "app": "app/app.js"
+  },
+  "jgenesis": {
+    "repo": "wasm-gaming/jgenesis-wasm",
+    "version": "0.3.0",
+    "asset": "jgenesis-wasm.tar.gz",
+    "path": "jgenesis-wasm/jgenesis",
+    "entry": "jgenesis.sdk.js",
+    "app": "app/app.js"
   }
 }

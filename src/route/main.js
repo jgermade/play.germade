@@ -16,6 +16,7 @@ import RomDrawer from '../views/RomDrawer.html';
 import * as genericApp from '../views/generic-app.js';
 
 import { gameBySlug } from '../lib/catalog.js';
+import { playableCore, resolveCores } from '../helpers/cores.js';
 import engines from '../lib/engines.json';
 import { library, refresh, install } from '../lib/library.service.js';
 import * as romLibrary from '../lib/rom-library.service.js';
@@ -31,7 +32,17 @@ const l10n = { i18n, t, tx, plural, setLanguage, otherLanguage };
 guardFileDrops();
 
 const slug = document.body.dataset.slug;
-const entry = gameBySlug(slug);
+const found = gameBySlug(slug);
+// The cores this browser can run (jgenesis needs WebGPU): the drawer shows the others disabled.
+// `navigator.gpu` alone is not enough (it is there with no adapter behind it): ask for one,
+// only on a page with a core that needs it, and give up after a second.
+const hasWebGpu = async () => {
+  if (!('gpu' in navigator)) return false;
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 1000));
+  return !!(await Promise.race([navigator.gpu.requestAdapter().catch(() => null), timeout]));
+};
+const needsWebGpu = found?.cores?.some((core) => core.needs?.includes('webgpu'));
+const entry = found?.cores ? { ...found, cores: resolveCores(found.cores, { webgpu: needsWebGpu && (await hasWebGpu()) }) } : found;
 const params = new URLSearchParams(location.search);
 const view = $reactive({ mode: 'loading', status: null, error: null, notice: null, title: null });
 
@@ -167,7 +178,8 @@ async function startRom(gameId) {
   const box = await romLibrary.coverOf(entry.system, game, localStorage.getItem('roms-region') || 'EU').catch(() => null);
   await launch({
     art: box?.url ?? null,
-    engineId: romLibrary.coreFor(index, game, entry.engine),
+    // A core chosen in another browser that this one cannot run plays on the default.
+    engineId: playableCore(entry.cores ?? [], romLibrary.coreFor(index, game, entry.engine), entry.engine),
     title: mod ? `${game.title} · ${mod.name}` : game.title,
     options: entry.options ?? {},
     assets: { rom: () => rom, ...(bios ? { bios: () => bios } : {}) },

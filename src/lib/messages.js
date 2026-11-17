@@ -95,6 +95,7 @@ export const MESSAGES = {
   'drawer.engine': { en: 'Engine', es: 'Motor' },
   'drawer.engineLower': { en: 'engine', es: 'motor' },
   'drawer.soon': { en: 'coming soon', es: 'próximamente' },
+  'drawer.needs.webgpu': { en: 'needs WebGPU', es: 'necesita WebGPU' },
   'drawer.manageRoms': { en: 'Manage ROMs', es: 'Gestionar ROMs' },
   'drawer.manage': { en: 'Manage', es: 'Gestionar' },
   'drawer.versions': { en: 'Versions', es: 'Versiones' },
