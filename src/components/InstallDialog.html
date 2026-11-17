@@ -1,4 +1,5 @@
-<script :setup="{ game, install }">
+<script :setup="{ game, install, l10n }">
+  const { t, tx } = l10n
   // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
   // greys the files out. There, every file is shown and the import checks the extension.
   const coarse = matchMedia('(pointer: coarse)').matches
@@ -49,29 +50,26 @@
 </script>
 
 <form class="dialog" @submit.prevent="submit">
-  <h2>Instalar {{ game.title }}</h2>
-  <p>
-    Los datos del juego no se distribuyen: aportas tu copia y se queda en tu navegador,
-    en <code>{{ game.engine }}/{{ game.slug }}/</code>. Las partidas se guardan al lado.
-  </p>
+  <h2>{{ t('install.title', { title: game.title }) }}</h2>
+  <p>{{ t('install.lead', { path: `${game.engine}/${game.slug}/` }) }}</p>
   <!-- The browser's own file control stays in the label, hidden: the whole zone opens it. -->
   <label :each="entry in entries" :key="entry[0]" class="file" :class.is-picked="files[entry[0]]"
          :class.is-dragging="dragging === entry[0]"
          @dragover.prevent="dragging = entry[0]" @dragleave="onDragLeave" @drop.prevent="onDrop(entry[0], $event)">
-    <span class="file-label">{{ entry[1].label ?? entry[1].file }}<small :if="entry[1].optional"> · opcional</small></span>
+    <span class="file-label">{{ entry[1].label ? tx(entry[1].label) : entry[1].file }}<small :if="entry[1].optional"> · {{ t('install.optional') }}</small></span>
     <span class="file-row">
       <svg class="file-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
       <span class="file-name">
-        {{ files[entry[0]] ? files[entry[0]].name : `${coarse ? 'Elegir' : 'Elegir o soltar'} ${entry[1].file ?? 'archivo'}` }}
+        {{ files[entry[0]] ? files[entry[0]].name : t(coarse ? 'install.chooseFile' : 'install.chooseOrDrop', { file: entry[1].file ?? t('install.file') }) }}
         <small :if="files[entry[0]]">{{ size(files[entry[0]]) }}</small>
       </span>
-      <span class="file-button">{{ files[entry[0]] ? 'Cambiar' : 'Elegir' }}</span>
+      <span class="file-button">{{ files[entry[0]] ? t('install.change') : t('install.choose') }}</span>
     </span>
     <input class="file-input" type="file" :accept="coarse ? '' : (entry[1].accept ?? []).join(',')" @change="pick(entry[0], $event)" />
   </label>
   <p :if="error" class="error">{{ error }}</p>
   <div class="dialog-actions">
-    <button type="button" class="ghost" @click="$emit('cancel')">Cancelar</button>
-    <button type="submit" class="primary" :disabled="!ready || busy">{{ busy ? 'Instalando…' : 'Instalar y jugar' }}</button>
+    <button type="button" class="ghost" @click="$emit('cancel')">{{ t('install.cancel') }}</button>
+    <button type="submit" class="primary" :disabled="!ready || busy">{{ busy ? t('install.installing') : t('install.installAndPlay') }}</button>
   </div>
 </form>

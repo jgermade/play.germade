@@ -1,4 +1,8 @@
-<script :setup="{ rows, library, shell, refresh, uninstall, onAction, Hero, Notice, RomDrawer, roms, romLibrary }">
+<script :setup="{ rows, l10n, library, shell, refresh, uninstall, onAction, Hero, Notice, RomDrawer, roms, romLibrary }">
+  const { i18n, t, tx, setLanguage, otherLanguage } = l10n
+  // The top bar's language switch is a stop above the first row for the arrows (UX.md).
+  let topFocus = false
+  const switchLanguage = () => setLanguage(otherLanguage())
   // Focus restored when coming back from a route (?focus=<slug>), else the first tile.
   const focusOf = (slug) => {
     for (const [r, row] of rows.entries()) {
@@ -79,14 +83,14 @@
     // (On a phone; on desktop the page is anchored to the focused line instead, see `anchor()`.)
     if (scroll && narrow.matches) setTimeout(() => $self('.tile-details')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 260)
   }
-  // A game's panel's enabled buttons, in order: the main action, then Quitar datos.
+  // A game's panel's enabled buttons, in order: the main action, then remove data.
   const actionsOf = (game) => {
     if (!game || game.kind === 'emulator') return []
     if (game.status !== 'ready') return []
-    return isInstalled(game) ? ['Jugar', 'Quitar datos'] : ['Instalar']
+    return isInstalled(game) ? ['play', 'uninstall'] : ['install']
   }
   const press = (game, index) => {
-    if (actionsOf(game)[index] === 'Quitar datos') { uninstall(game); actionFocus = 0 }
+    if (actionsOf(game)[index] === 'uninstall') { uninstall(game); actionFocus = 0 }
     else open(game)
   }
   $: detailsGame = details ? rows[details.row]?.games.find((g) => g.slug === details.slug) ?? null : null
@@ -175,9 +179,15 @@
       else if (action === 'accept') press(detailsGame, actionFocus)
       return
     }
+    // The language switch, above the first row: accept toggles it, ↓ goes back to the tiles.
+    if (topFocus) {
+      if (action === 'accept') switchLanguage()
+      else if (action === 'down' || action === 'back') topFocus = false
+      return
+    }
     // ↓ from a tile with its panel open: into the panel (buttons or drawer), if there is anything.
     if (action === 'down' && details?.slug === current?.slug && enterPanel()) return
-    if (action === 'up') move(-1, 0)
+    if (action === 'up') { if (!move(-1, 0) && focus.row === 0) topFocus = true }
     else if (action === 'down') move(1, 0)
     else if (action === 'left') move(0, -1)
     else if (action === 'right') move(0, 1)
@@ -219,12 +229,13 @@
 
   // What Enter does now: the focused button, a ROM in the drawer, or the tile's main action.
   $: hintAccept = !current ? ''
-    : actionFocus !== null && detailsGame ? actionsOf(detailsGame)[actionFocus] ?? ''
-    : inDrawer ? 'Jugar'
-    : current.kind === 'emulator' ? 'Abrir'
-    : details?.slug !== current.slug ? 'Detalles'
-    : current.status !== 'ready' ? 'Próximamente'
-    : isInstalled(current) ? 'Jugar' : 'Instalar'
+    : topFocus ? t('topbar.language')
+    : actionFocus !== null && detailsGame ? (actionsOf(detailsGame)[actionFocus] ? t(`home.${actionsOf(detailsGame)[actionFocus]}`) : '')
+    : inDrawer ? t('home.play')
+    : current.kind === 'emulator' ? t('home.open')
+    : details?.slug !== current.slug ? t('home.details')
+    : current.status !== 'ready' ? t('home.soon')
+    : isInstalled(current) ? t('home.play') : t('home.install')
 
   // Keep the focused tile in view whenever the focus moves.
   // Desktop: the focused line always sits where the first line sits at the top of the page, so
@@ -258,15 +269,22 @@
       </svg>
       <span>play<b>.germade</b></span>
     </span>
-    <a class="topbar-link" href="/roms/">
+    <a class="topbar-link" href="/roms/" :aria-label="t('topbar.library')">
       <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.6"/></svg>
-      Biblioteca
+      <span class="topbar-link-text">{{ t('topbar.library') }}</span>
     </a>
+    <!-- The language: ES · EN, the one on screen marked. A tap, a click or accept switches. -->
+    <button type="button" class="topbar-lang" :class.is-focused="topFocus" :aria-label="t('topbar.language')"
+            @click="switchLanguage()" @mouseleave="topFocus = false">
+      <span :class.is-current="i18n.locale === 'es'" lang="es">ES</span>
+      <span aria-hidden="true">·</span>
+      <span :class.is-current="i18n.locale === 'en'" lang="en">EN</span>
+    </button>
   </header>
 
   <section class="rows">
     <div class="row" :each="row, r in rows" :key="row.id" :class.is-active="focus.row === r">
-      <h2 class="row-title">{{ row.title }}<span class="row-count">{{ row.games.length }}</span></h2>
+      <h2 class="row-title">{{ tx(row.title) }}<span class="row-count">{{ row.games.length }}</span></h2>
       <ul class="cards">
         <li :each="game, c in row.games" :key="game.slug" class="tile" :style="`order: ${c * 2}`"
             :class.is-focused="focus.row === r && focus.col === c">
@@ -297,16 +315,16 @@
           </button>
           <span class="tile-caption">
             <span class="tile-title">{{ game.title }}</span>
-            <span class="tile-meta">{{ game.kicker ?? (game.year ? `${game.year}` : game.engine) }}</span>
+            <span class="tile-meta">{{ game.kicker ? tx(game.kicker) : (game.year ? `${game.year}` : game.engine) }}</span>
           </span>
         </li>
         <li :if="detailsGame && details.row === r" class="tile-details"
             :style="`order: ${details.after * 2 + 1}; --notch: ${details.notch}px`">
           <!-- Keyed by console: another console's drawer is a new one (its engines, its ROMs). -->
-          <RomDrawer :each="g in drawerGames" :key="g.slug" :game="g" :roms :library="romLibrary" :onAction
+          <RomDrawer :each="g in drawerGames" :key="g.slug" :game="g" :roms :library="romLibrary" :onAction :l10n
                      :active="inDrawer" :edges="true"
                      @play="playRom" @close="leaveDrawer" @leave="leaveDrawer" @next="drawerNext" />
-          <Hero :if="detailsGame.kind !== 'emulator'" :game="detailsGame" :installed="isInstalled(detailsGame)" :roms :focusAction="actionFocus" @open="open(detailsGame)"
+          <Hero :if="detailsGame.kind !== 'emulator'" :l10n :game="detailsGame" :installed="isInstalled(detailsGame)" :roms :focusAction="actionFocus" @open="open(detailsGame)"
                 @uninstall="uninstall(detailsGame)" />
         </li>
       </ul>
@@ -315,18 +333,18 @@
 
   <footer class="hintbar">
     <span class="hint"><i class="key is-a">A</i><kbd>Enter</kbd> {{ hintAccept }}</span>
-    <span :if="inDrawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> Versiones</span>
-    <span :if="details" class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> {{ inDrawer || actionFocus !== null ? 'Atrás' : 'Cerrar' }}</span>
-    <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
+    <span :if="inDrawer" class="hint"><i class="key is-y">Y</i><kbd>V</kbd> {{ t('home.versions') }}</span>
+    <span :if="details" class="hint"><i class="key is-b">B</i><kbd>Esc</kbd> {{ inDrawer || actionFocus !== null ? t('home.back') : t('home.close') }}</span>
+    <span class="hint is-nav"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> {{ t('home.navigate') }}</span>
   </footer>
 
   <div :if="dialog" class="dialog-backdrop" @click.self="dialog = null">
-    <Notice :if="dialog.type === 'notice'" :game="dialog.game" @close="dialog = null" />
+    <Notice :if="dialog.type === 'notice'" :l10n :game="dialog.game" @close="dialog = null" />
   </div>
 
   <div :if="shell.update" class="toast">
-    Hay una versión nueva.
-    <button @click="shell.update()">Actualizar</button>
+    {{ t('home.updateReady') }}
+    <button @click="shell.update()">{{ t('home.update') }}</button>
   </div>
 </div>
 

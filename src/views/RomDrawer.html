@@ -1,4 +1,5 @@
-<script :setup="{ game, roms, library, onAction, active, edges }">
+<script :setup="{ game, roms, library, onAction, active, edges, l10n }">
+  const { t, plural } = l10n
   // Phones map `accept` to MIME types; ROM extensions have none, and the native picker then
   // greys the files out. There, every file is shown and the import checks the extension.
   const coarse = matchMedia('(pointer: coarse)').matches
@@ -76,19 +77,19 @@
     $emit('play', { system: game.system, rmSystem: g.system, gameId: g.id, version: v.key, patch: mod?.sha1 ?? null })
   }
   const playRow = (g, row) => row.kind === 'mod' ? play(g, null, row.m) : play(g, row.v)
-  const BIOS_SAID = { aes: 'BIOS de AES añadida', unibios: 'BIOS añadida (Universe BIOS en modo consola)', mvs: 'BIOS añadida, pero sin AES ni Universe BIOS: no arrancará como consola' }
-  const modState = { verified: 'verificado', unverified: 'sin verificar', mismatch: 'no coincide' }
+  const biosSaid = (bios) => t(`drawer.bios.${bios}`)
+  const modState = (status) => t(`drawer.mod.${status}`)
   // rom-manager, at /roms/: where the library is named, organized and its mods managed.
   const manage = () => location.assign('/roms/')
 
   /** What an import did, in one line. */
   const said = ({ added, duplicates, rejected, bios }) => {
     const parts = []
-    if (bios) parts.push(BIOS_SAID[bios])
-    if (added.length) parts.push(`${added.length} ROM${added.length > 1 ? 's' : ''} añadida${added.length > 1 ? 's' : ''}`)
-    if (duplicates.length) parts.push(`${duplicates.length} ya estaba${duplicates.length > 1 ? 'n' : ''}`)
-    if (rejected.length) parts.push(`${rejected.length} no reconocida${rejected.length > 1 ? 's' : ''} (${rejected.join(', ')})`)
-    return parts.join(' · ') || 'Nada que añadir'
+    if (bios) parts.push(biosSaid(bios))
+    if (added.length) parts.push(plural(added.length, 'added'))
+    if (duplicates.length) parts.push(plural(duplicates.length, 'already'))
+    if (rejected.length) parts.push(plural(rejected.length, 'rejected', { names: rejected.join(', ') }))
+    return parts.join(' · ') || t('drawer.nothingToAdd')
   }
 
   const addFiles = async (files) => {
@@ -215,31 +216,31 @@
     <h3>{{ game.title }}</h3>
     <span class="drawer-menu" @focusout="onMenuFocusOut">
       <button type="button" class="drawer-menu-button" :aria-expanded="menu ? 'true' : 'false'" aria-haspopup="menu"
-              aria-label="Motor y gestión de ROMs" @click="menu = !menu">
+              :aria-label="t('drawer.engineMenu')" @click="menu = !menu">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div :if="menu" class="drawer-menu-list" role="menu">
-        <p class="drawer-menu-title">Motor</p>
+        <p class="drawer-menu-title">{{ t('drawer.engine') }}</p>
         <button :each="core in cores" :key="core.id" type="button" role="menuitemradio"
                 :aria-checked="core.id === consoleCore ? 'true' : 'false'" :class.is-current="core.id === consoleCore"
                 :disabled="core.available === false" @click="chooseCore(core.id)">
           <svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.9 2.8 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {{ core.label }}<small :if="core.available === false">próximamente</small>
+          {{ core.label }}<small :if="core.available === false">{{ t('drawer.soon') }}</small>
         </button>
         <hr />
-        <button type="button" role="menuitem" @click="manage()">Gestionar ROMs</button>
+        <button type="button" role="menuitem" @click="manage()">{{ t('drawer.manageRoms') }}</button>
       </div>
     </span>
-    <span class="drawer-meta">{{ games.length }} juego{{ games.length === 1 ? '' : 's' }}</span>
+    <span class="drawer-meta">{{ plural(games.length, 'games') }}</span>
     <label class="core-select">
-      motor
+      {{ t('drawer.engineLower') }}
       <select :value="consoleCore" @change="setConsoleCore">
         <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">
-          {{ core.label }}{{ core.available === false ? ' (próximamente)' : '' }}
+          {{ core.label }}{{ core.available === false ? ` (${t('drawer.soon')})` : '' }}
         </option>
       </select>
     </label>
-    <button class="ghost drawer-manage" @click="manage()">Gestionar</button>
+    <button class="ghost drawer-manage" @click="manage()">{{ t('drawer.manage') }}</button>
     <input type="file" multiple hidden :accept="coarse ? '' : (game.accept ?? []).join(',')" @change="onPicked" />
   </header>
 
@@ -250,53 +251,50 @@
         <span :if="covers[g.key]" class="rom-art is-cover"><img :src="covers[g.key]" alt="" @load="onCoverLoad(g, $event)" /></span>
         <span :else class="rom-art" :style="`--hue: ${hue(g.id)}`">{{ initials(g.title) }}</span>
         <span :if="g.versions.length > 1" class="rom-badge">{{ g.versions.length }}</span>
-        <span :if="g.mods?.length" class="rom-mods">{{ g.mods.length }} mod{{ g.mods.length === 1 ? '' : 's' }}</span>
+        <span :if="g.mods?.length" class="rom-mods">{{ plural(g.mods.length, 'mods') }}</span>
         <span class="rom-title">{{ g.title }}</span>
         <span :if="g.core" class="rom-core">{{ coreLabel(g.core) }}</span>
       </button>
-      <button class="rom-more" title="Versiones" @click="openPicker(g)">⋯</button>
+      <button class="rom-more" :title="t('drawer.versions')" @click="openPicker(g)">⋯</button>
     </li>
     <li class="rom" :style="tileStyle(addShape)">
       <button class="rom-tile is-add" :class.is-focused="active !== false && !picker && focus === games.length"
               @mouseenter="focus = games.length" @click="pickFiles" :disabled="busy">
         <span class="rom-art">{{ busy ? '…' : '+' }}</span>
-        <span class="rom-title">Añadir ROMs</span>
+        <span class="rom-title">{{ t('drawer.addRoms') }}</span>
       </button>
     </li>
   </ul>
 
-  <p :if="library.moving.running" class="drawer-message">Trayendo tu biblioteca a ROM Manager…</p>
-  <p :elseif="library.moving.report" class="drawer-message">Tu biblioteca ya está en ROM Manager ({{ library.moving.report.placed + library.moving.report.copied + library.moving.report.already }} ROMs, {{ library.moving.report.mods.added.length }} mods).</p>
-  <p :elseif="library.moving.error" class="drawer-message">No se pudo traer tu biblioteca: {{ library.moving.error }}. Se reintentará.</p>
+  <p :if="library.moving.running" class="drawer-message">{{ t('drawer.moving') }}</p>
+  <p :elseif="library.moving.report" class="drawer-message">{{ t('drawer.moved', { roms: library.moving.report.placed + library.moving.report.copied + library.moving.report.already, mods: library.moving.report.mods.added.length }) }}</p>
+  <p :elseif="library.moving.error" class="drawer-message">{{ t('drawer.moveFailed', { reason: library.moving.error }) }}</p>
   <p :if="message" class="drawer-message">{{ message }}</p>
-  <p :if="!games.length && !message" class="drawer-empty">
-    Suelta aquí tus ROMs de {{ game.title }} (también .zip) o pulsa <b>Añadir ROMs</b>. Se quedan en
-    tu navegador, agrupadas por juego; las versiones de un mismo juego van juntas.
-  </p>
-  <p :if="games.length" class="drawer-hint"><kbd>Enter</kbd> jugar · <kbd>Y</kbd>/<kbd>V</kbd> versiones · <kbd>Esc</kbd> cerrar</p>
+  <p :if="!games.length && !message" class="drawer-empty">{{ t('drawer.empty', { title: game.title }) }}</p>
+  <p :if="games.length" class="drawer-hint"><kbd>Enter</kbd> {{ t('drawer.hintPlay') }} · <kbd>Y</kbd>/<kbd>V</kbd> {{ t('drawer.hintVersions') }} · <kbd>Esc</kbd> {{ t('drawer.hintClose') }}</p>
 
-  <div :if="pickerGame" class="versions" role="dialog" :aria-label="`Versiones de ${pickerGame.title}`">
+  <div :if="pickerGame" class="versions" role="dialog" :aria-label="t('drawer.versionsOf', { title: pickerGame.title })">
     <header>
       <h4>{{ pickerGame.title }}</h4>
-      <label class="core-select">
-        motor
+<label class="core-select">
+        {{ t('drawer.engineLower') }}
         <select :value="pickerGame.core ?? ''" @change="setGameCore(pickerGame, $event)">
-          <option value="">Como la consola ({{ coreLabel(consoleCore) }})</option>
+          <option value="">{{ t('drawer.asConsole', { core: coreLabel(consoleCore) }) }}</option>
           <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">{{ core.label }}</option>
         </select>
       </label>
-      <button class="ghost" @click="manage(pickerGame)">Mods…</button>
-      <button class="ghost" @click="picker = null">Cerrar</button>
+      <button class="ghost" @click="manage(pickerGame)">{{ t('drawer.mods') }}</button>
+      <button class="ghost" @click="picker = null">{{ t('drawer.close') }}</button>
     </header>
     <ol>
       <li :each="row, j in pickerRows" :key="row.key" :class.is-focused="pickerFocus === j" :class.is-mod="row.kind === 'mod'" @mouseenter="pickerFocus = j">
-        <span :if="row.kind === 'version'" class="v-name">{{ versionLabel(row.v) }}<small :if="j === 0"> · la más reciente</small></span>
+        <span :if="row.kind === 'version'" class="v-name">{{ versionLabel(row.v) }}<small :if="j === 0"> · {{ t('drawer.newest') }}</small></span>
         <span :if="row.kind === 'version'" class="v-meta">{{ versionMeta(row.v) }}</span>
         <span :if="row.kind === 'mod'" class="v-name"><i class="mod-tag">MOD</i>{{ row.m.name }}</span>
-        <span :if="row.kind === 'mod'" class="v-meta" :data-status="row.m.status">{{ row.m.format.toUpperCase() }} · {{ modState[row.m.status] }}</span>
-        <button class="primary" @click="playRow(pickerGame, row)">Jugar</button>
-        <button :if="row.kind === 'version'" class="ghost" title="Quita la ROM; las partidas se conservan" @click="removeVersion(pickerGame, row.v)">Quitar</button>
-        <button :if="row.kind === 'mod'" class="ghost" @click="manage(pickerGame)">Gestionar</button>
+        <span :if="row.kind === 'mod'" class="v-meta" :data-status="row.m.status">{{ row.m.format.toUpperCase() }} · {{ modState(row.m.status) }}</span>
+        <button class="primary" @click="playRow(pickerGame, row)">{{ t('drawer.play') }}</button>
+        <button :if="row.kind === 'version'" class="ghost" :title="t('drawer.removeHint')" @click="removeVersion(pickerGame, row.v)">{{ t('drawer.remove') }}</button>
+        <button :if="row.kind === 'mod'" class="ghost" @click="manage(pickerGame)">{{ t('drawer.manage') }}</button>
       </li>
     </ol>
   </div>

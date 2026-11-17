@@ -23,6 +23,10 @@ import { input } from '../lib/input.service.js';
 import { readFile, storagePath } from '../lib/storage.js';
 import { guardFileDrops } from '../lib/drop-guard.js';
 import { attachTouchPad } from '../lib/touch.service.js';
+import { currentLocale, i18n, otherLanguage, plural, setLanguage, t, tx } from '../lib/i18n.service.js';
+
+// The language helpers, one object for the views and the components they pass it to.
+const l10n = { i18n, t, tx, plural, setLanguage, otherLanguage };
 
 guardFileDrops();
 
@@ -58,9 +62,9 @@ const fail = (message) => {
 /** Mount the engine's app (or the generic one) with everything resolved. */
 async function launch({ engineId, title, assets, namespace, art = null, init = {}, options = {}, touch = entry.system }) {
   const engine = engines[engineId];
-  if (!engine) return fail(`El motor "${engineId}" no está disponible en este lanzador.`);
+  if (!engine) return fail(t('route.noEngine', { engine: engineId }));
   view.title = title;
-  view.status = 'Arrancando el motor…';
+  view.status = t('route.booting');
   const base = `/engines/${engineId}/`;
   const host = {
     game: { slug, title, accent: entry.accent, art: art ?? entry.cover ?? entry.tileArt ?? entry.art },
@@ -68,6 +72,8 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
     assets,
     // Engine options a catalog entry sets for its apps (Neo Geo: `{ neogeo: 'aes' }`).
     options,
+    // The launcher's language: the app speaks it (engine-specs EngineAppHost.locale).
+    locale: currentLocale(),
     input,
     exit,
   };
@@ -94,7 +100,7 @@ async function launch({ engineId, title, assets, namespace, art = null, init = {
 
 /** /sonic1/: the game's installed files, read back from the engine's own folder. */
 async function startGame() {
-  if (entry.status !== 'ready') return fail(`${entry.title} todavía no se puede jugar.`);
+  if (entry.status !== 'ready') return fail(t('route.notReady', { title: entry.title }));
   await refresh(slug);
   if (entry.install && !library.installed[slug]) {
     view.mode = 'install';
@@ -121,19 +127,12 @@ async function startGame() {
 
 /** /megadrive/?game=…&version=…&patch=…: a ROM from the system's library. */
 /** Why a mod did not apply, by the code rom-manager's patcher gives. */
-const PATCH_REASONS = {
-  'not-a-patch': 'no es un parche IPS, BPS ni UPS',
-  truncated: 'el parche se corta antes de tiempo',
-  damaged: 'el parche está dañado (su CRC no cuadra)',
-  'wrong-source': 'este mod es para otra versión de la ROM',
-  'wrong-result': 'el resultado no coincide con el que el mod promete',
-  'out-of-bounds': 'el parche lee o escribe fuera de la ROM',
-};
+const PATCH_REASONS = new Set(['not-a-patch', 'truncated', 'damaged', 'wrong-source', 'wrong-result', 'out-of-bounds']);
 
 async function startRom(gameId) {
   const found = await romLibrary.findGame(entry.system, gameId, params.get('system'));
   if (!found) {
-    view.notice = `"${gameId}" no está en tu biblioteca de ${entry.title}.`;
+    view.notice = t('route.notInLibrary', { game: gameId, title: entry.title });
     return showLibrary();
   }
   const { index, game } = found;
@@ -141,28 +140,28 @@ async function startRom(gameId) {
   const mod = wantedMod ? game.mods.find((m) => m.sha1.startsWith(wantedMod)) : null;
   if (wantedMod && !mod) {
     // Never fall back to the unpatched game silently: say so and show the library.
-    view.notice = 'Ese mod no está en tu biblioteca.';
+    view.notice = t('route.modNotInLibrary');
     return showLibrary();
   }
   const wanted = (params.get('version') ?? '').toLowerCase();
   let version = (wanted && game.versions.find((v) => v.key.startsWith(wanted))) || null;
   if (!version) {
     version = mod ? romLibrary.versionForMod(mod, game) : game.versions[0];
-    if (wanted) view.notice = 'Esa versión no está en la biblioteca: se carga la más reciente.';
+    if (wanted) view.notice = t('route.versionNotInLibrary');
   }
   let rom;
   try {
     // Patched up front: a mod that does not fit fails here, with its own reason.
     rom = await romLibrary.readRomWithMod(entry.system, version, mod);
   } catch (error) {
-    return fail(mod ? `No se pudo aplicar «${mod.name}»: ${PATCH_REASONS[error.code] ?? error.message}` : error.message);
+    return fail(mod ? t('route.modFailed', { mod: mod.name, reason: PATCH_REASONS.has(error.code) ? t(`patch.${error.code}`) : error.message }) : error.message);
   }
   // A system with a BIOS (Neo Geo): the engine gets it next to the game, or the player
   // is told what is missing instead of a black screen.
   let bios = null;
   if (entry.bios) {
     bios = await romLibrary.readBios(entry.system);
-    if (!bios) return fail(`Falta la BIOS ${entry.bios.file}: añádela a la biblioteca de ${entry.title}.`);
+    if (!bios) return fail(t('route.noBios', { file: entry.bios.file, title: entry.title }));
   }
   // The box from ROM Manager's catalogue, when the game is in it: the engine app's boot screen.
   const box = await romLibrary.coverOf(entry.system, game, localStorage.getItem('roms-region') || 'EU').catch(() => null);
@@ -192,6 +191,7 @@ const openRom = ({ detail }) => {
 const onInstalled = () => startGame();
 
 Route.mount('#route', {
+  l10n,
   view,
   entry: entry ?? { slug, title: slug },
   roms: romLibrary.roms,

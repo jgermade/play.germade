@@ -1,11 +1,12 @@
-<script :setup="{ view, entry, roms, romLibrary, input, InstallDialog, RomDrawer, install, onInstalled, openRom, exit }">
+<script :setup="{ view, entry, l10n, roms, romLibrary, input, InstallDialog, RomDrawer, install, onInstalled, openRom, exit }">
+  const { t } = l10n
   const art = entry.cover ?? entry.tileArt ?? entry.art ?? null
   const onAction = (fn) => input.on(fn)
 </script>
 
 <div class="route" :class="`is-${view.mode}`">
   <header :if="view.mode !== 'playing'" class="route-bar">
-    <button class="route-back" @click="exit()"><i class="key is-b">B</i> Volver</button>
+    <button class="route-back" @click="exit()"><i class="key is-b">B</i> {{ t('route.back') }}</button>
     <span class="route-title">{{ entry.title }}</span>
   </header>
 
@@ -15,15 +16,15 @@
     </div>
     <div class="splash-body">
       <h1>{{ view.title ?? entry.title }}</h1>
-      <p :if="view.mode === 'loading'" class="splash-status"><span class="spinner"></span>{{ view.status ?? 'Cargando…' }}</p>
+      <p :if="view.mode === 'loading'" class="splash-status"><span class="spinner"></span>{{ view.status ?? t('route.loading') }}</p>
       <p :if="view.notice" class="splash-notice">{{ view.notice }}</p>
       <p :if="view.mode === 'error'" class="error">{{ view.error }}</p>
-      <button :if="view.mode === 'error'" class="cta" @click="exit()">Volver</button>
+      <button :if="view.mode === 'error'" class="cta" @click="exit()">{{ t('route.back') }}</button>
     </div>
   </section>
 
   <section :if="view.mode === 'install'" class="route-center">
-    <InstallDialog :game="entry" :install @installed="onInstalled" @cancel="exit()" />
+    <InstallDialog :game="entry" :install :l10n @installed="onInstalled" @cancel="exit()" />
   </section>
 
   <section :if="view.mode === 'library'" class="route-library">
@@ -31,7 +32,7 @@
       <img :if="art" :src="art" alt="" />
     </div>
     <p :if="view.notice" class="splash-notice">{{ view.notice }}</p>
-    <RomDrawer :game="entry" :roms :library="romLibrary" :onAction @play="openRom" @close="exit()" />
+    <RomDrawer :game="entry" :roms :library="romLibrary" :onAction :l10n @play="openRom" @close="exit()" />
   </section>
 
   <section id="app" :class.is-hidden="view.mode !== 'playing'"></section>
