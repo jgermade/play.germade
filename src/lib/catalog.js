@@ -190,7 +190,7 @@ export const GAMES = [
     engine: 'blastem', // default core; the console and each game can choose another
     cores: [
       { id: 'blastem', label: 'BlastEm' },
-      { id: 'jgenesis', label: 'jgenesis', available: false },
+      { id: 'jgenesis', label: 'jgenesis', needs: ['webgpu'] },
     ],
     accept: ['.bin', '.gen', '.md', '.smd', '.zip'],
     status: 'ready',
@@ -210,10 +210,10 @@ export const GAMES = [
       es: 'Super Nintendo / Super Famicom. Tu biblioteca de ROMs, agrupada por juego y versión.',
     },
     system: 'snes',
-    engine: 'snes9x', // default core; jgenesis joins when it has the engine app
+    engine: 'snes9x', // default core; the console and each game can choose another
     cores: [
       { id: 'snes9x', label: 'Snes9x' },
-      { id: 'jgenesis', label: 'jgenesis', available: false },
+      { id: 'jgenesis', label: 'jgenesis', needs: ['webgpu'] },
     ],
     accept: ['.sfc', '.smc', '.fig', '.swc', '.zip'],
     status: 'ready',

@@ -61,6 +61,8 @@
   const tileStyle = (b) => `--box-w: ${b.w}px; --box-h: ${b.h}px`
 
   const cores = game.cores ?? [{ id: game.engine, label: game.engine }]
+  // Why a core cannot be chosen: a browser feature it needs, or not there yet.
+  const unavailable = (core) => (core.missing ? t(`drawer.needs.${core.missing}`) : t('drawer.soon'))
   const coreLabel = (id) => cores.find((c) => c.id === id)?.label ?? id
   const initials = (title) => title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   // Golden-angle spread: neighbouring ids still land on clearly different hues.
@@ -225,7 +227,7 @@
                 :aria-checked="core.id === consoleCore ? 'true' : 'false'" :class.is-current="core.id === consoleCore"
                 :disabled="core.available === false" @click="chooseCore(core.id)">
           <svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.9 2.8 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {{ core.label }}<small :if="core.available === false">{{ t('drawer.soon') }}</small>
+          {{ core.label }}<small :if="core.available === false">{{ unavailable(core) }}</small>
         </button>
         <hr />
         <button type="button" role="menuitem" @click="manage()">{{ t('drawer.manageRoms') }}</button>
@@ -236,7 +238,7 @@
       {{ t('drawer.engineLower') }}
       <select :value="consoleCore" @change="setConsoleCore">
         <option :each="core in cores" :key="core.id" :value="core.id" :disabled="core.available === false">
-          {{ core.label }}{{ core.available === false ? ` (${t('drawer.soon')})` : '' }}
+          {{ core.label }}{{ core.available === false ? ` (${unavailable(core)})` : '' }}
         </option>
       </select>
     </label>
