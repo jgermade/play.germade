@@ -125,6 +125,18 @@ export const MESSAGES = {
   'drawer.remove': { en: 'Remove', es: 'Quitar' },
   'drawer.removeHint': { en: 'Removes the ROM; the saves are kept', es: 'Quita la ROM; las partidas se conservan' },
   'drawer.nothingToAdd': { en: 'Nothing to add', es: 'Nada que añadir' },
+  'drawer.loadBios': { en: 'Load BIOS', es: 'Cargar BIOS' },
+  'drawer.biosLoaded': { en: 'BIOS · {file}', es: 'BIOS · {file}' },
+  'drawer.biosReplace': { en: 'The BIOS {file} is in your library. Choose another to replace it.', es: 'La BIOS {file} está en tu biblioteca. Elige otra para sustituirla.' },
+  'drawer.biosNeeded': {
+    en: 'Besides the games, the BIOS {file} is needed: press Load BIOS.',
+    es: 'Además de los juegos, hace falta la BIOS {file}: pulsa Cargar BIOS.',
+  },
+  'drawer.biosAlready': { en: 'The BIOS {file} was already there', es: 'La BIOS {file} ya estaba' },
+  'drawer.notBios': {
+    en: '{name} is not the BIOS: it is the file named {file}',
+    es: '{name} no es la BIOS: es el archivo llamado {file}',
+  },
   'drawer.bios.aes': { en: 'AES BIOS added', es: 'BIOS de AES añadida' },
   'drawer.bios.unibios': { en: 'BIOS added (Universe BIOS in console mode)', es: 'BIOS añadida (Universe BIOS en modo consola)' },
   'drawer.bios.mvs': {

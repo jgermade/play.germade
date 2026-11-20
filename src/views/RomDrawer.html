@@ -111,7 +111,7 @@
   // "Añadir ROMs": rom-manager's add dialog (it says what each file is before adding), or the
   // native picker while the launcher's input cannot be muted (engine-specs before 0.6.0).
   const pickFiles = async () => {
-    if (!library.canOpenAdd()) return $self('input[type=file]')?.click()
+    if (!library.canOpenAdd()) return $self('input.roms-input')?.click()
     if (busy) return
     busy = true
     message = null
@@ -129,6 +129,37 @@
   }
   const onPicked = (event) => {
     addFiles(event.target.files)
+    event.target.value = ''
+  }
+
+  // A system with a BIOS (Neo Geo: neogeo.zip) gets a tile of its own after "Añadir ROMs":
+  // whether the library has it, and a picker for it alone. The BIOS is found by its file
+  // name (rom-manager keeps it as NEOGEO/neogeo.zip), so a file by any other name is refused
+  // here instead of going in as a game.
+  const bios = game.bios ?? null
+  const biosIndex = () => games.length + 1
+  const pickBios = () => { if (!busy) $self('input.bios-input')?.click() }
+  const addBios = async (file) => {
+    if (!file) return
+    if (file.name.toLowerCase() !== bios.file.toLowerCase()) {
+      message = t('drawer.notBios', { name: file.name, file: bios.file })
+      return
+    }
+    busy = true
+    message = null
+    try {
+      const result = await library.importFiles(game.system, [file])
+      message = result.bios ? biosSaid(result.bios)
+        : result.duplicates.length ? t('drawer.biosAlready', { file: bios.file })
+        : said(result)
+    } catch (e) {
+      message = e.message ?? String(e)
+    } finally {
+      busy = false
+    }
+  }
+  const onBiosPicked = (event) => {
+    addBios(event.target.files?.[0])
     event.target.value = ''
   }
   // Only when the pointer leaves the panel itself: moving over its tiles fires dragleave too.
@@ -190,7 +221,7 @@
       else if (action === 'accept' && rows[pickerFocus]) playRow(pickerGame, rows[pickerFocus])
       return
     }
-    const count = games.length + 1 // the "add" tile closes the grid
+    const count = games.length + 1 + (bios ? 1 : 0) // "add" (and the BIOS) close the grid
     const cols = columns()
     if (action === 'back') $emit('close')
     else if (action === 'left') focus = Math.max(0, focus - 1)
@@ -204,7 +235,7 @@
       else focus = Math.min(count - 1, focus + cols)
     }
     else if (action === 'more') openPicker(games[focus])
-    else if (action === 'accept') focus < games.length ? play(games[focus]) : pickFiles()
+    else if (action === 'accept') focus < games.length ? play(games[focus]) : focus === games.length ? pickFiles() : pickBios()
   })
   $destroyed(off)
   // A drawer taller than the screen: the focused ROM is kept in view while the keys are here.
@@ -243,7 +274,8 @@
       </select>
     </label>
     <button class="ghost drawer-manage" @click="manage()">{{ t('drawer.manage') }}</button>
-    <input type="file" multiple hidden :accept="coarse ? '' : (game.accept ?? []).join(',')" @change="onPicked" />
+    <input type="file" multiple hidden class="roms-input" :accept="coarse ? '' : (game.accept ?? []).join(',')" @change="onPicked" />
+    <input :if="bios" type="file" hidden class="bios-input" :accept="coarse ? '' : '.zip'" @change="onBiosPicked" />
   </header>
 
   <ul class="rom-grid">
@@ -266,6 +298,14 @@
         <span class="rom-title">{{ t('drawer.addRoms') }}</span>
       </button>
     </li>
+    <li :if="bios" class="rom" :style="tileStyle(addShape)">
+      <button class="rom-tile is-add is-bios" :class.is-missing="!entry?.bios" :class.is-focused="active !== false && !picker && focus === biosIndex()"
+              :title="entry?.bios ? t('drawer.biosReplace', { file: bios.file }) : t('drawer.biosNeeded', { file: bios.file })"
+              @mouseenter="focus = biosIndex()" @click="pickBios" :disabled="busy">
+        <span class="rom-art">{{ entry?.bios ? '✓' : 'BIOS' }}</span>
+        <span class="rom-title">{{ entry?.bios ? t('drawer.biosLoaded', { file: bios.file }) : t('drawer.loadBios') }}</span>
+      </button>
+    </li>
   </ul>
 
   <p :if="library.moving.running" class="drawer-message">{{ t('drawer.moving') }}</p>
@@ -273,6 +313,7 @@
   <p :elseif="library.moving.error" class="drawer-message">{{ t('drawer.moveFailed', { reason: library.moving.error }) }}</p>
   <p :if="message" class="drawer-message">{{ message }}</p>
   <p :if="!games.length && !message" class="drawer-empty">{{ t('drawer.empty', { title: game.title }) }}</p>
+  <p :if="bios && !entry?.bios && !message" class="drawer-empty is-bios">{{ t('drawer.biosNeeded', { file: bios.file }) }}</p>
   <p :if="games.length" class="drawer-hint"><kbd>Enter</kbd> {{ t('drawer.hintPlay') }} · <kbd>Y</kbd>/<kbd>V</kbd> {{ t('drawer.hintVersions') }} · <kbd>Esc</kbd> {{ t('drawer.hintClose') }}</p>
 
   <div :if="pickerGame" class="versions" role="dialog" :aria-label="t('drawer.versionsOf', { title: pickerGame.title })">
