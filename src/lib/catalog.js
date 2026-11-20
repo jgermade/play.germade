@@ -38,6 +38,22 @@ export const CATEGORIES = [
 
 export const GAMES = [
   {
+    slug: 'celeste',
+    category: 'retro-moderno',
+    kind: 'game',
+    title: 'Celeste',
+    year: 2018,
+    description: {
+      en: 'Celeste on the .NET WebAssembly runtime, with Everest. It comes after the RSDK engines.',
+      es: 'Celeste sobre el runtime .NET WebAssembly, con Everest. Llega tras los motores RSDK.',
+    },
+    engine: 'celeste',
+    status: 'soon',
+    cover: '/assets/covers/celeste_cover.jpg',
+    banner: '/assets/covers/celeste_bg.png',
+    accent: '#be185d',
+  },
+  {
     slug: 'sonic1',
     category: 'retro-moderno',
     kind: 'game',
@@ -92,24 +108,6 @@ export const GAMES = [
     },
   },
   {
-    slug: 'sonicmania',
-    category: 'retro-moderno',
-    kind: 'game',
-    title: 'Sonic Mania',
-    year: 2017,
-    description: {
-      en: 'The RSDKv5U decompilation, with its own menus: saves, character and modes as always, and the Stage Select from the pause menu. You bring the Data.rsdk.',
-      es: 'La decompilación de RSDKv5U, con sus propios menús: partidas, personaje y modos como siempre, y el Stage Select desde la pausa. El Data.rsdk lo aportas tú.',
-    },
-    engine: 'rsdkv5',
-    status: 'ready',
-    cover: '/assets/covers/sonicmania_cover.jpg',
-    accent: '#db2777',
-    install: {
-      data: { file: 'Data.rsdk', accept: ['.rsdk'], label: { en: 'Sonic Mania’s Data.rsdk', es: 'Data.rsdk de Sonic Mania' } },
-    },
-  },
-  {
     slug: 'sonic3air',
     category: 'retro-moderno',
     kind: 'game',
@@ -140,20 +138,22 @@ export const GAMES = [
     accent: '#2563eb',
   },
   {
-    slug: 'celeste',
+    slug: 'sonicmania',
     category: 'retro-moderno',
     kind: 'game',
-    title: 'Celeste',
-    year: 2018,
+    title: 'Sonic Mania',
+    year: 2017,
     description: {
-      en: 'Celeste on the .NET WebAssembly runtime, with Everest. It comes after the RSDK engines.',
-      es: 'Celeste sobre el runtime .NET WebAssembly, con Everest. Llega tras los motores RSDK.',
+      en: 'The RSDKv5U decompilation, with its own menus: saves, character and modes as always, and the Stage Select from the pause menu. You bring the Data.rsdk.',
+      es: 'La decompilación de RSDKv5U, con sus propios menús: partidas, personaje y modos como siempre, y el Stage Select desde la pausa. El Data.rsdk lo aportas tú.',
     },
-    engine: 'celeste',
-    status: 'soon',
-    cover: '/assets/covers/celeste_cover.jpg',
-    banner: '/assets/covers/celeste_bg.png',
-    accent: '#be185d',
+    engine: 'rsdkv5',
+    status: 'ready',
+    cover: '/assets/covers/sonicmania_cover.jpg',
+    accent: '#db2777',
+    install: {
+      data: { file: 'Data.rsdk', accept: ['.rsdk'], label: { en: 'Sonic Mania’s Data.rsdk', es: 'Data.rsdk de Sonic Mania' } },
+    },
   },
   {
     slug: 'neogeo',
